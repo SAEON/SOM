@@ -1,0 +1,37 @@
+.data-table-container {
+    overflow-x: auto; /* Horizontal scrolling for small screens */
+    padding: 20px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9px; /* Adjust to your desired size */
+}
+
+/*.table {*/
+/*    */
+/*}*/
+
+/*.tableHeader {*/
+/*    font-size: 14px; !* Adjust to your desired size *!*/
+/*}*/
+
+
+.data-table th,
+.data-table td {
+    border: 1px solid #09160e;
+    padding: 8px 15px;
+    text-align: left;
+}
+
+.data-table th {
+    background-color: #f7f7f7;
+    font-weight: 500;
+}
+
+.data-table tbody tr:hover {
+    background-color: #f2f2f2;
+}
+
+

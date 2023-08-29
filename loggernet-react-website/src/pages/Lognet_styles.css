@@ -1,0 +1,425 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    line-height: 1.6;
+    background-color: #f4f4f4;
+    color: #333;
+    padding: 10px; /* Reduced padding */
+}
+
+/* Lognet_styles.css */
+.non-clickable {
+    background-color: #f0f0f0;
+    cursor: default;
+}
+.table-row-clickable {
+    cursor: pointer;
+}
+
+.table-row-disabled {
+    color: #cccccc; /* Grey color */
+}
+
+
+
+h1 {
+    font-size: 1.8em; /* Reduced font size */
+    font-weight: bold;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 5px; /* Reduced margin */
+}
+
+.info-button {
+    position: absolute;
+    top: 50%;
+    right: 10px; /* Reduced spacing */
+    transform: translateY(-50%);
+    color: #fff;
+    font-size: 1.2em; /* Reduced font size */
+    cursor: pointer;
+}
+
+.buttons-container {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px; /* Reduced margin */
+    background-color: #f4f4f4;
+    padding: 6px; /* Reduced padding */
+}
+
+#names-table {
+    width: 100%;
+    margin-bottom: 10px; /* Reduced margin */
+    border-collapse: collapse;
+}
+
+#names-table th,
+#names-table td {
+    border: 1px solid #ddd;
+    padding: 10px; /* Reduced padding */
+    text-align: left;
+}
+
+#names-table th {
+    background-color: #444;
+    color: #fff;
+}
+
+#names-table tr:nth-child(even) {
+    background-color: #f4f4f4;
+}
+
+#names-table tr:hover {
+    background-color: #ddd;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+th,
+td {
+    border: 1px solid #ccc;
+    text-align: left;
+    padding: 10px; /* Reduced padding */
+}
+
+.progress-bar {
+    width: 50px;
+    height: 8px; /* Reduced height */
+}
+
+.progress-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.progress-wrapper span {
+    margin-left: 3px; /* Reduced spacing */
+}
+
+.timestamp-text {
+    display: inline-block;
+    padding: 2px 6px; /* Reduced padding */
+    border-radius: 3px;
+}
+
+.download-btn,
+.get-data-btn,
+.download-data-btn,
+.map-view-button,
+.toggle-view-button,
+.custom-link-button{
+    background-color: #ccc;
+    border: none;
+    color: #333;
+    padding: 8px 12px; /* Reduced padding */
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 12px; /* Reduced font size */
+    margin: 4px 2px; /* Reduced margin */
+    cursor: pointer;
+    border-radius: 12px;
+}
+.view-data-btn {
+    background-color: #ccc;
+    border: none;
+    color: #333;
+    padding: 8px 12px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 12px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 12px;
+}
+.view-data-btn i {
+    margin-right: 4px; /* Optional: space between the icon and text */
+}
+
+.back-btn {
+    background-color: #E52400; /* Updated background color */
+    border: none;
+    color: #fff; /* Updated text color */
+    padding: 8px 12px; /* Reduced padding */
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 12px; /* Reduced font size */
+    margin: 4px 2px; /* Reduced margin */
+    cursor: pointer;
+    border-radius: 12px;
+}
+
+.left-button {
+    order: 1;
+}
+
+.right-button {
+    order: 2;
+}
+/* Added styles for checkbox */
+#layer-checkbox-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    margin-left: 20px;
+    cursor: pointer;
+}
+
+.checkbox-color-box {
+    width: 20px;
+    height: 20px;
+    margin-right: -1px;
+    border: 1px solid #999;
+}
+
+
+
+#layer-checkbox-container {
+    display: flex;
+    align-items: center;
+    margin-left: 20px;
+    cursor: pointer;
+    height: 30px; /* You can adjust this */
+}
+
+
+
+#layer-checkbox-container label {
+    display: inline-block;
+    vertical-align: text-bottom;
+    margin-left: 0px;
+    height: 20px;
+}
+
+.buttons-container {
+    display: flex;
+    align-items: center; /* Added to vertically align the children */
+    justify-content: space-between;
+    margin-bottom: 10px;
+    background-color: #f4f4f4;
+    padding: 6px;
+}
+#layer-dropdown-container {
+    display: none;
+    margin-top: 10px;
+    position: absolute;
+    right: 10px;
+}
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-toggle {
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #ccc;
+    padding: 8px;
+    cursor: pointer;
+}
+
+.dropdown-toggle:hover {
+    background-color: #f5f5f5;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: auto;
+    right: 0;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    padding: 8px;
+    display: none;
+    z-index: 9999;
+    min-width: 100%;
+    white-space: nowrap;
+    overflow: auto;
+    max-height: 200px;
+    transform-origin: top right;
+}
+
+.dropdown-menu.show {
+    display: block;
+}
+
+.dropdown-menu label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.dropdown-menu input[type="checkbox"] {
+    margin-right: 4px;
+}
+.dropdown-menu {
+    display: none;
+}
+.dropdown-menu.active {
+    display: block;
+}
+
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    margin-left: 10px;
+}
+.layer-item {
+    display: flex;
+    align-items: center;
+}
+
+.layer-item input[type="range"] {
+    margin-left: auto;
+    width: 100px;
+}
+#timeSlider {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 10px;
+    border-radius: 5px;
+}
+#overlay {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    /*top: 0;*/
+    /*left: 0;*/
+    background-color: rgba(0, 0, 0, 0);
+    display: none;
+    z-index: 2;
+}
+
+#realign {
+    position: absolute;
+    top: 20px;
+    right: 10px;
+    background-color: transparent;
+    color: #FFF;
+    font-weight: bold;
+    font-size: 1.1em;
+    opacity: 1;
+    border: none;
+}
+.hover-message-container {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    border-radius: 5px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+    white-space: nowrap;
+}
+
+#layer-checkbox-container {
+    position: relative;
+}
+
+label:hover + .hover-message-container {
+    opacity: 1;
+}
+/* Styles for the Popup */
+/* Styles for the background overlay */
+#popup-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    max-width: 1000px;
+    background-color: white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    border-radius: 10px;
+    z-index: 1001; /* Make sure the popup is above the overlay */
+    display: none; /* Hide by default */
+}
+
+#popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000; /* Below the popup */
+    display: none; /* Hide by default */
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+}
+
+
+
+/* Styles for the chart canvas */
+#chart-canvas {
+    width: 400px;
+    height: 300px;
+}
+
+
+
+
+
+.tab {
+    padding: 10px;
+    cursor: pointer;
+    display: inline-block;
+    background-color: #f1f1f1;
+    border: none;
+    text-align: center;
+}
+
+.tab:hover {
+    background-color: #ddd;
+}
+
+.tab-selected {
+    background-color: #ccc;
+}
+
+.chart-container {
+    display: none;
+    width: 100%;
+    height: 100%;
+}
+
+.view-data-button {
+    margin-left: 10px;
+    padding: 5px 10px;
+    background-color: #ccc;
+    color: black;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+
