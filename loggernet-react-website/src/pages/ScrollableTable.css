@@ -135,6 +135,69 @@ th {
 .data-table thead tr:nth-child(-n+3) {
     font-weight: bold;
 }
+.site-name-button {
+    background-color: #b9b9bf;  /* Blue background color */
+    color: #161616;                /* White text color */
+    font-weight: bold;
+    border: none;               /* No border */
+    border-radius: 5px;         /* Rounded corners */
+    padding: 10px 15px;         /* Padding for top/bottom and left/right respectively */
+    font-size: 16px;            /* Font size */
+    cursor: pointer;            /* Pointer cursor on hover */
+    transition: background-color 0.3s ease; /* Smooth transition for background color */
+}
+
+.site-name-button:hover {
+    background-color: #2a5815; /* Darker green on hover */
+    color: #ffffff;                /* White text color */
+    font-weight: bold;
+}
+
+.view-data-button {
+    background-color: #b9b9bf;  /* Blue background color */
+    color: #161616;                /* White text color */
+    border: none;
+    border-radius: 5px;
+    padding: 7px 10px;
+    font-size: 14px;
+    margin-right: 5px;         /* Space between buttons */
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.view-data-button:hover {
+    background-color: #1e7e34; /* Darker green on hover */
+    color: #ffffff;
+}
+
+/*.close-button {*/
+/*    !*background: transparent;*!*/
+/*    border: none;*/
+/*    cursor: pointer;*/
+/*    font-size: 24px;*/
+/*}*/
+
+.modal-background {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black background */
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: #FFF;
+    padding: 20px;
+    border-radius: 10px;
+    max-width: 90%;
+    max-height: 90%;
+    overflow-y: auto;
+}
 
 
 

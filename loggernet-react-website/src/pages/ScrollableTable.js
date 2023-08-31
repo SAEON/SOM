@@ -1,52 +1,127 @@
 import React, { useState } from 'react';
 import './ScrollableTable.css';
-import Vasi_science_centre_aws_daily from './vasi_science_centre_aws_daily';
-import Vasi_science_centre_aws_hourly from './VasiScienceCentreAWSHourly';
-import Vasi_science_centre_aws_five_minute from './VasiScienceCentreAWSFiveMin';
+import GenericData from './GenericData';
+import BattVPlot from './BattVPlot';
 
 const ScrollableTable = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState(null);
+    const [activeSite, setActiveSite] = useState(null);
 
     const sites = [
         {
             name: "CR1000 Besemfontein",
-            intervals: ["Daily", "Hourly", "30 mins", "5 mins"]
+            intervals: ["Public","Daily", "Hourly", "30 mins", "5 mins"]
         },
         {
             name: "CR1000 Cath Peak High Alt AWS",
-            intervals: ["Daily", "Hourly", "5 mins"]
+            intervals: ["Public","Daily", "Hourly", "5 mins"]
+        },
+        {
+            name: "CR1000 Cath Peak Mikes Pass AWS",
+            intervals: ["Public","Daily", "Hourly", "5 mins"]
+        },
+        {
+            name: "CR1000 Constantiaberg",
+            intervals: ["Public","Table 1", "Table 2", "Table 3", "Table 4"]
+        },
+        {
+            name: "CR1000 Dwarsberg Jonkershoek",
+            intervals: ["Public","Table 1", "Table 2", "Table 3", "Table 4"]
         },
         {
             name: "CR1000 Vasi Science Centre AWS",
-            intervals: ["Daily", "Hourly", "5 mins"]
+            intervals: ["Public","Daily", "Hourly", "5 mins"]
         }
     ];
 
-    const getModalContentComponent = (siteName, interval) => {
-        if (siteName === "CR1000 Vasi Science Centre AWS") {
-            if (interval === "Daily") return <Vasi_science_centre_aws_daily />;
-            if (interval === "Hourly") return <Vasi_science_centre_aws_hourly />;
-            if (interval === "5 mins") return <Vasi_science_centre_aws_five_minute />;
+    const generateEndpoints = (baseURL, intervals) => {
+        const obj = {};
+
+        for (let interval of intervals) {
+            let lowercaseInterval = interval.toLowerCase().replace(' ', '-');
+            let capitalizedInterval;
+
+            switch (interval) {
+                case "five_min":
+                    capitalizedInterval = "5 mins";
+                    break;
+                case "thirty_min":
+                    capitalizedInterval = "30 mins";
+                    break;
+                case "table1":
+                    capitalizedInterval = "Table 1";
+                    break;
+                case "table2":
+                    capitalizedInterval = "Table 2";
+                    break;
+                case "table3":
+                    capitalizedInterval = "Table 3";
+                    break;
+                case "table4":
+                    capitalizedInterval = "Table 4";
+                    break;
+                default:
+                    capitalizedInterval = interval.charAt(0).toUpperCase() + interval.slice(1);
+            }
+
+            obj[capitalizedInterval] = {
+                data: `${baseURL}/${lowercaseInterval}-data`,
+                metadata: `${baseURL}/${lowercaseInterval}-metadata`,
+                count: `${baseURL}/${lowercaseInterval}-count`,
+                csv: `${baseURL}/download-${lowercaseInterval}-csv`
+            }
+
+            if (interval === "public") {
+                obj[capitalizedInterval]['battv'] = `${baseURL}/latest-day-battv`;
+            }
+// new endpoint
+            if (interval === "table2") {
+                obj[capitalizedInterval]['battv'] = `${baseURL}/table2-battv`;
+            }
+
+
         }
 
-        if (siteName === "CR1000 Besemfontein") {
-            //if (interval === "Daily") return <Vasi_science_centre_aws_daily />;
-            // Add other intervals for this site as needed
-        }
-        if (siteName === " CR1000 Cath Peak_High Alt AWS") {
-            //if (interval === "Daily") return <Vasi_science_centre_aws_daily />;
-            // Add other intervals for this site as needed
-        }
+        return obj;
+    }
 
+    const intervals = ["public", "daily", "hourly", "five_min"];
+    const intervals2 = ["public","daily", "hourly", "thirty_min", "five_min"];
+    const constantiabergintervals = ["public","table1", "table2", "table3", "table4"];
+    const siteEndpoints = {
 
+        "CR1000 Besemfontein": generateEndpoints('/api/besemfontein', intervals2),
+        "CR1000 Cath Peak High Alt AWS": generateEndpoints('/api/cr1000-cath-peak-high-alt-aws', intervals),
+        "CR1000 Vasi Science Centre AWS": generateEndpoints('/api/vasi-science-centre-aws', intervals),
+        "CR1000 Cath Peak Mikes Pass AWS": generateEndpoints('/api/cr1000-cath-peak-mikes-pass-aws', intervals),
+        "CR1000 Constantiaberg": generateEndpoints('/api/constantiaberg', constantiabergintervals),
+        "CR1000 Dwarsberg Jonkershoek": generateEndpoints('/api/cr1000-dwarsberg-jonkershoek', constantiabergintervals),
 
-        return null;
     };
 
-    const handleModalOpen = (siteName, interval) => {
+    const handleModalOpen = (siteName, interval, contentType) => {
         setIsModalOpen(true);
-        const contentComponent = getModalContentComponent(siteName, interval);
+        const endpoints = siteEndpoints[siteName][interval];
+        let contentComponent;
+        if (contentType === 'battv' || contentType === 'constantiaberg_table2_battv') {
+            contentComponent = (
+                <BattVPlot dataEndpoint={endpoints.battv} />
+            );
+        }
+
+
+
+        else {
+            contentComponent = (
+                <GenericData
+                    dataEndpoint={endpoints.data}
+                    metadataEndpoint={endpoints.metadata}
+                    countEndpoint={endpoints.count}
+                    csvDownloadEndpoint={endpoints.csv}
+                />
+            );
+        }
         setModalContent(contentComponent);
     };
 
@@ -69,32 +144,36 @@ const ScrollableTable = () => {
             )}
 
             <table>
-                <thead>
-                <tr>
-                    <th>Site</th>
-                    <th>Daily</th>
-                    <th>Hourly</th>
-                    <th>30 mins</th>
-                    <th>5 mins</th>
-                </tr>
-                </thead>
                 <tbody>
                 {sites.map((site) => (
-                    <tr key={site.name}>
-                        <td>{site.name}</td>
-                        {["Daily", "Hourly", "30 mins", "5 mins"].map(interval => (
-                            site.intervals.includes(interval) ? (
-                                <td key={interval}>
-                                    <button className="view-data-button" onClick={() => handleModalOpen(site.name, interval)}>
-                                        <i className="fa fa-eye" aria-hidden="true" style={{ marginRight: "5px" }}></i>
-                                        View data
+                    <React.Fragment key={site.name}>
+                        <tr>
+                            <td colSpan={6}>
+                                <button className="site-name-button" onClick={() => setActiveSite(activeSite === site.name ? null : site.name)}>
+                                    {site.name}
+                                </button>
+                            </td>
+                        </tr>
+                        {activeSite === site.name && site.intervals.map(interval => (
+                            <tr key={interval}>
+                                <td colSpan={6}>
+                                    <button className="view-data-button" onClick={() => handleModalOpen(site.name, interval, 'view')}>
+                                        {interval} Data
                                     </button>
+                                    {interval === "Public" && (
+                                        <button className="view-data-button" onClick={() => handleModalOpen(site.name, interval, 'battv')}>
+                                            Battv
+                                        </button>
+                                    )}
+                                    {((site.name === "CR1000 Constantiaberg" && interval === "Table 2")) && (
+                                        <button className="view-data-button" onClick={() => handleModalOpen(site.name, interval, 'constantiaberg_table2_battv')}>
+                                            Battv
+                                        </button>
+                                    )}
                                 </td>
-                            ) : (
-                                <td key={interval}></td>  // Render empty cell if interval not present for the site
-                            )
+                            </tr>
                         ))}
-                    </tr>
+                    </React.Fragment>
                 ))}
                 </tbody>
             </table>

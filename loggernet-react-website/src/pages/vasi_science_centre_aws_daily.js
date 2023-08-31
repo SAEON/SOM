@@ -44,12 +44,6 @@ function Vasi_science_centre_aws_daily() {
     useEffect(() => {
         // Fetch the row count immediately when the component mounts
         fetchRowCount();
-
-        // // Set up an interval to refresh the row count every 10 seconds
-        // const timer = setInterval(fetchRowCount, 10000);
-        //
-        // // Clear the interval when the component is unmounted
-        // return () => clearInterval(timer);
     }, []);
 
     const displayedData = showRecent ? data.slice(0, 365) : data;
@@ -75,10 +69,6 @@ function Vasi_science_centre_aws_daily() {
                     Download CSV
                 </button>
             </div>
-
-
-
-
             <table className="data-table">
                 <thead>
                 <tr className="dark-header">
