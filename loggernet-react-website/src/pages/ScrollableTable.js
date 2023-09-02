@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import './ScrollableTable.css';
 import GenericData from './GenericData';
 import BattVPlot from './BattVPlot';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
+import { faTable, faChartLine } from '@fortawesome/free-solid-svg-icons';
+
 
 const ScrollableTable = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -151,24 +155,30 @@ const ScrollableTable = () => {
                             <td colSpan={6}>
                                 <button className="site-name-button" onClick={() => setActiveSite(activeSite === site.name ? null : site.name)}>
                                     {site.name}
+                                    <FontAwesomeIcon icon={activeSite === site.name ? faChevronUp : faChevronDown} />
                                 </button>
+
                             </td>
                         </tr>
                         {activeSite === site.name && site.intervals.map(interval => (
                             <tr key={interval}>
                                 <td colSpan={6}>
                                     <button className="view-data-button" onClick={() => handleModalOpen(site.name, interval, 'view')}>
-                                        {interval} Data
+                                        <FontAwesomeIcon icon={faTable} /> {interval} Data
                                     </button>
+
+
                                     {interval === "Public" && (
                                         <button className="view-data-button" onClick={() => handleModalOpen(site.name, interval, 'battv')}>
-                                            Battv
+                                            <FontAwesomeIcon icon={faChartLine} /> Battv
                                         </button>
+
                                     )}
                                     {((site.name === "CR1000 Constantiaberg" && interval === "Table 2")) && (
                                         <button className="view-data-button" onClick={() => handleModalOpen(site.name, interval, 'constantiaberg_table2_battv')}>
-                                            Battv
+                                            <FontAwesomeIcon icon={faChartLine} /> Battv
                                         </button>
+
                                     )}
                                 </td>
                             </tr>

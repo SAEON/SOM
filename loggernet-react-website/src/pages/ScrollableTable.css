@@ -19,20 +19,25 @@ th {
     background-color: #f2f2f2;
 }
 
+
 .view-data-button {
-    background-color: #ccc;
-    color: black;
+    background-color: #a69e89;  /* Blue background color */
+    color: #161616;                /* White text color */
     border: none;
-    padding: 5px 10px;
-    cursor: pointer;
     border-radius: 5px;
-    font-size: 0.9em;
-    transition: background-color 0.3s;
+    padding: 7px 10px;
+    font-size: 14px;
+    margin-right: 5px;         /* Space between buttons */
+    cursor: pointer;
+    transition: background-color 0.3s ease;
 }
 
 .view-data-button:hover {
-    background-color: #45a049;
+    background-color: #2a5915; /* Darker blue on hover */
+    color: #ffffff;
 }
+
+
 .modal-background {
     position: fixed;
     top: 0;
@@ -54,9 +59,6 @@ th {
     position: relative;
 }
 
-/* ... existing styles ... */
-
-/* ... other styles ... */
 
 .close-button {
     position: absolute;
@@ -78,12 +80,6 @@ th {
 .close-button:hover {
     background-color: #d32f2f; /* Darker red on hover */
 }
-
-/* ... existing styles ... */
-
-
-
-
 
 
 .download-csv-button {
@@ -153,30 +149,6 @@ th {
     font-weight: bold;
 }
 
-.view-data-button {
-    background-color: #b9b9bf;  /* Blue background color */
-    color: #161616;                /* White text color */
-    border: none;
-    border-radius: 5px;
-    padding: 7px 10px;
-    font-size: 14px;
-    margin-right: 5px;         /* Space between buttons */
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-.view-data-button:hover {
-    background-color: #1e7e34; /* Darker green on hover */
-    color: #ffffff;
-}
-
-/*.close-button {*/
-/*    !*background: transparent;*!*/
-/*    border: none;*/
-/*    cursor: pointer;*/
-/*    font-size: 24px;*/
-/*}*/
-
 .modal-background {
     display: flex;
     justify-content: center;
@@ -198,7 +170,25 @@ th {
     max-height: 90%;
     overflow-y: auto;
 }
+.styled-button {
+    background-color: #b9b9bf;  /* Blue background color */
+    color: #161616;                /* White text color */
+    /*font-weight: bold;*/
+    border: none;
+    cursor: pointer;
+    margin-left: 10px;
+    padding: 6px 12px;
+    font-size: 10px;
+    border: none;
+    border-radius: 15px;
+    color: white;
+    background-color: #94949a;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
 
-
-
-
+.styled-button:hover {
+    background-color: #2a5815; /* Darker green on hover */
+    color: #ffffff;                /* White text color */
+    font-weight: bold;
+}
