@@ -19,7 +19,7 @@ const BattVPlot = ({ dataEndpoint }) => {
     // const labels = data.map(entry => new Date(entry.time).toLocaleString());  // Convert time to a readable format
     const labels = data.map(entry => moment(entry.time).tz('UTC').format('YYYY-MM-DD HH:mm:ss'));
 
-    const battvValues = data.map(entry => entry.battv || entry.battv_min);
+    const battvValues = data.map(entry => entry.battv || entry.battv_min || entry.batt_volt || entry.batt_volt_avg);
 
     // Prepare the chart data and options
     const chartData = {

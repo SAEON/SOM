@@ -51,18 +51,19 @@ def download_saeon_data(url):
 #   # Construct a DataFrame from the data entries, using the column names
     df = pd.DataFrame(data_entries, columns=column_names)
 #   print(df)
-    column_mapping = {name: name.lower().replace(' ', '_') for name in column_names}
+    #column_mapping = {name: name.lower().replace(' ', '_') for name in column_names}
+    column_mapping = {name: name.lower().replace(' ', '_').replace('(', '_').replace(')', '_') for name in column_names}
     return df, column_mapping
 
 # Set parameters
-url = 'https://lognet.saeon.ac.za/?command=dataquery&uri=Server:CR1000_Constantiaberg.Table4&format=json&mode=most-recent&p1=2800'
+url = 'https://lognet.saeon.ac.za/?command=dataquery&uri=Server:CR300_Cath Peak_Research Centre.Daily&format=json&mode=most-recent&p1=2800'
 dbname = 'loggernet'
 user = 'saeon'
 password = 'jordan'
 host = 'localhost'
 port = '5432'
-schema_name = 'constantiaberg'
-table_name = 'table4'
+schema_name = 'cr300_cath_peak_research_centre'
+table_name = 'daily'
 
 ## Download data and get column mapping
 data, column_mapping = download_saeon_data(url)

@@ -30,7 +30,7 @@ with SSHTunnelForwarder(
 ) as tunnel:
 
     # Read the CSV file into a pandas DataFrame
-    csv_file = "/Users/privateprivate/Downloads/CR1000 - Vasi_Science Centre AWS_Five_mins.dat"
+    csv_file = "/Users/privateprivate/Downloads/EFTEON_LowveldWitsRural_AWS_daily_checked.csv"
     df = pd.read_csv(csv_file)
     
     # Remove the 'RECORD' column
@@ -40,8 +40,8 @@ with SSHTunnelForwarder(
 
     # Create a connection to the PostgreSQL database
     with psycopg2.connect(dbname=db_name, user=db_user, password=db_password, host='localhost', port=local_port) as conn:
-        table_name = 'five_min'
-        schema_name = 'cr1000_vasi_science_centre_aws'
+        table_name = 'daily'
+        schema_name = 'efteon_lowveldwitsrural_aws'
         columns = ", ".join(df.columns)
         values_placeholder = ", ".join(["%s"] * len(df.columns))
         

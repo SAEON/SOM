@@ -58,12 +58,16 @@ function DataTable({ data, metaData }) {
 function DataRow({ row }) {
     return (
         <tr>
-            {Object.values(row).map((value, idx) => (
-                <td key={idx}>{value}</td>
-            ))}
+            {Object.entries(row).map(([key, value], idx) => {
+                if (key === 'time') { // Assuming 'time' is the field with the date
+                    value = value.replace('Z', ''); // Remove 'Z'
+                }
+                return <td key={idx}>{value}</td>;
+            })}
         </tr>
     );
 }
+
 function toPostgreSQLColumnName(userSelectedColumn) {
     // Convert to lowercase and replace spaces with underscores
     return userSelectedColumn.toLowerCase().replace(/ /g, '_');
@@ -161,11 +165,18 @@ function GenericData({
 
     const handleDownload = () => {
         let downloadURL = csvDownloadEndpoint;
+
         if (startDate && endDate) {
-            downloadURL += `?startDate=${startDate}&endDate=${endDate}`;
+            // Format the startDate and endDate to remove the 'Z'
+            const formattedStartDate = startDate.replace('Z', '');
+            const formattedEndDate = endDate.replace('Z', '');
+
+            downloadURL += `?startDate=${formattedStartDate}&endDate=${formattedEndDate}`;
         }
+
         window.location.href = downloadURL;
     };
+
 
 
 
@@ -223,14 +234,16 @@ function GenericData({
             xAxis: {
                 type: 'category',
                 data: plotData.map(d => {
-                    let dateObj = new Date(d.time);
-                    return isNaN(dateObj.getTime()) ? d.time : dateObj.toLocaleString();
+                    let dateStr = d.time.replace('Z', ''); // Remove 'Z' from the date string
+                    let dateObj = new Date(dateStr);
+                    return isNaN(dateObj.getTime()) ? dateStr : dateObj.toLocaleString();
                 }),
                 inverse: true,
                 axisLabel: {
                     rotate: 45
                 }
             },
+
             yAxis: {
                 type: 'value',
                 min: minYValue,

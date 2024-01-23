@@ -1,3 +1,7 @@
+#!/Users/privateprivate/SARVA_ws/bin/python
+
+#!/Users/privateprivate/SARVA_ws/bin/python
+
 import psycopg2
 import requests
 import pandas as pd
@@ -55,16 +59,18 @@ def download_saeon_data(url):
     return df, column_mapping
 
 # Set parameters
-url = 'https://lognet.saeon.ac.za/?command=dataquery&uri=Server:CR1000_Constantiaberg.Table4&format=json&mode=most-recent&p1=2800'
+url = 'https://lognet.saeon.ac.za/?command=dataquery&uri=Server:CR1000_Tierberg.Table1&format=json&mode=most-recent&p1=2800'
 dbname = 'loggernet'
 user = 'saeon'
 password = 'jordan'
 host = 'localhost'
 port = '5432'
-schema_name = 'constantiaberg'
-table_name = 'table4'
+schema_name = 'cr1000_tierberg'
+table_name = 'table1'
 
 ## Download data and get column mapping
 data, column_mapping = download_saeon_data(url)
-# Insert data into the database
+
+#
+## Insert data into the database
 insert_data_from_dataframe(dbname, user, password, host, port, table_name, data, schema_name, column_mapping)

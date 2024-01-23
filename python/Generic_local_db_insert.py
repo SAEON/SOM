@@ -1,8 +1,5 @@
 #!/Users/privateprivate/SARVA_ws/bin/python
 
-#!/Users/privateprivate/SARVA_ws/bin/python
-
-
 import pandas as pd
 from sshtunnel import SSHTunnelForwarder
 import psycopg2
@@ -35,30 +32,30 @@ with SSHTunnelForwarder(
     # Read the CSV file into a pandas DataFrame
     csv_file = "/Users/privateprivate/Downloads/drive-download-20230831T064204Z-001/CR1000_Mike_s Pass_Cathedral Peak_Daily.dat"
     df = pd.read_csv(csv_file)
-    
+
     # Remove the 'RECORD' column
     df = df.drop(['RECORD'], axis=1)
 #   df = df.drop(['BattV_Min'], axis=1)
 
     # Map the columns to the SQL format
     df = df.rename(columns=column_mapping)
-    
+
     # Convert the column names to lowercase
     df.columns = [col.lower() for col in df.columns]
-    
+
     # Create a connection to the PostgreSQL database
     with psycopg2.connect(dbname=db_name, user=db_user, password=db_password, host='localhost', port=local_port) as conn:
         table_name = 'daily'
         schema_name = 'cr1000_cath_peak_mikes_pass_aws'
         columns = ", ".join(df.columns)
         values_placeholder = ", ".join(["%s"] * len(df.columns))
-        
+
         sql = f"""
             INSERT INTO {schema_name}.{table_name} ({columns})
             VALUES ({values_placeholder})
             ON CONFLICT (time) DO NOTHING
         """
-        
+
         with conn.cursor() as cursor:
             for index, row in df.iterrows():
                 try:
@@ -68,8 +65,7 @@ with SSHTunnelForwarder(
                         print(f"Committed up to row {index + 1}")
                 except Exception as e:
                     print(f"Error at row {index + 1}: {e}")
-                    
+
             # Commit any remaining rows if the total isn't a multiple of 1000
             conn.commit()
-            
-            
+

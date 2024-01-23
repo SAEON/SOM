@@ -57,7 +57,8 @@ data_str = """
                 "settable": false
             },
             {
-                "name": "LWMDry_2_Tot",
+                "name": "LWMDry_2
+                (Tot)",
                 "type": "xsd:float",
                 "units": "Minutes",
                 "process": "Tot",
@@ -79,7 +80,9 @@ data_str = """
             }
         ]
 """
-
+        
+    
+LWMWet_2_Tot,LWMWet_2_Tot
 # Convert 'false' and 'true' to 'False' and 'True'
 data_str = data_str.replace("false", "False").replace("true", "True")
 
