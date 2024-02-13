@@ -1,6 +1,7 @@
 .data-table-container {
     overflow-x: auto; /* Horizontal scrolling for small screens */
     padding: 20px;
+    width: 100%;
 }
 
 .data-table {
@@ -60,7 +61,7 @@
     background-color: #fff;
     padding: 20px;
     border-radius: 8px;
-    width: 80%;
+    width: 100%;
     max-width: 800px;
 }
 
@@ -72,4 +73,17 @@
     background: none;
     font-size: 1.5rem;
     cursor: pointer;
+}
+@media (max-width: 480px) {
+    .data-table {
+        font-size: 8px; /* Even smaller font size for very small screens */
+    }
+
+    .data-table td, .data-table th {
+        padding: 4px 8px; /* Reduce padding to fit more content */
+    }
+
+    .modal-content {
+        padding: 10px; /* Reduce padding to allow more space for the table */
+    }
 }

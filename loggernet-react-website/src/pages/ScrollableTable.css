@@ -1,8 +1,29 @@
+/* General Styles for Application */
+
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 10px;
+    margin-bottom: 20px; /* Consistent margin for all containers */
+}
+
+/* Container Styles */
+.button-container,
+.date-picker-container,
+.left-aligned-buttons,
+.right-aligned-button {
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px; /* Consistent margin */
+}
+
+/* Styles for Scrollable Table Container */
 .scrollable-table-container {
     overflow-x: auto;
-    max-width: 100%;
     border: 1px solid #ccc;
-    padding: 10px;
 }
 
 table {
@@ -17,28 +38,64 @@ th, td {
 }
 
 th {
-    background-color: #f2f2f2;
+    background-color: #004f6e; /* SAEON Navbar color */
+    color: white;
 }
 
+/* General Button Styles */
 
-.view-data-button {
-    background-color: #a69e89;  /* Blue background color */
-    color: #161616;                /* White text color */
+
+.button, .view-data-button, .download-csv-button,
+.special-action-button, .styled-button {
+    background-color: #003a4b; /* SAEON Navbar color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 7px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin: 5px 5px 0 0; /* Corrected margins */
+}
+ .site-name-button {
+    background-color: #003a4b; /* SAEON Navbar color */
+    color: white;
     border: none;
     border-radius: 5px;
     padding: 7px 10px;
     font-size: 14px;
-    margin-right: 5px;         /* Space between buttons */
     cursor: pointer;
     transition: background-color 0.3s ease;
+    margin: 5px 5px 0 0; /* Corrected margins */
 }
 
-.view-data-button:hover {
-    background-color: #2a5915; /* Darker blue on hover */
-    color: #ffffff;
+/* SAEON Theme Buttons */
+.button, .view-data-button, .download-csv-button,
+.special-action-button, .styled-button {
+    background-color: #e0e0e0; /* SAEON Navbar color */
+    color: black;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    border: 0.5px solid black;
+}
+
+/* Specific Style for Site Name Button */
+.site-name-button {
+    background-color: #afaaa3; /* Softer shade of SAEON blue */
+    color: black;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    border: 1px solid black;
 }
 
 
+/* Hover Effects for All Buttons */
+.button:hover, .view-data-button:hover, .download-csv-button:hover,
+.special-action-button:hover, .styled-button:hover,
+.site-name-button:hover {
+    background-color: #3768af; /* Darker green on hover */
+    color: white;
+}
+
+/* Modal Styles */
 .modal-background {
     position: fixed;
     top: 0;
@@ -54,285 +111,75 @@ th {
 .modal-content {
     background-color: #fff;
     padding: 20px;
+    border-radius: 5px;
     width: 80%;
     height: 80%;
     overflow-y: auto;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* More pronounced shadow for modals */
+}
+
+.dropdown-container {
     position: relative;
+    width: 100px; /* Example width, adjust as needed */
 }
 
-
-.close-button {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: #424242; /* Red background */
-    border: none;
-    border-radius: 50%; /* Rounded button */
-    color: white; /* White text color */
-    font-size: 20px; /* Button size */
-    line-height: 24px; /* Align icon vertically in the center */
-    width: 30px;
-    height: 30px;
-    text-align: center;
-    cursor: pointer;
-    transition: background-color 0.3s; /* Smooth transition */
-}
-
-.close-button:hover {
-    background-color: #d32f2f; /* Darker red on hover */
-}
-
-
-.download-csv-button {
-    position: absolute;
-    /*top: 10px; !* or wherever vertically you want it *!*/
-    right: 100px; /* distance from the right edge of the container */
-    z-index: 1000; /* to ensure it stays on top of other elements */
-    padding: 10px 20px;
-    background-color: #424242; /* Red background */
-    border: none;
-    border-radius: 5px;
+.dropdown-button {
+    background-color: #e0e0e0; /* SAEON Navbar color */
     color: white;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.3s, transform 0.3s; /* For smooth color change and scale effect */
-
-    /* Add a subtle shadow for depth */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.download-csv-button:hover {
-    background-color: #2a5915; /* Darker blue on hover */
-    transform: scale(1.05); /* Slightly enlarge the button when hovering */
-}
-
-.download-csv-button:active {
-    transform: scale(0.95); /* Slightly reduce the button size when clicked */
-}
-.controls-container {
-    display: flex; /* Use flexbox to line items side by side */
-    justify-content: space-between; /* Put maximum space between items */
-    align-items: center; /* Vertically center align items */
-    margin-bottom: 20px; /* Add some space below the controls */
-}
-
-.checkbox-container {
-    display: flex;
-    align-items: center;
-}
-.dark-header {
-    background-color: #ff2300; /* Choose whatever color you prefer */
-    color: #09160e; /* Assuming you want the text in those headers white, if the background is dark */
-    font-weight: bold;
-}
-.dark-header td {
-    background-color: #ff2300; /* Choose whatever color you prefer */
-}
-
-.data-table thead tr:nth-child(-n+3) {
-    font-weight: bold;
-}
-.site-name-button {
-    background-color: #b9b9bf;  /* Blue background color */
-    color: #161616;                /* White text color */
-    font-weight: bold;
-    border: none;               /* No border */
-    border-radius: 5px;         /* Rounded corners */
-    padding: 10px 15px;         /* Padding for top/bottom and left/right respectively */
-    font-size: 16px;            /* Font size */
-    cursor: pointer;            /* Pointer cursor on hover */
-    transition: background-color 0.3s ease; /* Smooth transition for background color */
-}
-
-.site-name-button:hover {
-    background-color: #2a5815; /* Darker green on hover */
-    color: #ffffff;                /* White text color */
-    font-weight: bold;
-}
-
-.modal-background {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black background */
-    z-index: 1000;
-}
-
-.modal-content {
-    background-color: #FFF;
-    padding: 20px;
-    border-radius: 10px;
-    max-width: 90%;
-    max-height: 90%;
-    overflow-y: auto;
-}
-.styled-button {
-    background-color: #b9b9bf;  /* Blue background color */
-    color: #161616;                /* White text color */
-    /*font-weight: bold;*/
-    border: none;
-    cursor: pointer;
-    margin-left: 10px;
-    padding: 6px 12px;
-    font-size: 10px;
-    border: none;
-    border-radius: 15px;
-    color: white;
-    background-color: #94949a;
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out;
-}
-
-.styled-button:hover {
-    background-color: #2a5815; /* Darker green on hover */
-    color: #ffffff;                /* White text color */
-    font-weight: bold;
-}
-
-.gray-badge {
-    background-color: gray;
-    color: white;
-}
-
-.green-badge {
-    background-color: #28a745; /* Green */
-    color: white;
-    padding: 5px;
-    border-radius: 4px;
-}
-
-.blue-badge {
-    background-color: #007bff; /* Blue */
-    color: white;
-    padding: 5px;
-    border-radius: 4px;
-}
-
-.yellow-badge {
-    background-color: #ffc107; /* Yellow */
-    color: black;
-    padding: 5px;
-    border-radius: 4px;
-}
-
-.orange-badge {
-    background-color: #fd7e14; /* Orange */
-    color: white;
-    padding: 5px;
-    border-radius: 4px;
-}
-
-.red-badge {
-    background-color: #dc3545; /* Red */
-    color: white;
-    padding: 5px;
-    border-radius: 4px;
-}
-
-.dark-red-badge {
-    background-color: #8b0000; /* Dark Red */
-    color: white;
-    padding: 5px;
-    border-radius: 4px;
-}
-
-
-
-
-.button-container {
-    display: flex;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-
-.date-picker-container {
-    display: flex;
-    justify-content: flex-start;
-    gap: 10px;
-}
-
-/* Button Styles */
-.date-controls-button {
-    background-color: #a69e89; /* Button background color */
-    color: #161616; /* Button text color */
-    border: none;
-    border-radius: 5px;
-    padding: 7px 10px;
-    font-size: 12px;
-    margin-right: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-.date-controls-button:hover {
-    background-color: #2a5915; /* Darker background on hover */
-    color: #ffffff;
-}
-
-/* Date Picker Styles */
-.react-datepicker-wrapper {
-    margin: 0; /* Remove default margin */
-}
-
-
-
-.date-controls-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.data-stats-button {
-    font-size: 12px;
-    padding: 5px 10px;
-    border: 1px solid #ddd;
-    background-color: #396aaf; /* Green background */
-    color: white; /* White text color */
-    cursor: pointer;
-    border-radius: 5px;
-    transition: background-color 0.3s;
-}
-
-.data-stats-button:hover {
-    background-color: #3591ff; /* Darker green on hover */
-}
-.left-aligned-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.right-aligned-button {
-    display: flex;
-    align-items: center;
-}
-
-
-.special-action-button {
-    background-color: #a69e89;  /* Blue background color */
-    color: #161616;                /* White text color */
     border: none;
     border-radius: 5px;
     padding: 7px 10px;
     font-size: 14px;
-    margin-right: 5px;         /* Space between buttons */
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
 
-.special-action-button:hover {
-    background-color: #2a5915; /* Darker blue on hover */
-    color: #ffffff;
+/* Hover Effects for All Buttons */
+.dropdown-button:hover {
+    background-color: #3768af; /* Darker green on hover */
+    color: white;
 }
+
+/* Dropdown Menu */
+.dropdown-menu {
+    display: flex;
+    flex-direction: column; /* Stack items vertically */
+    position: absolute;
+    top: 100%; /* Position below the button */
+    left: 0;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    z-index: 20000;
+    width: 100%;
+    max-height: 200px; /* Adjust this value as needed */
+    overflow-y: auto; /* Enables vertical scrolling within the dropdown */
+    overflow-x: hidden; /* Prevents horizontal scrolling */
+}
+
+
+.dropdown-item {
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-bottom: 1px solid #ddd;
+    background-color: transparent;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    text-align: left;
+}
+
+.dropdown-item:hover {
+    background-color: #e7e7e7;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+
+/* Notification Popup Styles */
 .notification-popup {
     position: fixed;
     bottom: 20px;
@@ -346,11 +193,229 @@ th {
     transition: opacity 0.3s ease-in-out;
 }
 
+.notification-popup.error {
+    background-color: #dc3545; /* Red for errors */
+}
+
+/* Badge Styles */
+.badge {
+    padding: 5px;
+    border-radius: 4px;
+    color: white;
+}
+
+.green-badge {
+    background-color: #1b974f;
+}
+
+.blue-badge {
+    background-color: #007bff;
+}
+
+.dark-blue-badge {
+    background-color: #0061A4;
+}
+
+.yellow-badge {
+    background-color: #ffc107;
+    /*color: black;*/
+}
+
+.orange-badge {
+    background-color: #fd7e14;
+}
+
+.red-badge {
+    background-color: #dc3545;
+}
+
+.dark-red-badge {
+    background-color: #dc3545;
+}
+
+.gray-badge {
+    background-color: gray;
+}
+
+/* Flex Container Styles */
+.flex-container {
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+
+.date-controls-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center items vertically */
+    background-color: #f5f5f5;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.controls-header {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.controls-content {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%; /* Ensure full width for alignment */
+}
+
+.date-controls-container h2 {
+    color: #004f6e;
+    margin-bottom: 15px;
+}
+
+.date-instructions {
+    font-style: italic;
+    color: #333;
+    margin-top: 5px;
+    text-align: center;
+}
+
+.dropdown-container {
+    position: relative;
+    width: 200px; /* Adjusted width for dropdown */
+}
+
+.dropdown-button {
+    background-color: #e0e0e0;
+    color: black;
+    border: 1px solid black;
+    border-radius: 5px;
+    padding: 5px 15px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    text-align: left;
+    width: 100%;
+
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    z-index: 20000;
+    width: 100%; /* Full width of the dropdown container */
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.dropdown-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid #ddd;
+    background-color: transparent;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    text-align: left;
+}
+
+.dropdown-item:hover {
+    background-color: #e7e7e7;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+/* Dark Header Styles */
+.dark-header, .dark-header td {
+    background-color: #396aaf; /* SAEON Navbar color */
+    color: white;
+    font-weight: bold;
+}
+
+/* Data Table Styles */
+.data-table thead tr:nth-child(-n+3) {
+    font-weight: bold;
+}
+
+/* Notification Popup Styles */
+.notification-popup {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    z-index: 100;
+    transition: opacity 0.3s ease-in-out;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
 .notification-popup.loading {
     background-color: #e0e0e0; /* Light gray for loading */
 }
 
 .notification-popup.error {
-    background-color: #ffbaba; /* Light red for errors */
+    background-color: #dc3545; /* Consistent red for errors, matching SAEON theme */
 }
 
+/* Close Button Styles */
+.close-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #d32f2f; /* Red background */
+    border: none;
+    border-radius: 50%; /* Rounded button */
+    color: white; /* White text color */
+    font-size: 20px; /* Button size */
+    line-height: 24px; /* Align icon vertically in the center */
+    width: 30px;
+    height: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s; /* Smooth transition */
+}
+
+.close-button:hover {
+    background-color: #b71c1c; /* Darker red on hover */
+}
+
+
+
+.icon-left {
+    margin-right: 8px; /* Space between the icon and text */
+}
+
+.icon-right {
+    margin-left: auto; /* Pushes the icon to the far right */
+}
+
+
+
+/* Media Queries for Responsive Design */
+@media screen and (max-width: 768px) {
+    .button, .view-data-button, .download-csv-button, .close-button,
+    .special-action-button, .styled-button, .site-name-button {
+        padding: 5px 7px;
+        font-size: 12px;
+        margin: 0 3px 3px 0; /* Smaller margins for smaller screens */
+    }
+
+    .date-controls-container {
+        flex-direction: column;
+    }
+
+    .controls-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

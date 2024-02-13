@@ -7,6 +7,7 @@ const CustomModal = ({ isOpen, onClose, children }) => {
 
     return (
         <div className="custom-modal-overlay">
+            <button className="close-button" onClick={onClose}>X</button> {/* Moved outside the Rnd component */}
             <Rnd
                 default={{
                     x: (window.innerWidth * 0.1) / 2,
@@ -24,7 +25,7 @@ const CustomModal = ({ isOpen, onClose, children }) => {
                     }
                 }}
             >
-                <button className="close-button" onClick={onClose}>X</button>
+                {/*<button className="close-button" onClick={onClose}>X</button>*/}
                 {children}
             </Rnd>
         </div>

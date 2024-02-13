@@ -1,0 +1,101 @@
+/* NavBar.css */
+.nav {
+    background-color: #004f6e; /* Adjust to match SAEON's theme */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0;
+    z-index: 12;
+}
+
+/* Adjust the nav-header to ensure the title is centered */
+.nav-header {
+    position: relative;
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between; /* This keeps the logo and nav-menu at the ends */
+    padding: 0 2rem; /* Adjusted padding */
+    height: 85px;
+    background-color: #3869af; /* Darker shade for the header */
+}
+.nav-logo {
+    /* Adjust the width as necessary for the logo */
+    /*height: 5vh;*/
+    max-height: 100%;
+    width: auto; /* Adjust width to content */
+    /*max-width: 150px; !* Set a max-width for larger screens if necessary *!*/
+    /* ... other styles */
+}
+/*.nav-logo img {*/
+
+/*    max-width: 30%; !* Increase the max-width for a bigger logo *!*/
+/*    max-height: 100%; !* Make sure the logo height does not exceed the nav-header *!*/
+/*    object-fit: contain;*/
+/*    margin-right: 1rem; !* Space after logo *!*/
+/*}*/
+
+.nav-logo img {
+    height: auto;
+    width: 10vw; /* Adjust this value as needed */
+    max-width: 150px; /* Set a max-width to prevent the logo from getting too large */
+    min-width: 60px; /* Set a min-width to prevent the logo from getting too small */
+    object-fit: contain;
+}
+
+.nav-title {
+    position: absolute; /* Position absolutely to the parent .nav-header */
+    left: 50%; /* Center based on the full width of the .nav-header */
+    top: 50%; /* Align text in the middle vertically */
+    transform: translate(-50%, -50%); /* Offset the element by its own dimensions */
+    font-size: 1.5rem;
+    color: #ffffff;
+    margin: 0; /* Remove any margin to prevent offset */
+}
+
+.nav-link {
+    color: #ffffff; /* White color for links */
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    padding: 0 1rem;
+    cursor: pointer;
+    transition: color 0.3s ease; /* Smooth transition for hover effect */
+}
+
+.nav-link.active,
+.nav-link:hover {
+    color: #ffc72c; /* Highlight color for active/hover state */
+}
+
+.nav-menu {
+    display: flex;
+    justify-content: center;
+    align-items: center; /* Align the links vertically */
+    width: 100%;
+    background-color: #173552; /* Even darker shade for the menu */
+    padding: 5px 0; /* Padding above and below the nav links */
+    /* Ensure there is no additional margin or padding pushing the links to the side */
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+
+
+
+@media screen and (min-width: 768px) {
+    .nav-title {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        /* No need to set justify-content as the positioning is absolute */
+    }
+
+    .nav-menu {
+        justify-content: center; /* Center the links horizontally on larger screens */
+        /* ... other styles */
+    }
+}
