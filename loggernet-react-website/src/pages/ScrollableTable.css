@@ -24,6 +24,7 @@
 .scrollable-table-container {
     overflow-x: auto;
     border: 1px solid #ccc;
+    height: 100vh;
 }
 
 table {

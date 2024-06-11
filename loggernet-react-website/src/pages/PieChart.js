@@ -4,17 +4,17 @@ import * as echarts from 'echarts/core';
 const PieChart = ({ averageAvailability }) => {
     useEffect(() => {
         const pieChart = echarts.init(document.getElementById('pieChart'));
+        // Round to 1 decimal place
+        const roundedAvailable = parseFloat(averageAvailability.toFixed(1));
+        const roundedMissing = parseFloat((100 - averageAvailability).toFixed(1));
+
         const option = {
-            // tooltip: {
-            //     trigger: 'item',
-            //     formatter: '{a} <br/>{b}: {c}% ({d}%)'
-            // },
             series: [{
                 name: 'Data Availability',
                 type: 'pie',
                 data: [
-                    { value: Math.round(averageAvailability), name: 'Available', itemStyle: { color: '#1a9850' } }, // Green for available
-                    { value: Math.round(100 - averageAvailability), name: 'Missing', itemStyle: { color: '#d73027' } } // Red for missing
+                    { value: roundedAvailable, name: 'Available', itemStyle: { color: '#1a9850' } }, // Green for available
+                    { value: roundedMissing, name: 'Missing', itemStyle: { color: '#d73027' } } // Red for missing
                 ],
                 label: {
                     show: true,

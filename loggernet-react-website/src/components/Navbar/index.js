@@ -19,9 +19,13 @@ const Navbar = () => {
                       className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     Monitoring Locations
                 </Link>
+                <Link className="nav-link" to="/ScrollableTable2"
+                      className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                    Summary
+                </Link>
                 <Link className="nav-link" to="/ScrollableTable"
                       className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                    Data Explorer
+                    Raw Data
                 </Link>
                 {/*<Link className="nav-link" to="/index"*/}
                 {/*      className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>*/}

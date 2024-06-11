@@ -30,21 +30,18 @@ function PlotModal({ show, onClose, option, currentPage, setCurrentPage, pageSiz
 
 
 
-function DataTable({ data, metaData }) {
+function DataTable({ data, fieldMappings }) {
     return (
         <table className="data-table">
+
             <thead>
             <tr className="dark-header">
-                {metaData.name.map((header, idx) => (
+                {Object.keys(fieldMappings).map((header, idx) => (
                     <th key={idx} style={{ backgroundColor: "#c0c0c0", fontWeight: "bold" }}>{header}</th>
                 ))}
             </tr>
-            <tr className="dark-header" style={{ backgroundColor: "#333" }}>
-                {metaData.units.map((unit, idx) => (
-                    <th key={idx} style={{ backgroundColor: "#c0c0c0", fontWeight: "bold" }}>{unit}</th>
-                ))}
-            </tr>
             </thead>
+
             <tbody>
             {data.map(row => <DataRow key={row.id} row={row} />)}
             </tbody>
@@ -64,6 +61,7 @@ function DataRow({ row }) {
         </tr>
     );
 }
+
 
 function toPostgreSQLColumnName(userSelectedColumn) {
     // Convert to lowercase and replace spaces with underscores
@@ -93,13 +91,18 @@ function PaginationControls({ currentPage, setCurrentPage, pageSize, setPageSize
     );
 }
 
-function GenericData({
+function GenericData2({
                          dataEndpoint,
                          metadataEndpoint,
                          countEndpoint,
                          csvDownloadEndpoint,
+                          fieldMappings={}, // Accept fieldMappings prop
                          type
                      }) {
+
+
+    
+    // console.log(fieldMappings);
     const [data, setData] = useState([]);
     const [metaData, setMetaData] = useState({ name: [], units: [] });
     const [startDate, setStartDate] = useState("");
@@ -115,7 +118,7 @@ function GenericData({
 
     useEffect(() => {
         // Modified the fetch to include pagination parameters
-        const fetchURL = `${dataEndpoint}?limit=${pageSize}&offset=${(currentPage - 1) * pageSize}`;
+        const fetchURL = `${dataEndpoint}&limit=${pageSize}&offset=${(currentPage - 1) * pageSize}`;
 
         fetch(fetchURL)
             .then(response => response.json())
@@ -140,7 +143,14 @@ function GenericData({
     }, [countEndpoint, type]);
 
     useEffect(() => {
-        fetch(dataEndpoint + '/daterange')
+        // Split the endpoint into base URL and query string
+        const [baseUrl, queryString] = dataEndpoint.split('?');
+        // Construct the new endpoint with '/daterange' inserted before the query string
+        const daterangeEndpoint = queryString
+            ? `${baseUrl}/daterange?${queryString}`
+            : `${baseUrl}/daterange`;
+
+        fetch(daterangeEndpoint)
             .then(response => response.json())
             .then(rangeData => {
                 if (rangeData.earliest && rangeData.latest) {
@@ -155,6 +165,7 @@ function GenericData({
             .catch(error => console.error('Error fetching date range:', error));
     }, [dataEndpoint]);
 
+
     useEffect(() => {
         setChartKey(Date.now()); // update the key every time plotData changes
     }, [plotData]);
@@ -168,7 +179,8 @@ function GenericData({
             const formattedStartDate = startDate.replace('Z', '');
             const formattedEndDate = endDate.replace('Z', '');
 
-            downloadURL += `?startDate=${formattedStartDate}&endDate=${formattedEndDate}`;
+            downloadURL += `&startDate=${formattedStartDate}&endDate=${formattedEndDate}`;
+            console.log(downloadURL);
         }
 
         window.location.href = downloadURL;
@@ -180,7 +192,7 @@ function GenericData({
 
 
     const fetchDataForPlot = () => {
-        let fetchURL = `${dataEndpoint}?limit=${pageSize}&offset=${(currentPage - 1) * pageSize}`;
+        let fetchURL = `${dataEndpoint}&limit=${pageSize}&offset=${(currentPage - 1) * pageSize}`;
 
         if (startDate && endDate) {
             fetchURL += `&startDate=${startDate}&endDate=${endDate}`;
@@ -210,11 +222,23 @@ function GenericData({
 
     const closeModal = () => setShowModal(false);
 
-    const getOption = () => {
+    const getOption = (fieldMappings) => {
         if (!selectedColumn || !plotData.length) return {};
 
-        const actualColumnName = toPostgreSQLColumnName(selectedColumn);
-        const yAxisData = plotData.map(d => parseFloat(d[actualColumnName]));
+        // Use `selectedColumn` directly if it's the user-friendly name to find the database field name
+        const dbFieldName = fieldMappings[selectedColumn];
+
+        if (!dbFieldName) {
+            console.error('Database field name not found for', selectedColumn);
+            return {}; // Return empty configuration if dbFieldName not found
+        }
+
+
+        // console.log(dbFieldName);
+
+        // const actualColumnName = toPostgreSQLColumnName(selectedColumn);
+        // const yAxisData = plotData.map(d => parseFloat(d[actualColumnName]));
+        const yAxisData = plotData.map(d => parseFloat(d[dbFieldName] || 0)); // Fallback to 0 if undefined
         const minYValue = Math.min(...yAxisData) * 0.95; // 5% buffer below the smallest data point
         const maxYValue = Math.max(...yAxisData) * 1.05; // 5% buffer above the largest data point
 
@@ -293,8 +317,8 @@ function GenericData({
                     <label>Choose column to plot:</label>
                     <select value={selectedColumn} onChange={(e) => setSelectedColumn(e.target.value)}>
                         <option value="" disabled>Select column</option>
-                        {metaData.name.map((column, idx) => (
-                            <option key={idx} value={column}>{column}</option>
+                        {Object.keys(fieldMappings).map((userFriendlyName, idx) => (
+                            <option key={idx} value={userFriendlyName}>{userFriendlyName}</option> // Ensure user-friendly names are set
                         ))}
                     </select>
                     <button className="styled-button" onClick={handlePlot}>Plot Column</button>
@@ -329,11 +353,12 @@ function GenericData({
             </div>
 
             {/* Data Table */}
-            <DataTable data={data} metaData={metaData} />
+            <DataTable data={data} fieldMappings={fieldMappings} />
+
             <PlotModal
                 show={showModal}
                 onClose={closeModal}
-                option={getOption()}
+                option={getOption(fieldMappings)} // Modify getOption to accept fieldMappings
                 currentPage={currentPage}
                 setCurrentPage={setCurrentPage}
                 pageSize={pageSize}
@@ -343,4 +368,4 @@ function GenericData({
     );
 }
 
-export default GenericData;
+export default GenericData2;

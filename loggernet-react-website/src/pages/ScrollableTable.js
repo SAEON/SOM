@@ -165,20 +165,7 @@ const ScrollableTable = () => {
         }, 3000);
     };
     const mapIntervalToAPIFormat = (interval) => {
-        // switch (interval) {
-        //     case "30 mins":
-        //         return "thirty_min";
-        //     case "5 mins":
-        //         return "five_min";
-        //     case "Table 1":
-        //         return "table1";
-        //     case "Table 2":
-        //         return "table2";
-        //     case "Table 3":
-        //         return "table3";
-        //     case "Table 4":
-        //         return "table4";
-        //     default:
+
         return interval.toLowerCase().replace(/\s/g, '_');
         // }/
     };
@@ -211,7 +198,8 @@ const ScrollableTable = () => {
         },
         {
             name: "CR6 Cath Peak EC Tower",
-            intervals: ["public", "config_setting_notes", "flux_amerifluxformat", "flux_csformat", "flux_notes"]
+            intervals: ["public",  "flux_amerifluxformat", "flux_csformat", "flux_notes"]
+            // intervals: ["public", "config_setting_notes", "flux_amerifluxformat", "flux_csformat", "flux_notes"]
         },
         {
             name: "CR1000 Cath Peak Mikes Pass AWS",
@@ -236,62 +224,67 @@ const ScrollableTable = () => {
         {
             name: "SAEON Arid AWS3 Benfontein",
             intervals: ['public',
-                'status',
+                // 'status',
                 'table1',
                 'table2',
                 'table3']
         },
         {
             name: "EFTEON Benfontein Karoo",
+            // intervals: ["public", "comp_cov_3d", "comp_cov_3d_5min", "comp_cov_co2", "comp_cov_cs_5min", "comp_cov_fw", "comp_cov_h2o",
+            //     "comp_mean", "config_setting_notes", "const_table", "cpistatus", "datatableinfo", "delay_3d", "delay_cs", "delay_fw", "diagnostic",
+            //     "flux_amerifluxformat", "flux_csiformat", "flux_notes", "met_5min", "met_day", "met_hour", "stats_net_radiation",
+            //     "stats_shf", "stats_tmpr_rh", "status", "time_series"]
             intervals: ["public", "comp_cov_3d", "comp_cov_3d_5min", "comp_cov_co2", "comp_cov_cs_5min", "comp_cov_fw", "comp_cov_h2o",
-                "comp_mean", "config_setting_notes", "const_table", "cpistatus", "datatableinfo", "delay_3d", "delay_cs", "delay_fw", "diagnostic",
-                "flux_amerifluxformat", "flux_csiformat", "flux_notes", "met_5min", "met_day", "met_hour", "stats_net_radiation",
-                "stats_shf", "stats_tmpr_rh", "status", "time_series"]
+                "comp_mean","flux_amerifluxformat", "flux_csiformat", "flux_notes", "met_5min", "met_day", "met_hour", "stats_net_radiation",
+                "stats_shf", "stats_tmpr_rh"]
         },
         {
             name: "EFTEON Benfontein savanna",
             intervals: ["comp_cov_3d",
-                "const_table",
+                // "const_table",
                 "comp_cov_cs_5min",
                 "comp_cov_co2",
                 "comp_cov_fw",
-                "cpistatus",
+                // "cpistatus",
                 "comp_mean",
-                "config_setting_notes",
-                "datatableinfo",
+                // "config_setting_notes",
+                // "datatableinfo",
                 "comp_cov_h2o",
-                "delay_fw",
+                // "delay_fw",
                 "flux_amerifluxformat",
-                "delay_cs",
+                // "delay_cs",
                 "comp_cov_3d_5min",
                 "met_day",
-                "delay_3d",
-                "diagnostic",
+                // "delay_3d",
+                // "diagnostic",
                 "flux_csiformat",
                 "met_5min",
                 "met_hour",
                 "stats_shf",
                 "flux_notes",
                 "stats_net_radiation",
-                "time_series",
-                "status",
+                // "time_series",
+                // "status",
                 "public",
                 "stats_tmpr_rh"]
         },
         {
             name: "EFTEON Ezibomvini ERS",
-            intervals: ['datatableinfo',
+            intervals: [
+                // 'datatableinfo',
                 'tablehour',
                 'tableday',
                 'public',
                 'table10minute',
-                'status']
+                // 'status'
+            ]
         },
         {
             name: "EFTEON LowveldMRCWits Ers",
             intervals: ['public',
-                'status',
-                'datatableinfo',
+                // 'status',
+                // 'datatableinfo',
                 'tablehour',
                 'table10minute',
                 'tableday']
@@ -300,8 +293,8 @@ const ScrollableTable = () => {
             name: "EFTEON LowveldWitsRural AWS",
             intervals: ['daily',
                 'public',
-                'datatableinfo',
-                'status',
+                // 'datatableinfo',
+                // 'status',
                 'table10m',
                 'tablehour',
                 'tablesolarcharger10m',
@@ -309,15 +302,18 @@ const ScrollableTable = () => {
         },
         {
             name: "EFTEON Mabasata AWS",
-            intervals: ['status',
+            intervals: [
+                // 'status',
                 'tablehour',
                 'public',
                 'tableday',
-                'datatableinfo']
+                // 'datatableinfo'
+            ]
         },
         {
             name: "EFTEON Maputaland EC",
-            intervals: ['delay_3d',
+            intervals: [
+                // 'delay_3d',
                 'public',
                 'comp_cov_3d_5min',
                 'comp_cov_3d',
@@ -325,34 +321,35 @@ const ScrollableTable = () => {
                 'comp_cov_h2o',
                 'comp_mean',
                 'comp_cov_fw',
-                'datatableinfo',
-                'cpistatus',
-                'config_setting_notes',
-                'const_table',
+                // 'datatableinfo',
+                // 'cpistatus',
+                // 'config_setting_notes',
+                // 'const_table',
                 'comp_cov_co2',
-                'delay_cs',
+                // 'delay_cs',
                 'flux_amerifluxformat',
-                'diagnostic',
-                'delay_fw',
+                // 'diagnostic',
+                // 'delay_fw',
                 'flux_csiformat',
                 'met_day',
                 'met_hour',
                 'flux_notes',
                 'met_5min',
-                'time_series',
+                // 'time_series',
                 'stats_net_radiation',
                 'stats_tmpr_rh',
                 'stats_shf',
-                'status']
+                // 'status'
+            ]
         },
 
 
         {
             name: "EFTEON Spioenkop AWS",
             intervals: ['public',
-                'datatableinfo',
+                // 'datatableinfo',
                 'tablehour',
-                'status',
+                // 'status',
                 'table10m',
                 'tableday',
                 'tablesolarcharger10m']
@@ -365,17 +362,17 @@ const ScrollableTable = () => {
                 'comp_cov_fw',
                 'comp_cov_h2o',
                 'comp_cov_cs_5min',
-                'datatableinfo',
-                'cpistatus',
+                // 'datatableinfo',
+                // 'cpistatus',
                 'comp_cov_3d_5min',
-                'delay_fw',
-                'diagnostic',
-                'config_setting_notes',
-                'delay_3d',
+                // 'delay_fw',
+                // 'diagnostic',
+                // 'config_setting_notes',
+                // 'delay_3d',
                 'flux_amerifluxformat',
                 'flux_notes',
                 'flux_csiformat',
-                'delay_cs',
+                // 'delay_cs',
                 'met_5min',
                 'met_day',
                 'met_hour',
@@ -383,10 +380,11 @@ const ScrollableTable = () => {
                 'stats_net_radiation',
                 'stats_shf',
                 'stats_tmpr_rh',
-                'status',
-                'comp_mean',
-                'const_table',
-                'time_series']
+                // 'status',
+                'comp_mean'
+                // 'const_table',
+                // 'time_series'
+            ]
         },
 
 
@@ -397,25 +395,26 @@ const ScrollableTable = () => {
                 "comp_cov_3d_5min",
                 "comp_cov_h2o",
                 "comp_cov_fw",
-                "datatableinfo",
-                "config_setting_notes",
+                // "datatableinfo",
+                // "config_setting_notes",
                 "comp_cov_3d",
-                "cpistatus",
+                // "cpistatus",
                 "comp_mean",
                 "comp_cov_cs_5min",
-                "diagnostic",
-                "const_table",
-                "delay_fw",
+                // "diagnostic",
+                // "const_table",
+                // "delay_fw",
                 "flux_amerifluxformat",
-                "delay_3d",
+                // "delay_3d",
                 "flux_csiformat",
-                "delay_cs",
+                // "delay_cs",
                 "stats_shf",
-                "status",
+                // "status",
                 "public",
                 "flux_notes",
-                "stats_tmpr_rh",
-                "time_series"]
+                "stats_tmpr_rh"
+                // "time_series"
+            ]
         },
         {
             name: "EFTEON Station 6 Grass Station",
@@ -424,27 +423,27 @@ const ScrollableTable = () => {
                 'comp_cov_co2',
                 'comp_cov_cs_5min',
                 'comp_cov_3d',
-                'config_setting_notes',
-                'cpistatus',
-                'const_table',
+                // 'config_setting_notes',
+                // 'cpistatus',
+                // 'const_table',
                 'comp_cov_h2o',
-                'delay_cs',
-                'delay_3d',
-                'datatableinfo',
+                // 'delay_cs',
+                // 'delay_3d',
+                // 'datatableinfo',
                 'comp_mean',
                 'flux_amerifluxformat',
-                'delay_fw',
-                'diagnostic',
+                // 'delay_fw',
+                // 'diagnostic',
                 'flux_csiformat',
                 'met_day',
                 'flux_notes',
-                'status',
+                // 'status',
                 'met_hour',
                 'public',
                 'stats_net_radiation',
                 'met_5min',
                 'stats_shf',
-                'time_series',
+                // 'time_series',
                 'stats_tmpr_rh']
         },
         {
@@ -452,10 +451,16 @@ const ScrollableTable = () => {
             intervals: ["public", "table1", "table2"]
         },
         {
+            name: "CR1000 Engelsmanskloof AWS",
+            intervals: ["public", "table1", "table2","table3"]
+
+        },
+        {
             name: "Saeon Haenertsburg AWS",
-            intervals: ['datatableinfo',
+            intervals: [
+                // 'datatableinfo',
                 'daily',
-                'status',
+                // 'status',
                 'public',
                 'five_min',
                 'hourly']
@@ -468,11 +473,12 @@ const ScrollableTable = () => {
         {
             name: "Saeon SAWC AWS",
             intervals: ['five_min',
-                'datatableinfo',
+                // 'datatableinfo',
                 'hourly',
                 'public',
                 'daily',
-                'status']
+                // 'status'
+            ]
         },
 
 
@@ -490,24 +496,30 @@ const ScrollableTable = () => {
 
 
 
-
+    const CR1000_Engelsmanskloof_AWS_intervals = ['public',
+        // 'datatableinfo',
+        'table1',
+        'table2',
+        'table3'
+        // 'status'
+    ];
 
     const efteon_spioenkop_ecintervals = ['comp_cov_3d',
         'comp_cov_co2',
         'comp_cov_fw',
         'comp_cov_h2o',
         'comp_cov_cs_5min',
-        'datatableinfo',
-        'cpistatus',
+        // 'datatableinfo',
+        // 'cpistatus',
         'comp_cov_3d_5min',
-        'delay_fw',
-        'diagnostic',
-        'config_setting_notes',
-        'delay_3d',
+        // 'delay_fw',
+        // 'diagnostic',
+        // 'config_setting_notes',
+        // 'delay_3d',
         'flux_amerifluxformat',
         'flux_notes',
         'flux_csiformat',
-        'delay_cs',
+        // 'delay_cs',
         'met_5min',
         'met_day',
         'met_hour',
@@ -515,12 +527,14 @@ const ScrollableTable = () => {
         'stats_net_radiation',
         'stats_shf',
         'stats_tmpr_rh',
-        'status',
-        'comp_mean',
-        'const_table',
-        'time_series'];
+        // 'status',
+        'comp_mean'
+        // 'const_table',
+        // 'time_series'
+    ];
 
-    const efteon_maputaland_ecintervals = ['delay_3d',
+    const efteon_maputaland_ecintervals = [
+        // 'delay_3d',
         'public',
         'comp_cov_3d_5min',
         'comp_cov_3d',
@@ -528,170 +542,183 @@ const ScrollableTable = () => {
         'comp_cov_h2o',
         'comp_mean',
         'comp_cov_fw',
-        'datatableinfo',
-        'cpistatus',
-        'config_setting_notes',
-        'const_table',
+        // 'datatableinfo',
+        // 'cpistatus',
+        // 'config_setting_notes',
+        // 'const_table',
         'comp_cov_co2',
-        'delay_cs',
+        // 'delay_cs',
         'flux_amerifluxformat',
-        'diagnostic',
-        'delay_fw',
+        // 'diagnostic',
+        // 'delay_fw',
         'flux_csiformat',
         'met_day',
         'met_hour',
         'flux_notes',
         'met_5min',
-        'time_series',
+        // 'time_series',
         'stats_net_radiation',
         'stats_tmpr_rh',
         'stats_shf',
-        'status'];
+        // 'status'
+    ];
 
     const saeon_sawc_awsintervals = ['five_min',
-        'datatableinfo',
+        // 'datatableinfo',
         'hourly',
         'public',
-        'daily',
-        'status'];
+        'daily'
+        // 'status'
+    ];
 
     const efteon_spioenkop_awsintervals =['public',
-        'datatableinfo',
+        // 'datatableinfo',
         'tablehour',
-        'status',
+        // 'status',
         'table10m',
         'tableday',
         'tablesolarcharger10m'];
 
-    const efteon_mabasata_awsintervals =['status',
+    const efteon_mabasata_awsintervals =[
+        // 'status',
         'tablehour',
         'public',
         'tableday',
-        'datatableinfo'];
+        // 'datatableinfo'
+    ];
 
     const efteon_lowveldwitsrural_awsintervals = ['daily',
         'public',
-        'datatableinfo',
-        'status',
+        // 'datatableinfo',
+        // 'status',
         'table10m',
         'tablehour',
         'tablesolarcharger10m',
         'tableday'];
 
     const efteon_lowveldmrcwits_ersintervals = ['public',
-        'status',
-        'datatableinfo',
+        // 'status',
+        // 'datatableinfo',
         'tablehour',
         'table10minute',
         'tableday'];
     const saeon_arid_aws3_benfonteinintervals =
         ['public',
-            'status',
+            // 'status',
             'table1',
             'table2',
             'table3'];
     const efteon_station_6_grass_stationintervals =
-    ['comp_cov_fw',
-        'comp_cov_3d_5min',
-        'comp_cov_co2',
-        'comp_cov_cs_5min',
-        'comp_cov_3d',
-        'config_setting_notes',
-        'cpistatus',
-        'const_table',
-        'comp_cov_h2o',
-        'delay_cs',
-        'delay_3d',
-        'datatableinfo',
-        'comp_mean',
-        'flux_amerifluxformat',
-        'delay_fw',
-        'diagnostic',
-        'flux_csiformat',
-        'met_day',
-        'flux_notes',
-        'status',
-        'met_hour',
-        'public',
-        'stats_net_radiation',
-        'met_5min',
-        'stats_shf',
-        'time_series',
-        'stats_tmpr_rh'];
-    const efteon_ezibomvini_ersintervals = ['datatableinfo',
+        ['comp_cov_fw',
+            'comp_cov_3d_5min',
+            'comp_cov_co2',
+            'comp_cov_cs_5min',
+            'comp_cov_3d',
+            // 'config_setting_notes',
+            // 'cpistatus',
+            // 'const_table',
+            'comp_cov_h2o',
+            // 'delay_cs',
+            // 'delay_3d',
+            // 'datatableinfo',
+            'comp_mean',
+            'flux_amerifluxformat',
+            // 'delay_fw',
+            // 'diagnostic',
+            'flux_csiformat',
+            'met_day',
+            'flux_notes',
+            // 'status',
+            'met_hour',
+            'public',
+            'stats_net_radiation',
+            'met_5min',
+            'stats_shf',
+            // 'time_series',
+            'stats_tmpr_rh'];
+    const efteon_ezibomvini_ersintervals = [
+        // 'datatableinfo',
         'tablehour',
         'tableday',
         'public',
         'table10minute',
-        'status'];
-    const saeon_haenertsburg_awsintervals = ['datatableinfo',
+        // 'status'
+    ];
+    const saeon_haenertsburg_awsintervals = [
+        // 'datatableinfo',
         'daily',
-        'status',
+        // 'status',
         'public',
         'five_min',
         'hourly'];
     const efteon_benfontein_savanna = ["comp_cov_3d",
-        "const_table",
+        // "const_table",
         "comp_cov_cs_5min",
         "comp_cov_co2",
         "comp_cov_fw",
-        "cpistatus",
+        // "cpistatus",
         "comp_mean",
-        "config_setting_notes",
-        "datatableinfo",
+        // "config_setting_notes",
+        // "datatableinfo",
         "comp_cov_h2o",
-        "delay_fw",
+        // "delay_fw",
         "flux_amerifluxformat",
-        "delay_cs",
+        // "delay_cs",
         "comp_cov_3d_5min",
         "met_day",
-        "delay_3d",
-        "diagnostic",
+        // "delay_3d",
+        // "diagnostic",
         "flux_csiformat",
         "met_5min",
         "met_hour",
         "stats_shf",
         "flux_notes",
         "stats_net_radiation",
-        "time_series",
-        "status",
+        // "time_series",
+        // "status",
         "public",
         "stats_tmpr_rh"];
-    const efteon_benfontein_karoointervals = ["public", "comp_cov_3d", "comp_cov_3d_5min", "comp_cov_co2", "comp_cov_cs_5min", "comp_cov_fw", "comp_cov_h2o", "comp_mean", "config_setting_notes", "const_table", "cpistatus", "datatableinfo", "delay_3d", "delay_cs", "delay_fw", "diagnostic", "flux_amerifluxformat", "flux_csiformat", "flux_notes", "met_5min", "met_day", "met_hour", "stats_net_radiation",
-        "stats_shf", "stats_tmpr_rh", "status", "time_series"];
+    const efteon_benfontein_karoointervals = ["public", "comp_cov_3d", "comp_cov_3d_5min", "comp_cov_co2", "comp_cov_cs_5min", "comp_cov_fw", "comp_cov_h2o",
+        "comp_mean","flux_amerifluxformat", "flux_csiformat", "flux_notes", "met_5min", "met_day", "met_hour", "stats_net_radiation",
+        "stats_shf", "stats_tmpr_rh"];
     const efteon_station_5_mac_station =
         ["comp_cov_co2",
             "comp_cov_3d_5min",
             "comp_cov_h2o",
             "comp_cov_fw",
-            "datatableinfo",
-            "config_setting_notes",
+            // "datatableinfo",
+            // "config_setting_notes",
             "comp_cov_3d",
-            "cpistatus",
+            // "cpistatus",
             "comp_mean",
             "comp_cov_cs_5min",
-            "diagnostic",
-            "const_table",
-            "delay_fw",
+            // "diagnostic",
+            // "const_table",
+            // "delay_fw",
             "flux_amerifluxformat",
-            "delay_3d",
+            // "delay_3d",
             "flux_csiformat",
-            "delay_cs",
+            // "delay_cs",
             "stats_shf",
-            "status",
+            // "status",
             "public",
             "flux_notes",
-            "stats_tmpr_rh",
-            "time_series"];
+            "stats_tmpr_rh"
+            // "time_series"
+        ];
     const efteon_bambanani_ersintervals = ["public", "tableday", "tablehour", "table10minute"];
     const intervals = ["public", "daily", "hourly", "five_min"];
     const intervals2 = ["public", "daily", "hourly", "thirty_min", "five_min"];
     const constantiabergintervals = ["public", "table1", "table2", "table3", "table4"];
     const tierbergintervals = ["public", "table1", "table2"];
     const jonkershoekecintervals = ["flux", "flux_notes"];
-    const CR6CathPeakECTowerintervals = ["public", "config_setting_notes", "flux_amerifluxformat", "flux_csformat", "flux_notes"];
+    // const CR6CathPeakECTowerintervals = ["public", "config_setting_notes", "flux_amerifluxformat", "flux_csformat", "flux_notes"];
+    const CR6CathPeakECTowerintervals = ["public",  "flux_amerifluxformat", "flux_csformat", "flux_notes"];
 
     const siteEndpoints = {
+        "CR1000 Engelsmanskloof AWS": generateEndpoints('/api/cr1000-engelsmanskloof-aws', CR1000_Engelsmanskloof_AWS_intervals),
+
+
 
         "EFTEON Spioenkop EC": generateEndpoints('/api/efteon-spioenkop-ec', efteon_spioenkop_ecintervals),
 
@@ -746,7 +773,7 @@ const ScrollableTable = () => {
         const endpoints = siteEndpoints[siteName][interval];
 
         let contentComponent;
-
+        // console.log(endpoints);
         if (contentType === 'battv' || contentType === 'batt_volt' || contentType === 'batt_volt_avg' || contentType === 'constantiaberg_table2_battv') {
             contentComponent = (
                 <BattVPlot dataEndpoint={endpoints.battv}/>
@@ -1068,7 +1095,9 @@ const ScrollableTable = () => {
             )}
             <table>
                 <tbody>
-                {sites.map((site) => (
+                {sites
+                    .sort((a, b) => a.name.localeCompare(b.name)) // Sort sites alphabetically by name
+                    .map((site) => (
 
                     <React.Fragment key={site.name}>
                         <tr
@@ -1089,12 +1118,14 @@ const ScrollableTable = () => {
                         </tr>
 
 
-                        {activeSite === site.name && site.intervals.map(interval => (
+                        {activeSite === site.name && site.intervals
+                            .sort((a, b) => a.localeCompare(b)) // Sort intervals (table names) alphabetically
+                            .map(interval => (
                             <tr key={interval} className={lastUpdateDates[`${site.name}-${interval}`]?.badgeColor}>
                                 <td colSpan={6}>
                                     <button className="view-data-button"
                                             onClick={() => handleModalOpen(site.name, interval, 'view')}>
-                                        <FontAwesomeIcon icon={faTable}/> {interval} Data
+                                        <FontAwesomeIcon icon={faTable}/> {interval} (data)
                                     </button>
                                     {/*{interval === "Public" && (*/}
                                     {/*    <button className="view-data-button"*/}

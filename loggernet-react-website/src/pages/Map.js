@@ -212,11 +212,29 @@ const createPieChartIcon = (statuses) => {
 };
 
 
-const MarkerClusterComponent = ({locations, navigate}) => {
+
+const MarkerClusterComponent = ({ locations, navigate, clusterRadius }) => {
+
     const map = useMap();
 
     useEffect(() => {
-        const markerClusterGroup = L.markerClusterGroup();
+        // Clear existing marker clusters if any
+        if (window.markerClusterGroup) {
+            window.markerClusterGroup.clearLayers();
+        }
+
+        // Create a new marker cluster group with dynamic cluster radius
+        window.markerClusterGroup = L.markerClusterGroup({
+            maxClusterRadius: clusterRadius, // Use state value
+            disableClusteringAtZoom: 15, // Stop clustering at zoom level 15
+            spiderfyOnMaxZoom: true,
+        });// Adjusting options for clustering behavior
+        // const markerClusterOptions = {
+        //     maxClusterRadius: 40, // Reduce cluster radius to make clusters less aggressive
+        //     disableClusteringAtZoom: 15, // Stop clustering at zoom level 15
+        //     spiderfyOnMaxZoom: true, // Spread out markers at the maximum zoom level instead of expanding cluster
+        // };
+        // const markerClusterGroup = L.markerClusterGroup(markerClusterOptions);
 
         locations.forEach((location) => {
             const marker = L.marker(new L.LatLng(location.lat, location.lng), {
@@ -229,38 +247,38 @@ const MarkerClusterComponent = ({locations, navigate}) => {
                 <strong>Station Name:</strong> ${location.stationName}
             `);
 
-            // Popup content with a button. The button uses an inline onclick handler.
             const popupContent = `
-    <div style="font-family: Arial, sans-serif; padding: 10px; background: #f9f9f9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-        <h4 style="margin-top: 0;">${location.stationName}</h4>
-        <strong>Node:</strong> ${location.node}<br/>
-        <strong>Site:</strong> ${location.site}<br/>
-        <button onclick="window.navigateToSite('${location.siteRowName}')" 
-                style="background-color: #007bff; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; text-transform: uppercase; font-size: 14px;">
-            Go to Raw Data
-        </button>
-    </div>
-`;
-
+                <div style="font-family: Arial, sans-serif; padding: 10px; background: #f9f9f9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                    <h4 style="margin-top: 0;">${location.stationName}</h4>
+                    <strong>Node:</strong> ${location.node}<br/>
+                    <strong>Site:</strong> ${location.site}<br/>
+                    <button onclick="window.navigateToSite('${location.siteRowName}')" 
+                            style="background-color: #007bff; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; text-transform: uppercase; font-size: 14px;">
+                        Go to Raw Data
+                    </button>
+                </div>
+            `;
 
             marker.bindPopup(popupContent);
-
-
-
-            markerClusterGroup.addLayer(marker);
+            window.markerClusterGroup.addLayer(marker);
         });
 
-        map.addLayer(markerClusterGroup);
+        map.addLayer(window.markerClusterGroup);
 
         // Attach a global function to handle navigation. This is accessible from the popup's inline onclick handler.
         window.navigateToSite = (siteRowName) => navigate(`/ScrollableTable?site=${encodeURIComponent(siteRowName)}`);
+        // map.addLayer(markerClusterGroup);
+    
 
-        return () => {
-            markerClusterGroup.clearLayers();
-            // Clean up by removing the global function to avoid leaking or unintended behavior on other components/pages.
-            delete window.navigateToSite;
-        };
-    }, [locations, map, navigate]); // Ensure navigate is included in the dependency array
+
+
+
+    return () => {
+        window.markerClusterGroup.clearLayers();
+        delete window.navigateToSite;
+    };
+},[locations, map, navigate, clusterRadius]); // Add clusterRadius as a dependency
+
 
     return null;
 };
@@ -294,9 +312,48 @@ const Legend = () => {
     );
 };
 
+// Custom Date Slider Component
+const DateSliderControl = ({ selectedDate, setSelectedDate }) => {
+    const map = useMap();
 
+    useEffect(() => {
+        const dateSlider = L.control({ position: 'topleft' });
+
+        dateSlider.onAdd = function () {
+            var div = L.DomUtil.create('div', 'info date-slider');
+            div.style.border = '2px solid white'; // Add a white border
+            div.style.padding = '10px'; // Optional: Add some padding inside the div for better appearance
+            div.style.backgroundColor = 'rgba(255, 255, 255, 0.8)'; // Optional: Add a slightly transparent white background
+            div.innerHTML = `<h4>Change Modis date</h4><input type="date" id="date-input" value="${selectedDate}">`;
+            return div;
+
+        };
+
+        dateSlider.addTo(map);
+
+        const dateInput = document.getElementById('date-input');
+        if (dateInput) {
+            dateInput.addEventListener('change', function (e) {
+                setSelectedDate(e.target.value);
+            });
+        }
+
+        return () => {
+            if (map && map.removeControl) {
+                map.removeControl(dateSlider);
+            }
+        };
+    }, [map, selectedDate, setSelectedDate]);
+
+    return null;
+};
 const Map = () => {
+    const [clusterRadius, setClusterRadius] = useState(80); // Initial cluster radius
+
     const [showSankeyModal, setShowSankeyModal] = useState(false);
+
+// At the top of your Map component
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10)); // Default to today's date in 'YYYY-MM-DD' format
 
     const openSankeyDiagramModal = () => setShowSankeyModal(true);
     const closeSankeyDiagramModal = () => setShowSankeyModal(false);
@@ -342,91 +399,145 @@ const Map = () => {
     const handleMouseMove = (e) => {
         setCoordinates({lat: e.latlng.lat.toFixed(5), lng: e.latlng.lng.toFixed(5)});
     };
+
+
+
     return (
-        <MapContainer
-            center={[-29.600607, 24.368744]}
-            zoom={5}
-            minZoom={0}
-            maxZoom={20}
-            style={{height: '500px', width: '100%'}}
-            scrollWheelZoom={true}
-            eventHandlers={{mousemove: handleMouseMove}} // Add mousemove event handler
-        >
-            {showLegend && <Legend/>}
+        <div>
+            <label htmlFor="clusterRadius">Cluster Radius: {clusterRadius}</label>
+            <input
+                type="range"
+                id="clusterRadius"
+                min="0" // Minimum radius
+                max="120" // Maximum radius
+                value={clusterRadius}
+                onChange={(e) => setClusterRadius(Number(e.target.value))}
+                style={{ width: '100%', marginBottom: '10px' }}
+            />
+            <MapContainer
+                center={[-29.600607, 24.368744]}
+                zoom={5}
+                minZoom={0}
+                maxZoom={20}
+                style={{height: '500px', width: '100%'}}
+                scrollWheelZoom={true}
+                eventHandlers={{mousemove: handleMouseMove}} // Add mousemove event handler
+            >
+                {showLegend && <Legend/>}
 
 
 
-            <LayersControl position="topright">
-                <LayersControl.BaseLayer name="OpenStreetMap Stadia" checked>
-                    <TileLayer
-                        url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png"
-                        attribution='&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    />
-                </LayersControl.BaseLayer>
-                <LayersControl.BaseLayer name="OpenStreetMap">
-                    <TileLayer
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    />
+                <LayersControl position="topright">
+                    <LayersControl.BaseLayer name="OpenStreetMap Stadia" checked>
+                        <TileLayer
+                            url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png"
+                            attribution='&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        />
+                    </LayersControl.BaseLayer>
+                    <LayersControl.BaseLayer name="OpenStreetMap">
+                        <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        />
 
-                </LayersControl.BaseLayer>
-                {/*    <LayersControl.BaseLayer name="Grayscale OpenStreetMap" checked>*/}
-                {/*        /!* Using Stamen's Toner Lite for grayscale effect *!/*/}
-                {/*        <TileLayer*/}
-                {/*            url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}{r}.png"*/}
-                {/*            attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>'*/}
-                {/*        />*/}
-                {/*    </LayersControl.BaseLayer>*/}
+                    </LayersControl.BaseLayer>
+                    {/*    <LayersControl.BaseLayer name="Grayscale OpenStreetMap" checked>*/}
+                    {/*        /!* Using Stamen's Toner Lite for grayscale effect *!/*/}
+                    {/*        <TileLayer*/}
+                    {/*            url="https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}{r}.png"*/}
+                    {/*            attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>'*/}
+                    {/*        />*/}
+                    {/*    </LayersControl.BaseLayer>*/}
 
-                {/* WMS Layers */}
-
-
-                <LayersControl.Overlay name="CDNGI 50cm GSD Imagery Mosaic (~2016)">
-                    <WMSTileLayer
-                        url="http://apollo.cdngiportal.co.za/erdas-iws/ogc/wms/CDNGI_Imagery_50cm_MOSAIC"
-                        layers="CDNGI_Imagery_50cm_MOSAIC"
-                        format="image/png"
-                        transparent={true}
-                        attribution="CDNGI 50cm GSD Imagery Mosaic (~2016)"
-                    />
-                </LayersControl.Overlay>
-                <LayersControl.Overlay name="CDNGI 25cm GSD Imagery Mosaic (2017)">
-                    <WMSTileLayer
-                        url="http://apollo.cdngiportal.co.za/erdas-iws/ogc/wms/CDNGI_Imagery_25cm_MOSAIC_2017"
-                        layers="CDNGI_Imagery_25cm_MOSAIC_2017"
-                        format="image/png"
-                        transparent={true}
-                        attribution="CDNGI 25cm GSD Imagery Mosaic (2017)"
-                    />
-                </LayersControl.Overlay>
-                <LayersControl.Overlay name="CDNGI 25cm GSD Imagery Mosaic (2018)">
-                    <WMSTileLayer
-                        url="http://apollo.cdngiportal.co.za/erdas-iws/ogc/wms/CDNGI_Imagery_25cm_MOSAIC_2018"
-                        layers="CDNGI_Imagery_25cm_MOSAIC_2018"
-                        format="image/png"
-                        transparent={true}
-                        attribution="CDNGI 25cm GSD Imagery Mosaic (2018)"
-
-                    />
-                </LayersControl.Overlay>
+                    {/* WMS Layers */}
 
 
-                {/* Conditional rendering for Marker Clusters */}
-                {showMarkers && (
-                    <LayersControl.Overlay name="Marker Clusters" checked>
-                        <MarkerClusterComponent locations={locations} navigate={navigate}/>
+                    <LayersControl.Overlay name="CDNGI 50cm GSD Imagery Mosaic (~2016)">
+                        <WMSTileLayer
+                            url="http://apollo.cdngiportal.co.za/erdas-iws/ogc/wms/CDNGI_Imagery_50cm_MOSAIC"
+                            layers="CDNGI_Imagery_50cm_MOSAIC"
+                            format="image/png"
+                            transparent={true}
+                            attribution="CDNGI 50cm GSD Imagery Mosaic (~2016)"
+                        />
                     </LayersControl.Overlay>
-                )}
-            </LayersControl>
-            <SankeyDiagramButton openSankeyDiagramModal={openSankeyDiagramModal} />
-            <SankeyDiagramModal isOpen={showSankeyModal} onClose={closeSankeyDiagramModal} data={sankeyData} />
+                    <LayersControl.Overlay name="CDNGI 25cm GSD Imagery Mosaic (2017)">
+                        <WMSTileLayer
+                            url="http://apollo.cdngiportal.co.za/erdas-iws/ogc/wms/CDNGI_Imagery_25cm_MOSAIC_2017"
+                            layers="CDNGI_Imagery_25cm_MOSAIC_2017"
+                            format="image/png"
+                            transparent={true}
+                            attribution="CDNGI 25cm GSD Imagery Mosaic (2017)"
+                        />
+                    </LayersControl.Overlay>
+                    <LayersControl.Overlay name="CDNGI 25cm GSD Imagery Mosaic (2018)">
+                        <WMSTileLayer
+                            url="http://apollo.cdngiportal.co.za/erdas-iws/ogc/wms/CDNGI_Imagery_25cm_MOSAIC_2018"
+                            layers="CDNGI_Imagery_25cm_MOSAIC_2018"
+                            format="image/png"
+                            transparent={true}
+                            attribution="CDNGI 25cm GSD Imagery Mosaic (2018)"
+
+                        />
+                    </LayersControl.Overlay>
+                    {/*<LayersControl.Overlay name="NASA MODIS True Color">*/}
+                    {/*    <TileLayer*/}
+                    {/*        url="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{time}/{tileMatrixSet}/{z}/{y}/{x}.jpg"*/}
+                    {/*        attribution="Imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Observing System Data and Information System (EOSDIS)"*/}
+                    {/*        maxZoom={20}*/}
+                    {/*        tileSize={256}*/}
+                    {/*        // Specify the time for the imagery. You can use a fixed date (e.g., '2021-07-06') or "latest" for the most recent image.*/}
+                    {/*        time={new Date().toISOString().slice(0, 10)}*/}
+                    {/*        // Tile matrix set appropriate for the map's projection (e.g., 'GoogleMapsCompatible_Level9' for zoom level 9 tiles).*/}
+                    {/*        tileMatrixSet="GoogleMapsCompatible_Level9"*/}
+                    {/*    />*/}
+                    {/*</LayersControl.Overlay>*/}
+
+                    <LayersControl.Overlay name="NASA MODIS True Color">
+                        <TileLayer
+                            url={`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/${selectedDate}/{tileMatrixSet}/{z}/{y}/{x}.jpg`}
+                            attribution="Imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Observing System Data and Information System (EOSDIS)"
+                            maxZoom={20}
+                            tileSize={256}
+                            time={selectedDate}
+                            tileMatrixSet="GoogleMapsCompatible_Level9"
+                        />
 
 
-            {/*<SimpleScaleControl options={{ metric: true, imperial: false, position: 'bottomleft' }} />*/}
-            {/*<SimpleScaleControl options={{ metric: true, imperial: false, position: 'bottomleft' }} />*/}
-            {/* Display the coordinates below the scale bar */}
-            <MousePosition/>
-        </MapContainer>
+                    </LayersControl.Overlay>
+                    {/*<LayersControl.Overlay name="MODIS Active Fires">*/}
+                    {/*    <TileLayer*/}
+                    {/*        url={`https://gibs.earthdata.nasa.gov/wms/epsg3857/best/MODIS_Combined_Thermal_Anomalies_Night/default/${selectedDate}/WebMercatorAUX/{z}/{y}/{x}.jpg`}*/}
+                    {/*        attribution="Imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Observing System Data and Information System (EOSDIS)"*/}
+                    {/*        maxZoom={20}*/}
+                    {/*        tileSize={256}*/}
+                    {/*    />*/}
+                    {/*</LayersControl.Overlay>*/}
+
+
+
+
+                    {/* Conditional rendering for Marker Clusters */}
+                    {showMarkers && (
+                        <LayersControl.Overlay name="Marker Clusters" checked>
+                            <MarkerClusterComponent locations={locations} navigate={navigate} clusterRadius={clusterRadius} />
+
+                            {/*<MarkerClusterComponent locations={locations} navigate={navigate}/>*/}
+                        </LayersControl.Overlay>
+                    )}
+                </LayersControl>
+                {/*<SankeyDiagramButton openSankeyDiagramModal={openSankeyDiagramModal} />*/}
+                {/*<SankeyDiagramModal isOpen={showSankeyModal} onClose={closeSankeyDiagramModal} data={sankeyData} />*/}
+                <DateSliderControl selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+
+                {/*{isModisLayerVisible && <DateSliderControl selectedDate={selectedDate} setSelectedDate={setSelectedDate} />}*/}
+
+                {/*<SimpleScaleControl options={{ metric: true, imperial: false, position: 'bottomleft' }} />*/}
+                {/*<SimpleScaleControl options={{ metric: true, imperial: false, position: 'bottomleft' }} />*/}
+                {/* Display the coordinates below the scale bar */}
+                <MousePosition/>
+            </MapContainer>
+        </div>
     );
 };
 

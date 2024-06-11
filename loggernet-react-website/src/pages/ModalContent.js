@@ -16,7 +16,7 @@ const ModalContent = ({ data, siteName, interval, averageAvailability }) => {
                 {summaryEntries
                     .sort((a, b) => a[0].localeCompare(b[0]))
                     .map(([key, value]) => (
-                        <p key={key}>{`${key}: ${value.percentageMissing.toFixed(2)}% missing`}</p>
+                        <p key={key}>{`${key}: ${value.percentageMissing.toFixed(3)}% missing`}</p>
                     ))
                 }
             </div>

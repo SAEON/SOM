@@ -8,7 +8,7 @@ import About from './pages/about';
 import Map from './pages/Map';
 // import Datatest from './pages/vasi_science_centre_aws_daily';
 import Data from './pages/ScrollableTable';
-
+import SummaryData from './pages/ScrollableTable2';
 
 function App() {
     return (
@@ -16,6 +16,7 @@ function App() {
             <Navbar />
             <Routes>
                 <Route path='/Map' element={<Map />} />
+                <Route path='/ScrollableTable2' element={<SummaryData />} />
                 <Route path='/ScrollableTable' element={<Data />} />
                 <Route exact path='/index' element={<Home />} />
                 {/*<Route path='/DataTable' element={<Datatest />} />*/}
