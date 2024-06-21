@@ -83,6 +83,19 @@
 }
 
 
+.nav-link {
+    background-color: #173552; /* Even darker shade for the menu */
+    /*color: white;*/
+    text-decoration: none;
+    /*padding: 10px 15px;*/
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/*.nav-link:hover, .nav-link.active {*/
+/*    background-color: #666;*/
+/*    border-radius: 5px;*/
+/*}*/
 
 
 @media screen and (min-width: 768px) {

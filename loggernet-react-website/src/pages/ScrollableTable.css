@@ -41,10 +41,10 @@ th, td {
 th {
     background-color: #004f6e; /* SAEON Navbar color */
     color: white;
+    font-weight: bold;
 }
 
 /* General Button Styles */
-
 
 .button, .view-data-button, .download-csv-button,
 .special-action-button, .styled-button {
@@ -58,7 +58,8 @@ th {
     transition: background-color 0.3s ease;
     margin: 5px 5px 0 0; /* Corrected margins */
 }
- .site-name-button {
+
+.site-name-button {
     background-color: #003a4b; /* SAEON Navbar color */
     color: white;
     border: none;
@@ -68,6 +69,18 @@ th {
     cursor: pointer;
     transition: background-color 0.3s ease;
     margin: 5px 5px 0 0; /* Corrected margins */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+/* Flex container for button content */
+.button-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
 }
 
 /* SAEON Theme Buttons */
@@ -87,7 +100,6 @@ th {
     border: 1px solid black;
 }
 
-
 /* Hover Effects for All Buttons */
 .button:hover, .view-data-button:hover, .download-csv-button:hover,
 .special-action-button:hover, .styled-button:hover,
@@ -97,7 +109,7 @@ th {
 }
 
 /* Modal Styles */
-.modal-background {
+.modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -107,9 +119,11 @@ th {
     display: flex;
     justify-content: center;
     align-items: center;
+    z-index: 1000;
 }
 
-.modal-content {
+.modal {
+    position: relative;
     background-color: #fff;
     padding: 20px;
     border-radius: 5px;
@@ -119,9 +133,47 @@ th {
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* More pronounced shadow for modals */
 }
 
+/*.modal-content-table {*/
+/*    width: 100%;*/
+/*    overflow-x: auto;*/
+/*}*/
+.modal-content-table {
+    width: 100%;
+    overflow-x: auto;
+margin-bottom: 20px;
+}
+
+.data-table th {
+    font-weight: bold;
+    color: black;
+}
+
+.close-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #d32f2f; /* Red background */
+    border: none;
+    border-radius: 50%; /* Rounded button */
+    color: white; /* White text color */
+    font-size: 20px; /* Button size */
+    line-height: 24px; /* Align icon vertically in the center */
+    width: 30px;
+    height: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s; /* Smooth transition */
+    z-index: 10;
+}
+
+.close-button:hover {
+    background-color: #b71c1c; /* Darker red on hover */
+}
+
+/* Dropdown Menu */
 .dropdown-container {
     position: relative;
-    width: 100px; /* Example width, adjust as needed */
+    width: 200px; /* Adjusted width for dropdown */
 }
 
 .dropdown-button {
@@ -153,17 +205,14 @@ th {
     border-radius: 5px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     z-index: 20000;
-    width: 100%;
-    max-height: 200px; /* Adjust this value as needed */
-    overflow-y: auto; /* Enables vertical scrolling within the dropdown */
-    overflow-x: hidden; /* Prevents horizontal scrolling */
+    width: 100%; /* Full width of the dropdown container */
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
-
 .dropdown-item {
-    width: 100%;
     padding: 8px 10px;
-    border: none;
     border-bottom: 1px solid #ddd;
     background-color: transparent;
     cursor: pointer;
@@ -177,25 +226,6 @@ th {
 
 .dropdown-item:last-child {
     border-bottom: none;
-}
-
-
-/* Notification Popup Styles */
-.notification-popup {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 10px;
-    background-color: #f0f0f0;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    z-index: 100;
-    transition: opacity 0.3s ease-in-out;
-}
-
-.notification-popup.error {
-    background-color: #dc3545; /* Red for errors */
 }
 
 /* Badge Styles */
@@ -245,7 +275,6 @@ th {
     flex-wrap: wrap;
     gap: 10px;
 }
-
 
 .date-controls-container {
     display: flex;
@@ -298,7 +327,6 @@ th {
     transition: background-color 0.3s ease;
     text-align: left;
     width: 100%;
-
 }
 
 .dropdown-menu {
@@ -345,6 +373,11 @@ th {
     font-weight: bold;
 }
 
+.data-table th {
+    font-weight: bold;
+    color: black;
+}
+
 /* Notification Popup Styles */
 .notification-popup {
     position: fixed;
@@ -368,38 +401,53 @@ th {
     background-color: #dc3545; /* Consistent red for errors, matching SAEON theme */
 }
 
-/* Close Button Styles */
-.close-button {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: #d32f2f; /* Red background */
-    border: none;
-    border-radius: 50%; /* Rounded button */
-    color: white; /* White text color */
-    font-size: 20px; /* Button size */
-    line-height: 24px; /* Align icon vertically in the center */
-    width: 30px;
-    height: 30px;
+.status-indicator {
+    margin-left: 10px;
+    /*padding: 2px 5px;*/
+    padding: 0;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+
+.status-indicator.active {
+    background-color: #4CAF50; /* Green for active */
+    color: white;
+}
+
+.status-indicator.inactive {
+    background-color: #f44336; /* Red for inactive */
+    color: white;
+}
+.data-table .status-indicator {
+    margin-left: 0px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    background-color: #4CAF50; /* Default green for active, can be overridden based on actual status */
+    color: white;
+}
+
+.data-table .status-indicator.inactive {
+    background-color: #f44336; /* Red for inactive */
+}
+.data-table th {
+    font-weight: bold;
     text-align: center;
-    cursor: pointer;
-    transition: background-color 0.3s; /* Smooth transition */
-}
-
-.close-button:hover {
-    background-color: #b71c1c; /* Darker red on hover */
+padding: 8px;
+    background-color: #f4f4f4;
+white-space: nowrap;
 }
 
 
 
-.icon-left {
-    margin-right: 8px; /* Space between the icon and text */
-}
 
-.icon-right {
-    margin-left: auto; /* Pushes the icon to the far right */
-}
-
+/*.data-table th {*/
+/*    position: relative; !* Adjust as necessary for alignment*!*/
+/*padding: 8px;*/
+/*    text-align: left;*/
+/*    background-color: #f4f4f4;  !* Light grey background for headers*!*/
+/*}*/
 
 
 /* Media Queries for Responsive Design */
@@ -419,4 +467,12 @@ th {
         flex-direction: column;
         align-items: stretch;
     }
+}
+
+.icon-left {
+    margin-right: 8px; /* Space between the icon and text */
+}
+
+.icon-right {
+    margin-left: auto; /* Pushes the icon to the far right */
 }
