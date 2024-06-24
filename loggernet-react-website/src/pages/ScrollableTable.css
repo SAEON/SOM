@@ -8,6 +8,24 @@
     margin-bottom: 20px; /* Consistent margin for all containers */
 }
 
+.recently-updated {
+    background-color: #19964e;
+
+}
+
+.updated-this-week {
+    background-color: #008ccf;
+}
+
+.updated-this-month {
+    background-color: yellow;
+}
+
+.updated-long-ago {
+    background-color: #ff582c;
+}
+
+
 /* Container Styles */
 .button-container,
 .date-picker-container,
@@ -362,34 +380,102 @@ th {
     background-color: #f44336; /* Red for inactive */
 }
 
-.modal-content-table div {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px;
+/*.modal-content-table div {*/
+/*    display: flex;*/
+/*    align-items: center;*/
+/*    justify-content: space-between;*/
+/*    padding: 10px;*/
+/*}*/
+
+/*.modal-content-table button {*/
+/*    padding: 5px 10px;*/
+/*    margin-right: 5px;*/
+/*    background-color: #f0f0f0;*/
+/*    border: none;*/
+/*    cursor: pointer;*/
+/*}*/
+
+/*.modal-content-table button:disabled {*/
+/*    opacity: 0.5;*/
+/*    cursor: not-allowed;*/
+/*}*/
+
+/*.modal-content-table select {*/
+/*    padding: 5px 10px;*/
+/*}*/
+
+/*.modal-content-table input[type="number"] {*/
+/*    width: 50px;*/
+/*    padding: 5px;*/
+/*}*/
+
+/* DatePickerStyles.css */
+
+/* Ensures the container takes full width to avoid crowding */
+.date-picker-container .react-datepicker-wrapper,
+.date-picker-container .react-datepicker__input-container {
+    width: 100%;
 }
 
-.modal-content-table button {
-    padding: 5px 10px;
-    margin-right: 5px;
+/* Styles for the input field within the DatePicker */
+.date-picker-container .react-datepicker__input-container input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+/* Main styles for the DatePicker popup */
+.date-picker-container .react-datepicker {
+    font-size: 12px;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.date-picker-container .react-datepicker__header {
     background-color: #f0f0f0;
+    border-bottom: 1px solid #ccc;
+}
+
+.date-picker-container .react-datepicker__current-month {
+    font-size: 16px;
+}
+
+.date-picker-container .react-datepicker__day-name,
+.date-picker-container .react-datepicker__day,
+.date-picker-container .react-datepicker__time-name {
+    width: 32px;
+    line-height: 32px;
+    margin: 0;
+    text-align: center;
+    border-radius: 0;
+}
+
+.date-picker-container .react-datepicker__day--selected,
+.date-picker-container .react-datepicker__day--keyboard-selected {
+    background-color: #006edc;
+    color: white;
+}
+
+.date-picker-container .react-datepicker__day:hover {
+    background-color: #eaeaea;
+}
+
+.date-picker-container .react-datepicker__navigation {
+    top: 10px;
+    width: 10px;
+    height: 10px;
     border: none;
-    cursor: pointer;
+    background: none;
 }
 
-.modal-content-table button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+.date-picker-container .react-datepicker__navigation-icon::before {
+    border-color: #000;
 }
 
-.modal-content-table select {
-    padding: 5px 10px;
-}
-
-.modal-content-table input[type="number"] {
-    width: 50px;
-    padding: 5px;
-}
 
 /* Media Queries for Responsive Design */
 @media screen and (max-width: 768px) {

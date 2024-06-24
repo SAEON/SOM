@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import "./ScrollableTable.css";
-import "./Newmodal.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFolder as farFolder, faFolderOpen as farFolderOpen, faTable } from "@fortawesome/free-solid-svg-icons";
 import Modal from "react-modal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import "./ScrollableTable.css";
+import "./Newmodal.css";
 
 Modal.setAppElement("#root");
 
@@ -42,15 +42,7 @@ const ScrollableTable3 = () => {
     const toggleServer = (serverId) => {
         setActiveServer(prev => prev === serverId ? null : serverId);
         if (!tables[serverId]) {
-            fetch(`/api/servers/${serverId}/tables`)
-                .then(response => response.json())
-                .then(data => {
-                    setTables(prevTables => ({
-                        ...prevTables,
-                        [serverId]: data.sort((a, b) => a.table_name.localeCompare(b.table_name))
-                    }));
-                })
-                .catch(error => console.error("Error fetching tables:", error));
+            fetchTablesAndDateRanges(serverId);
         }
     };
 
@@ -69,18 +61,37 @@ const ScrollableTable3 = () => {
 
     const nextPage = () => {
         const newPage = currentPage + 1;
-        console.log('Going to next page:', newPage);
         setCurrentPage(newPage);
         fetchTableData(currentTableId, newPage);
     };
-
-
 
     const prevPage = () => {
         const newPage = currentPage - 1;
         if (newPage >= 1) {
             setCurrentPage(newPage);
             fetchTableData(currentTableId, newPage);
+        }
+    };
+
+    const fetchTablesAndDateRanges = async (serverId) => {
+        try {
+            const response = await fetch(`/api/servers/${serverId}/tables`);
+            const tables = await response.json();
+            if (response.ok) {
+                const tablesWithDateInfo = await Promise.all(tables.map(async (table) => {
+                    const dateRangeResponse = await fetch(`/api/tables/${table.id}/date-range`);
+                    const dateRange = await dateRangeResponse.json();
+                    return { ...table, dateRange: dateRangeResponse.ok ? dateRange : null };
+                }));
+                setTables(prevTables => ({
+                    ...prevTables,
+                    [serverId]: tablesWithDateInfo.sort((a, b) => a.table_name.localeCompare(b.table_name))
+                }));
+            } else {
+                throw new Error("Failed to fetch tables");
+            }
+        } catch (error) {
+            console.error("Error fetching tables and date ranges:", error);
         }
     };
 
@@ -171,11 +182,22 @@ const ScrollableTable3 = () => {
             setIsModalOpen(false); // Consider closing modal or showing error state
         }
     };
-    
 
     const closeModal = () => {
         setIsModalOpen(false);
         setModalContent(null);
+    };
+
+    const getRowClass = (timestamp) => {
+        const now = new Date();
+        const rowDate = new Date(timestamp);
+        const timeDiff = now - rowDate;
+        const dayDiff = timeDiff / (1000 * 3600 * 24);
+
+        if (dayDiff <= 2) return "recently-updated";
+        if (dayDiff <= 7) return "updated-this-week";
+        if (dayDiff <= 30) return "updated-this-month";
+        return "updated-long-ago";
     };
 
     const renderTableData = (data) => {
@@ -202,7 +224,7 @@ const ScrollableTable3 = () => {
         }));
 
         return (
-            <div className="modal-content-table">
+            <div className="date-picker-container">
                 <DatePicker selected={startDate} onChange={date => setStartDate(date)} dateFormat="dd/MM/yyyy" />
                 <DatePicker selected={endDate} onChange={date => setEndDate(date)} dateFormat="dd/MM/yyyy" />
                 <div>
@@ -272,12 +294,16 @@ const ScrollableTable3 = () => {
                             </td>
                         </tr>
                         {activeServer === server.server_id && tables[server.server_id] && tables[server.server_id].map((table) => (
-                            <tr key={table.id}>
+                            <tr key={table.id} className={getRowClass(table.dateRange ? table.dateRange.end_date : '')}>
                                 <td colSpan={6}>
                                     <button className="table-name-button" onClick={() => openTableModal(table.id)}>
                                         <FontAwesomeIcon icon={faTable} className="icon-left" />
                                         {table.table_name}
                                         <span className={`status-indicator ${table.status}`}>{table.status}</span>
+                                        {/* Display date range if available */}
+                                        <span className="date-range-display">
+                                            {table.dateRange ? `${new Date(table.dateRange.start_date).toLocaleDateString()} - ${new Date(table.dateRange.end_date).toLocaleDateString()}` : 'No dates available'}
+                                        </span>
                                     </button>
                                 </td>
                             </tr>
