@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import './ScrollableTable.css';
-import './Newmodal.css';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFolder as farFolder, faFolderOpen as farFolderOpen, faTable } from '@fortawesome/free-solid-svg-icons';
-import Modal from 'react-modal';
-import DatePicker from 'react-datepicker';
+import React, { useState, useEffect } from "react";
+import "./ScrollableTable.css";
+import "./Newmodal.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFolder as farFolder, faFolderOpen as farFolderOpen, faTable } from "@fortawesome/free-solid-svg-icons";
+import Modal from "react-modal";
+import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
-Modal.setAppElement('#root');
+Modal.setAppElement("#root");
 
 const ScrollableTable3 = () => {
     const [servers, setServers] = useState([]);
@@ -21,15 +21,23 @@ const ScrollableTable3 = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(100);
     const [totalRows, setTotalRows] = useState(0);
+    const [currentTableId, setCurrentTableId] = useState(null);
+    const [columnOrder, setColumnOrder] = useState([]);
 
     useEffect(() => {
-        fetch('/api/servers')
+        fetch("/api/servers")
             .then(response => response.json())
             .then(data => {
                 setServers(data.sort((a, b) => a.name.localeCompare(b.name)));
             })
-            .catch(error => console.error('Error fetching servers:', error));
+            .catch(error => console.error("Error fetching servers:", error));
     }, []);
+
+    useEffect(() => {
+        if (currentTableId && currentPage > 0) {
+            fetchTableData(currentTableId);
+        }
+    }, [currentPage, currentTableId, pageSize]);
 
     const toggleServer = (serverId) => {
         setActiveServer(prev => prev === serverId ? null : serverId);
@@ -37,57 +45,133 @@ const ScrollableTable3 = () => {
             fetch(`/api/servers/${serverId}/tables`)
                 .then(response => response.json())
                 .then(data => {
-                    setTables(prevTables => ({ ...prevTables, [serverId]: data }));
+                    setTables(prevTables => ({
+                        ...prevTables,
+                        [serverId]: data.sort((a, b) => a.table_name.localeCompare(b.table_name))
+                    }));
                 })
-                .catch(error => console.error('Error fetching tables:', error));
+                .catch(error => console.error("Error fetching tables:", error));
         }
     };
 
     const fetchFieldsWithUnits = async (tableId) => {
         const response = await fetch(`/api/tables/${tableId}/fields`);
         if (!response.ok) {
-            throw new Error('Failed to fetch field details');
+            throw new Error("Failed to fetch field details");
         }
         return response.json();
     };
 
-    const openTableModal = async (tableId) => {
+    const handlePageSizeChange = (newSize) => {
+        setPageSize(newSize);
+        fetchTableData(currentTableId, 1);  // Refetch data with new page size starting from page 1
+    };
+
+    const nextPage = () => {
+        const newPage = currentPage + 1;
+        console.log('Going to next page:', newPage);
+        setCurrentPage(newPage);
+        fetchTableData(currentTableId, newPage);
+    };
+
+
+
+    const prevPage = () => {
+        const newPage = currentPage - 1;
+        if (newPage >= 1) {
+            setCurrentPage(newPage);
+            fetchTableData(currentTableId, newPage);
+        }
+    };
+
+    const fetchTableData = async (tableId, page = currentPage) => {
+        if (!tableId) return;
+
+        const formattedStartDate = startDate.toISOString().split("T")[0];
+        const formattedEndDate = endDate.toISOString().split("T")[0];
+        const url = `/api/tables/${tableId}/values?startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=${page}&pageSize=${pageSize}`;
+
         try {
-            const dateRangeResponse = await fetch(`/api/tables/${tableId}/date-range`);
-            const dateRange = await dateRangeResponse.json();
-            const start = new Date(dateRange.start_date);
-            const end = new Date(dateRange.end_date);
-            end.setDate(end.getDate() + 1); // Adjust end date to include the last day fully
-            setStartDate(start);
-            setEndDate(end);
-
-            const fieldsData = await fetchFieldsWithUnits(tableId);
-            const fieldsInfo = fieldsData.reduce((acc, field) => {
-                acc[field.field_name] = { units: field.units, status: field.status };
-                return acc;
-            }, {});
-
-            const formattedStartDate = start.toISOString().split('T')[0];
-            const formattedEndDate = end.toISOString().split('T')[0];
-            const response = await fetch(`/api/tables/${tableId}/values?startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=${currentPage}&pageSize=${pageSize}`);
+            const response = await fetch(url);
             const valuesData = await response.json();
+            if (response.ok && Array.isArray(valuesData.data)) {
+                const fieldsData = await fetchFieldsWithUnits(tableId);
+                const fieldsInfo = fieldsData.reduce((acc, field) => {
+                    acc[field.field_name] = { units: field.units, status: field.status };
+                    return acc;
+                }, {});
 
-            if (Array.isArray(valuesData.data)) {
                 const dataWithUnits = valuesData.data.map(row => ({
                     ...row,
                     units: fieldsInfo[row.field_name]?.units,
                     status: fieldsInfo[row.field_name]?.status
                 }));
+
                 setTableValues(prev => ({ ...prev, [tableId]: dataWithUnits }));
                 setModalContent(dataWithUnits);
                 setIsModalOpen(true);
             } else {
-                console.error('Expected valuesData.data to be an array, received:', valuesData);
+                console.error("Expected valuesData.data to be an array, received:", valuesData);
+                if (valuesData.error) {
+                    console.error("API Error:", valuesData.error);
+                }
             }
         } catch (error) {
-            console.error('Error fetching table details:', error);
+            console.error("Error fetching table details:", error);
         }
     };
+
+    const openTableModal = async (tableId) => {
+        setCurrentTableId(tableId);
+        setCurrentPage(1);
+
+        try {
+            const dateRangeResponse = await fetch(`/api/tables/${tableId}/date-range`);
+            const dateRange = await dateRangeResponse.json();
+            if (!dateRangeResponse.ok) throw new Error("Failed to fetch date range.");
+
+            const start = new Date(dateRange.start_date);
+            const end = new Date(dateRange.end_date);
+            end.setDate(end.getDate() + 1);  // Include the end date fully
+            setStartDate(start);
+            setEndDate(end);
+
+            const fieldsData = await fetchFieldsWithUnits(tableId);
+            if (!fieldsData) throw new Error("Failed to fetch fields with units.");
+
+            const fieldsInfo = fieldsData.reduce((acc, field) => {
+                acc[field.field_name] = { units: field.units, status: field.status };
+                return acc;
+            }, {});
+
+            const formattedStartDate = start.toISOString().split("T")[0];
+            const formattedEndDate = end.toISOString().split("T")[0];
+            const response = await fetch(`/api/tables/${tableId}/values?startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=1&pageSize=${pageSize}`);
+            const valuesData = await response.json();
+
+            if (response.ok && Array.isArray(valuesData.data)) {
+                const dataWithUnits = valuesData.data.map(row => ({
+                    ...row,
+                    units: fieldsInfo[row.field_name]?.units,
+                    status: fieldsInfo[row.field_name]?.status,
+                }));
+
+                setTableValues(prev => ({ ...prev, [tableId]: dataWithUnits }));
+                setModalContent(dataWithUnits);
+                setIsModalOpen(true);
+            } else {
+                console.error("Expected valuesData.data to be an array, received:", valuesData);
+                if (valuesData.error) {
+                    console.error("API Error:", valuesData.error);
+                }
+                setIsModalOpen(false); // Optionally close the modal or show an error state instead
+            }
+        } catch (error) {
+            console.error("Error fetching table details:", error);
+            setIsModalOpen(false); // Consider closing modal or showing error state
+        }
+    };
+    
 
     const closeModal = () => {
         setIsModalOpen(false);
@@ -97,60 +181,70 @@ const ScrollableTable3 = () => {
     const renderTableData = (data) => {
         if (!data || data.length === 0) return <p>No data available</p>;
 
-        // Collecting column headers and details
         const columns = new Set();
-        const columnDetails = {};  // This will store units and status for each column
+        const columnDetails = {}; // Store units and status for each column
         data.forEach(entry => {
             entry.fields.forEach(field => {
                 columns.add(field.field_name);
                 if (!columnDetails[field.field_name]) {
                     columnDetails[field.field_name] = {
-                        units: field.units || 'No units',  // Capture units
-                        status: field.status || 'Unknown' // Capture status
+                        units: field.units || "No units",
+                        status: field.status || "Unknown"
                     };
                 }
             });
         });
+        const sortedColumns = Array.from(columns).sort();
 
-        // Building rows from data for display
-        const rows = data.map(entry => {
-            const row = { timestamp: entry.timestamp };
-            entry.fields.forEach(field => {
-                row[field.field_name] = field.value;
-            });
-            return row;
-        });
+        const rows = data.map(entry => ({
+            ...entry,
+            fields: entry.fields.sort((a, b) => a.field_name.localeCompare(b.field_name))
+        }));
 
         return (
             <div className="modal-content-table">
                 <DatePicker selected={startDate} onChange={date => setStartDate(date)} dateFormat="dd/MM/yyyy" />
                 <DatePicker selected={endDate} onChange={date => setEndDate(date)} dateFormat="dd/MM/yyyy" />
                 <div>
+                    <button onClick={prevPage} disabled={currentPage === 1}>←</button>
                     Page: <input type="number" value={currentPage} onChange={e => setCurrentPage(Number(e.target.value))} />
-                    Page Size: <input type="number" value={pageSize} onChange={e => setPageSize(Number(e.target.value))} />
+                    <button onClick={nextPage}>→</button>
+                    Page Size:
+                    <select value={pageSize} onChange={e => handlePageSizeChange(Number(e.target.value))}>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                        <option value="300">300</option>
+                        <option value="400">400</option>
+                        <option value="500">500</option>
+                    </select>
                 </div>
                 <table className="data-table">
                     <thead>
                     <tr>
                         <th>Timestamp</th>
-                        {Array.from(columns).map(col => <th key={`header-${col}`}>{col}</th>)}
-                    </tr>
-                    <tr>
-                        {['Timestamp', ...Array.from(columns)].map(col => (
-                            <th key={`units-${col}`}>{col !== 'Timestamp' ? columnDetails[col].units : ''}</th>
+                        {sortedColumns.map(col => (
+                            <th key={`header-${col}`}>{col}</th>
                         ))}
                     </tr>
                     <tr>
-                        {['Timestamp', ...Array.from(columns)].map(col => (
-                            <th key={`status-${col}`}>{col !== 'Timestamp' ? columnDetails[col].status : ''}</th>
+                        <th></th>
+                        {sortedColumns.map(col => (
+                            <th key={`units-${col}`}>{columnDetails[col].units}</th>
+                        ))}
+                    </tr>
+                    <tr>
+                        <th></th>
+                        {sortedColumns.map(col => (
+                            <th key={`status-${col}`}>{columnDetails[col].status}</th>
                         ))}
                     </tr>
                     </thead>
                     <tbody>
                     {rows.map((row, index) => (
                         <tr key={index}>
-                            {['timestamp', ...Array.from(columns)].map(col => (
-                                <td key={`${col}-${index}`}>{row[col] || '-'}</td>
+                            <td>{row.timestamp}</td>
+                            {sortedColumns.map(col => (
+                                <td key={`${col}-${index}`}>{row.fields.find(f => f.field_name === col)?.value || '-'}</td>
                             ))}
                         </tr>
                     ))}

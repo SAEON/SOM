@@ -47,7 +47,7 @@ th {
 /* General Button Styles */
 
 .button, .view-data-button, .download-csv-button,
-.special-action-button, .styled-button {
+.special-action-button, .styled-button, .site-name-button {
     background-color: #003a4b; /* SAEON Navbar color */
     color: white;
     border: none;
@@ -60,15 +60,7 @@ th {
 }
 
 .site-name-button {
-    background-color: #003a4b; /* SAEON Navbar color */
-    color: white;
-    border: none;
-    border-radius: 5px;
-    padding: 7px 10px;
     font-size: 14px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin: 5px 5px 0 0; /* Corrected margins */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -104,7 +96,7 @@ th {
 .button:hover, .view-data-button:hover, .download-csv-button:hover,
 .special-action-button:hover, .styled-button:hover,
 .site-name-button:hover {
-    background-color: #3768af; /* Darker green on hover */
+    background-color: #3768af; /* Darker blue on hover */
     color: white;
 }
 
@@ -133,14 +125,10 @@ th {
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* More pronounced shadow for modals */
 }
 
-/*.modal-content-table {*/
-/*    width: 100%;*/
-/*    overflow-x: auto;*/
-/*}*/
 .modal-content-table {
     width: 100%;
     overflow-x: auto;
-margin-bottom: 20px;
+    margin-bottom: 20px;
 }
 
 .data-table th {
@@ -178,22 +166,17 @@ margin-bottom: 20px;
 
 .dropdown-button {
     background-color: #e0e0e0; /* SAEON Navbar color */
-    color: white;
-    border: none;
+    color: black;
+    border: 1px solid black;
     border-radius: 5px;
-    padding: 7px 10px;
-    font-size: 14px;
+    padding: 5px 15px;
+    font-size: 12px;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    text-align: left;
+    width: 100%;
 }
 
-/* Hover Effects for All Buttons */
-.dropdown-button:hover {
-    background-color: #3768af; /* Darker green on hover */
-    color: white;
-}
-
-/* Dropdown Menu */
 .dropdown-menu {
     display: flex;
     flex-direction: column; /* Stack items vertically */
@@ -249,7 +232,6 @@ margin-bottom: 20px;
 
 .yellow-badge {
     background-color: #ffc107;
-    /*color: black;*/
 }
 
 .orange-badge {
@@ -311,56 +293,6 @@ margin-bottom: 20px;
     text-align: center;
 }
 
-.dropdown-container {
-    position: relative;
-    width: 200px; /* Adjusted width for dropdown */
-}
-
-.dropdown-button {
-    background-color: #e0e0e0;
-    color: black;
-    border: 1px solid black;
-    border-radius: 5px;
-    padding: 5px 15px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    text-align: left;
-    width: 100%;
-}
-
-.dropdown-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    background-color: white;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    z-index: 20000;
-    width: 100%; /* Full width of the dropdown container */
-    max-height: 200px;
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
-.dropdown-item {
-    padding: 8px 10px;
-    border-bottom: 1px solid #ddd;
-    background-color: transparent;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    text-align: left;
-}
-
-.dropdown-item:hover {
-    background-color: #e7e7e7;
-}
-
-.dropdown-item:last-child {
-    border-bottom: none;
-}
-
 /* Dark Header Styles */
 .dark-header, .dark-header td {
     background-color: #396aaf; /* SAEON Navbar color */
@@ -375,10 +307,12 @@ margin-bottom: 20px;
 
 .data-table th {
     font-weight: bold;
-    color: black;
+    text-align: center;
+    padding: 8px;
+    background-color: #f4f4f4;
+    white-space: nowrap;
 }
 
-/* Notification Popup Styles */
 .notification-popup {
     position: fixed;
     bottom: 20px;
@@ -403,12 +337,10 @@ margin-bottom: 20px;
 
 .status-indicator {
     margin-left: 10px;
-    /*padding: 2px 5px;*/
     padding: 0;
     border-radius: 4px;
     font-size: 0.8rem;
 }
-
 
 .status-indicator.active {
     background-color: #4CAF50; /* Green for active */
@@ -419,36 +351,45 @@ margin-bottom: 20px;
     background-color: #f44336; /* Red for inactive */
     color: white;
 }
+
 .data-table .status-indicator {
     margin-left: 0px;
     padding: 2px 5px;
-    border-radius: 4px;
-    font-size: 0.8rem;
     background-color: #4CAF50; /* Default green for active, can be overridden based on actual status */
-    color: white;
 }
 
 .data-table .status-indicator.inactive {
     background-color: #f44336; /* Red for inactive */
 }
-.data-table th {
-    font-weight: bold;
-    text-align: center;
-padding: 8px;
-    background-color: #f4f4f4;
-white-space: nowrap;
+
+.modal-content-table div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
 }
 
+.modal-content-table button {
+    padding: 5px 10px;
+    margin-right: 5px;
+    background-color: #f0f0f0;
+    border: none;
+    cursor: pointer;
+}
 
+.modal-content-table button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
+.modal-content-table select {
+    padding: 5px 10px;
+}
 
-/*.data-table th {*/
-/*    position: relative; !* Adjust as necessary for alignment*!*/
-/*padding: 8px;*/
-/*    text-align: left;*/
-/*    background-color: #f4f4f4;  !* Light grey background for headers*!*/
-/*}*/
-
+.modal-content-table input[type="number"] {
+    width: 50px;
+    padding: 5px;
+}
 
 /* Media Queries for Responsive Design */
 @media screen and (max-width: 768px) {
