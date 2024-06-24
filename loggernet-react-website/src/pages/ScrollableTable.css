@@ -25,6 +25,26 @@
     background-color: #ff582c;
 }
 
+.status-indicator.green {
+    color: green;
+    font-weight: bolder;
+}
+
+.status-indicator.blue {
+    color: blue;
+    font-weight: bolder;
+}
+
+.status-indicator.yellow {
+    color: orange;
+    font-weight: bolder;
+}
+
+.status-indicator.red {
+    color: red;
+    font-weight: bolder;
+}
+
 
 /* Container Styles */
 .button-container,

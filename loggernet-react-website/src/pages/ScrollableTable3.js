@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFolder as farFolder, faFolderOpen as farFolderOpen, faTable } from "@fortawesome/free-solid-svg-icons";
 import Modal from "react-modal";
 import DatePicker from "react-datepicker";
+import LoadingSpinner from "./LoadingSpinner";
 import "react-datepicker/dist/react-datepicker.css";
 import "./ScrollableTable.css";
 import "./Newmodal.css";
@@ -23,14 +24,22 @@ const ScrollableTable3 = () => {
     const [totalRows, setTotalRows] = useState(0);
     const [currentTableId, setCurrentTableId] = useState(null);
     const [columnOrder, setColumnOrder] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('');
 
     useEffect(() => {
+        setLoading(true);
+        setLoadingMessage('Loading servers...');
         fetch("/api/servers")
             .then(response => response.json())
             .then(data => {
                 setServers(data.sort((a, b) => a.name.localeCompare(b.name)));
+                setLoading(false);
             })
-            .catch(error => console.error("Error fetching servers:", error));
+            .catch(error => {
+                console.error("Error fetching servers:", error);
+                setLoading(false);
+            });
     }, []);
 
     useEffect(() => {
@@ -75,6 +84,8 @@ const ScrollableTable3 = () => {
 
     const fetchTablesAndDateRanges = async (serverId) => {
         try {
+            setLoading(true);
+            setLoadingMessage('Loading tables and date ranges...');
             const response = await fetch(`/api/servers/${serverId}/tables`);
             const tables = await response.json();
             if (response.ok) {
@@ -87,17 +98,21 @@ const ScrollableTable3 = () => {
                     ...prevTables,
                     [serverId]: tablesWithDateInfo.sort((a, b) => a.table_name.localeCompare(b.table_name))
                 }));
+                setLoading(false);
             } else {
                 throw new Error("Failed to fetch tables");
             }
         } catch (error) {
             console.error("Error fetching tables and date ranges:", error);
+            setLoading(false);
         }
     };
 
     const fetchTableData = async (tableId, page = currentPage) => {
         if (!tableId) return;
 
+        setLoading(true);
+        setLoadingMessage('Loading table data...');
         const formattedStartDate = startDate.toISOString().split("T")[0];
         const formattedEndDate = endDate.toISOString().split("T")[0];
         const url = `/api/tables/${tableId}/values?startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=${page}&pageSize=${pageSize}`;
@@ -120,15 +135,18 @@ const ScrollableTable3 = () => {
 
                 setTableValues(prev => ({ ...prev, [tableId]: dataWithUnits }));
                 setModalContent(dataWithUnits);
+                setLoading(false);
                 setIsModalOpen(true);
             } else {
                 console.error("Expected valuesData.data to be an array, received:", valuesData);
                 if (valuesData.error) {
                     console.error("API Error:", valuesData.error);
                 }
+                setLoading(false);
             }
         } catch (error) {
             console.error("Error fetching table details:", error);
+            setLoading(false);
         }
     };
 
@@ -137,13 +155,15 @@ const ScrollableTable3 = () => {
         setCurrentPage(1);
 
         try {
+            setLoading(true);
+            setLoadingMessage('Opening table...');
             const dateRangeResponse = await fetch(`/api/tables/${tableId}/date-range`);
             const dateRange = await dateRangeResponse.json();
             if (!dateRangeResponse.ok) throw new Error("Failed to fetch date range.");
 
             const start = new Date(dateRange.start_date);
             const end = new Date(dateRange.end_date);
-            end.setDate(end.getDate() + 1);  // Include the end date fully
+            end.setDate(end.getDate());  // Include the end date fully
             setStartDate(start);
             setEndDate(end);
 
@@ -165,20 +185,24 @@ const ScrollableTable3 = () => {
                     ...row,
                     units: fieldsInfo[row.field_name]?.units,
                     status: fieldsInfo[row.field_name]?.status,
+                    timestamp: new Date(row.timestamp).toDateString() + ' ' + new Date(row.timestamp).toLocaleTimeString('en-GB', { hour12: false })
                 }));
 
                 setTableValues(prev => ({ ...prev, [tableId]: dataWithUnits }));
                 setModalContent(dataWithUnits);
+                setLoading(false);
                 setIsModalOpen(true);
             } else {
                 console.error("Expected valuesData.data to be an array, received:", valuesData);
                 if (valuesData.error) {
                     console.error("API Error:", valuesData.error);
                 }
+                setLoading(false);
                 setIsModalOpen(false); // Optionally close the modal or show an error state instead
             }
         } catch (error) {
             console.error("Error fetching table details:", error);
+            setLoading(false);
             setIsModalOpen(false); // Consider closing modal or showing error state
         }
     };
@@ -188,16 +212,52 @@ const ScrollableTable3 = () => {
         setModalContent(null);
     };
 
-    const getRowClass = (timestamp) => {
-        const now = new Date();
-        const rowDate = new Date(timestamp);
-        const timeDiff = now - rowDate;
-        const dayDiff = timeDiff / (1000 * 3600 * 24);
+    const downloadData = async () => {
+        if (!currentTableId) return;
 
-        if (dayDiff <= 2) return "recently-updated";
-        if (dayDiff <= 7) return "updated-this-week";
-        if (dayDiff <= 30) return "updated-this-month";
-        return "updated-long-ago";
+        setLoading(true);
+        setLoadingMessage('Downloading data...');
+        const formattedStartDate = startDate.toISOString().split("T")[0];
+        const formattedEndDate = endDate.toISOString().split("T")[0];
+        const url = `/api/tables/${currentTableId}/download?startDate=${formattedStartDate}&endDate=${formattedEndDate}`;
+
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'data.csv';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                setLoading(false);
+            } else {
+                console.error("Failed to download data");
+                setLoading(false);
+            }
+        } catch (error) {
+            console.error("Error downloading data:", error);
+            setLoading(false);
+        }
+    };
+
+    const getStatusIndicator = (lastUpdated) => {
+        const now = new Date();
+        const updatedDate = new Date(lastUpdated);
+        const diffInDays = Math.floor((now - updatedDate) / (1000 * 60 * 60 * 24));
+
+        if (diffInDays <= 2) {
+            return <span className="status-indicator green">Updated recently (last few days) </span>;
+        } else if (diffInDays <= 7) {
+            return <span className="status-indicator blue">Updated this week</span>;
+        } else if (diffInDays <= 30) {
+            return <span className="status-indicator yellow">Updated this month</span>;
+        } else {
+            return <span className="status-indicator red">Needs update (> month)</span>;
+        }
     };
 
     const renderTableData = (data) => {
@@ -218,15 +278,20 @@ const ScrollableTable3 = () => {
         });
         const sortedColumns = Array.from(columns).sort();
 
-        const rows = data.map(entry => ({
+        const rows = data.map((entry) => ({
             ...entry,
             fields: entry.fields.sort((a, b) => a.field_name.localeCompare(b.field_name))
         }));
 
         return (
             <div className="date-picker-container">
-                <DatePicker selected={startDate} onChange={date => setStartDate(date)} dateFormat="dd/MM/yyyy" />
-                <DatePicker selected={endDate} onChange={date => setEndDate(date)} dateFormat="dd/MM/yyyy" />
+                <div className="date-picker">
+                    <DatePicker selected={startDate} onChange={date => setStartDate(date)} dateFormat="dd/MM/yyyy" />
+                    <DatePicker selected={endDate} onChange={date => setEndDate(date)} dateFormat="dd/MM/yyyy" />
+                </div>
+                <div className="download-button">
+                    <button onClick={downloadData}>Download</button>
+                </div>
                 <div>
                     <button onClick={prevPage} disabled={currentPage === 1}>←</button>
                     Page: <input type="number" value={currentPage} onChange={e => setCurrentPage(Number(e.target.value))} />
@@ -278,6 +343,12 @@ const ScrollableTable3 = () => {
 
     return (
         <div className="scrollable-table-container">
+            {loading && (
+                <div className="loading-overlay">
+                    <LoadingSpinner />
+                    <div className="loading-message">{loadingMessage}</div>
+                </div>
+            )}
             <table>
                 <tbody>
                 {servers.map((server) => (
@@ -294,7 +365,7 @@ const ScrollableTable3 = () => {
                             </td>
                         </tr>
                         {activeServer === server.server_id && tables[server.server_id] && tables[server.server_id].map((table) => (
-                            <tr key={table.id} className={getRowClass(table.dateRange ? table.dateRange.end_date : '')}>
+                            <tr key={table.id}>
                                 <td colSpan={6}>
                                     <button className="table-name-button" onClick={() => openTableModal(table.id)}>
                                         <FontAwesomeIcon icon={faTable} className="icon-left" />
@@ -304,6 +375,7 @@ const ScrollableTable3 = () => {
                                         <span className="date-range-display">
                                             {table.dateRange ? `${new Date(table.dateRange.start_date).toLocaleDateString()} - ${new Date(table.dateRange.end_date).toLocaleDateString()}` : 'No dates available'}
                                         </span>
+                                        {table.dateRange && getStatusIndicator(table.dateRange.end_date)}
                                     </button>
                                 </td>
                             </tr>
