@@ -1,5 +1,9 @@
 .unified-mapping-table {
     padding: 20px;
+    min-height: 600px; /* Set a minimum height to ensure consistent dimensions */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .update-section {
@@ -13,6 +17,8 @@
     flex-direction: column;
     margin-right: 10px;
     margin-bottom: 10px;
+    flex: 1; /* Allow the input groups to flex and wrap */
+    min-width: 150px; /* Ensure a minimum width for the input groups */
 }
 
 .input-group label {
@@ -23,16 +29,18 @@
 .input-group input {
     padding: 5px;
     font-size: 0.8em;
-    width: 150px;
+    width: 100%; /* Make input fields take the full width of their container */
 }
 
 button {
     padding: 10px;
     font-size: 0.8em;
+    margin-top: 20px; /* Add some margin to separate from input fields */
 }
 
 .filter-section {
     display: flex;
+    flex-wrap: wrap; /* Allow filters to wrap on smaller screens */
     margin-bottom: 20px;
 }
 
@@ -40,11 +48,15 @@ button {
     padding: 5px;
     font-size: 0.8em;
     margin-right: 10px;
+    flex: 1; /* Allow the select elements to flex and wrap */
+    min-width: 150px; /* Ensure a minimum width for the select elements */
+    margin-bottom: 10px; /* Add margin to the bottom for spacing on smaller screens */
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed; /* Ensure consistent table layout */
 }
 
 th, td {
@@ -52,10 +64,12 @@ th, td {
     border: 1px solid #ddd;
     text-align: left;
     font-size: 0.8em;
+    word-wrap: break-word; /* Ensure content wraps within cells */
 }
 
 th {
     background-color: #163552;
+    color: #ffffff; /* Ensure the text is readable */
 }
 
 .pagination {
@@ -80,4 +94,30 @@ th {
     justify-content: center;
     align-items: center;
     margin-top: 20px;
+}
+
+/* Responsive styling */
+@media (max-width: 768px) {
+    .input-group {
+        width: 100%; /* Make input groups take the full width on smaller screens */
+        margin-right: 0; /* Remove right margin on smaller screens */
+    }
+
+    .filter-section {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .filter-section select {
+        margin-right: 0; /* Remove right margin on smaller screens */
+        margin-bottom: 10px; /* Add margin to the bottom for spacing */
+    }
+
+    table th, table td {
+        padding: 5px; /* Reduce padding for smaller screens */
+    }
+
+    .pagination button {
+        padding: 5px; /* Reduce padding for smaller screens */
+    }
 }

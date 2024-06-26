@@ -23,6 +23,7 @@ const UnifiedMappingTable = () => {
     const [selectedServer, setSelectedServer] = useState('');
     const [selectedTable, setSelectedTable] = useState('');
     const [selectedField, setSelectedField] = useState('');
+    const [includeInSummaryFilter, setIncludeInSummaryFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(false); // Loading state
@@ -95,14 +96,15 @@ const UnifiedMappingTable = () => {
                         serverName: selectedServer,
                         tableName: selectedTable,
                         fieldName: selectedField,
+                        includeInSummary: includeInSummaryFilter,
                         page: currentPage,
                         limit: rowsPerPage
                     }
                 });
-                // console.log(result.data); // Log the data to check the structure
+                console.log(result.data); // Log the data to check the structure
                 if (result.data && Array.isArray(result.data.rows)) {
                     setData(result.data.rows);
-                    const totalRows = result.data.total; // Assuming the total number of rows is returned by the API
+                    const totalRows = result.data.total; // Total number of rows from the backend
                     setTotalPages(Math.ceil(totalRows / rowsPerPage));
                 } else {
                     setData([]);
@@ -114,7 +116,7 @@ const UnifiedMappingTable = () => {
             }
         };
         fetchData();
-    }, [selectedServer, selectedTable, selectedField, currentPage]);
+    }, [selectedServer, selectedTable, selectedField, includeInSummaryFilter, currentPage]);
 
     const handleUpdate = async () => {
         const { latitude, longitude, ...otherValues } = updateValues;
@@ -139,13 +141,14 @@ const UnifiedMappingTable = () => {
                     serverName: selectedServer,
                     tableName: selectedTable,
                     fieldName: selectedField,
+                    includeInSummary: includeInSummaryFilter,
                     page: currentPage,
                     limit: rowsPerPage
                 }
             });
             if (result.data && Array.isArray(result.data.rows)) {
                 setData(result.data.rows);
-                const totalRows = result.data.total; // Assuming the total number of rows is returned by the API
+                const totalRows = result.data.total; // Total number of rows from the backend
                 setTotalPages(Math.ceil(totalRows / rowsPerPage));
             } else {
                 setData([]);
@@ -284,6 +287,11 @@ const UnifiedMappingTable = () => {
                     {fieldNames.map(field => (
                         <option key={field} value={field}>{field}</option>
                     ))}
+                </select>
+                <select value={includeInSummaryFilter} onChange={e => setIncludeInSummaryFilter(e.target.value)}>
+                    <option value="">Include in Summary</option>
+                    <option value="true">True</option>
+                    <option value="false">False</option>
                 </select>
             </div>
             <table>

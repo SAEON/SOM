@@ -1,414 +1,374 @@
-import React, { useState, useEffect } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFolder as farFolder, faFolderOpen as farFolderOpen, faTable } from "@fortawesome/free-solid-svg-icons";
-import Modal from "react-modal";
-import DatePicker from "react-datepicker";
-import LoadingSpinner from "./LoadingSpinner";
-import "react-datepicker/dist/react-datepicker.css";
-import "./ScrollableTable.css";
-import "./Newmodal.css";
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Oval } from 'react-loader-spinner'; // Import the spinner
+import './UnifiedMappingTable.css';
 
-Modal.setAppElement("#root");
-
-const ScrollableTable3 = () => {
-    const [servers, setServers] = useState([]);
-    const [activeServer, setActiveServer] = useState(null);
-    const [tables, setTables] = useState({});
-    const [tableValues, setTableValues] = useState({});
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalContent, setModalContent] = useState(null);
-    const [startDate, setStartDate] = useState(new Date());
-    const [endDate, setEndDate] = useState(new Date());
+const UnifiedMappingTable = () => {
+    const [data, setData] = useState([]);
+    const [selectedRows, setSelectedRows] = useState([]);
+    const [updateValues, setUpdateValues] = useState({
+        displayServerName: '',
+        displayTableName: '',
+        displayFieldName: '',
+        latitude: '',
+        longitude: '',
+        units: '',
+        aggregationType: '',
+        includeInSummary: false
+    });
+    const [includeInSummaryIndeterminate, setIncludeInSummaryIndeterminate] = useState(false);
+    const [serverNames, setServerNames] = useState([]);
+    const [tableNames, setTableNames] = useState([]);
+    const [fieldNames, setFieldNames] = useState([]);
+    const [selectedServer, setSelectedServer] = useState('');
+    const [selectedTable, setSelectedTable] = useState('');
+    const [selectedField, setSelectedField] = useState('');
+    const [includeInSummaryFilter, setIncludeInSummaryFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(100);
-    const [totalRows, setTotalRows] = useState(0);
-    const [currentTableId, setCurrentTableId] = useState(null);
-    const [columnOrder, setColumnOrder] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [loadingMessage, setLoadingMessage] = useState('');
+    const [totalPages, setTotalPages] = useState(1);
+    const [loading, setLoading] = useState(false); // Loading state
+    const rowsPerPage = 100;
 
     useEffect(() => {
-        setLoading(true);
-        setLoadingMessage('Loading servers...');
-        fetch("/api/servers")
-            .then(response => response.json())
-            .then(data => {
-                setServers(data.sort((a, b) => a.name.localeCompare(b.name)));
-                setLoading(false);
-            })
-            .catch(error => {
-                console.error("Error fetching servers:", error);
-                setLoading(false);
-            });
+        const fetchServerNames = async () => {
+            try {
+                const result = await axios.get('/api/unified_mapping_table/servers');
+                setServerNames(result.data.sort());
+            } catch (error) {
+                console.error('Error fetching server names:', error);
+                setServerNames([]);
+            }
+        };
+        fetchServerNames();
     }, []);
 
     useEffect(() => {
-        if (currentTableId && currentPage > 0) {
-            fetchTableData(currentTableId);
-        }
-    }, [currentPage, currentTableId, pageSize]);
-
-    const toggleServer = (serverId) => {
-        setActiveServer(prev => prev === serverId ? null : serverId);
-        if (!tables[serverId]) {
-            fetchTablesAndDateRanges(serverId);
-        }
-    };
-
-    const fetchFieldsWithUnits = async (tableId) => {
-        const response = await fetch(`/api/tables/${tableId}/fields`);
-        if (!response.ok) {
-            throw new Error("Failed to fetch field details");
-        }
-        return response.json();
-    };
-
-    const handlePageSizeChange = (newSize) => {
-        setPageSize(newSize);
-        fetchTableData(currentTableId, 1);  // Refetch data with new page size starting from page 1
-    };
-
-    const nextPage = () => {
-        const newPage = currentPage + 1;
-        setCurrentPage(newPage);
-        fetchTableData(currentTableId, newPage);
-    };
-
-    const prevPage = () => {
-        const newPage = currentPage - 1;
-        if (newPage >= 1) {
-            setCurrentPage(newPage);
-            fetchTableData(currentTableId, newPage);
-        }
-    };
-
-    const fetchTablesAndDateRanges = async (serverId) => {
-        try {
-            setLoading(true);
-            setLoadingMessage('Loading tables and date ranges...');
-            const response = await fetch(`/api/servers/${serverId}/tables`);
-            const tables = await response.json();
-            if (response.ok) {
-                const tablesWithDateInfo = await Promise.all(tables.map(async (table) => {
-                    const dateRangeResponse = await fetch(`/api/tables/${table.table_id}/date-range`);
-                    const dateRange = await dateRangeResponse.json();
-                    return { ...table, dateRange: dateRangeResponse.ok ? dateRange : null };
-                }));
-                setTables(prevTables => ({
-                    ...prevTables,
-                    [serverId]: tablesWithDateInfo.sort((a, b) => a.table_name.localeCompare(b.table_name))
-                }));
-                setLoading(false);
-            } else {
-                throw new Error("Failed to fetch tables");
-            }
-        } catch (error) {
-            console.error("Error fetching tables and date ranges:", error);
-            setLoading(false);
-        }
-    };
-
-    const fetchTableData = async (tableId, page = currentPage) => {
-        if (!tableId) return;
-
-        setLoading(true);
-        setLoadingMessage('Loading table data...');
-        const formattedStartDate = startDate.toISOString().split("T")[0];
-        const formattedEndDate = endDate.toISOString().split("T")[0];
-        const url = `/api/tables/${tableId}/values?startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=${page}&pageSize=${pageSize}`;
-
-        try {
-            const response = await fetch(url);
-            const valuesData = await response.json();
-            if (response.ok && Array.isArray(valuesData.data)) {
-                const fieldsData = await fetchFieldsWithUnits(tableId);
-                const fieldsInfo = fieldsData.reduce((acc, field) => {
-                    acc[field.field_name] = { units: field.units, status: field.status };
-                    return acc;
-                }, {});
-
-                const dataWithUnits = valuesData.data.map(row => ({
-                    ...row,
-                    units: fieldsInfo[row.field_name]?.units,
-                    status: fieldsInfo[row.field_name]?.status
-                }));
-
-                setTableValues(prev => ({ ...prev, [tableId]: dataWithUnits }));
-                setModalContent(dataWithUnits);
-                setLoading(false);
-                setIsModalOpen(true);
-            } else {
-                console.error("Expected valuesData.data to be an array, received:", valuesData);
-                if (valuesData.error) {
-                    console.error("API Error:", valuesData.error);
+        const fetchTableNames = async () => {
+            if (selectedServer) {
+                try {
+                    const result = await axios.get('/api/unified_mapping_table/tables', {
+                        params: { serverName: selectedServer }
+                    });
+                    setTableNames(result.data.sort());
+                    setSelectedTable('');
+                    setFieldNames([]);
+                    setSelectedField('');
+                } catch (error) {
+                    console.error('Error fetching table names:', error);
+                    setTableNames([]);
                 }
-                setLoading(false);
-            }
-        } catch (error) {
-            console.error("Error fetching table details:", error);
-            setLoading(false);
-        }
-    };
-
-    const openTableModal = async (tableId) => {
-        if (!validateUUID(tableId)) {
-            console.error("Invalid table ID:", tableId);
-            return;
-        }
-
-        setCurrentTableId(tableId);
-        setCurrentPage(1);
-
-        try {
-            setLoading(true);
-            setLoadingMessage('Opening table...');
-            const dateRangeResponse = await fetch(`/api/tables/${tableId}/date-range`);
-            const dateRange = await dateRangeResponse.json();
-            if (!dateRangeResponse.ok) throw new Error("Failed to fetch date range.");
-
-            const start = new Date(dateRange.start_date);
-            const end = new Date(dateRange.end_date);
-            end.setDate(end.getDate());  // Include the end date fully
-            setStartDate(start);
-            setEndDate(end);
-
-            const fieldsData = await fetchFieldsWithUnits(tableId);
-            if (!fieldsData) throw new Error("Failed to fetch fields with units.");
-
-            const fieldsInfo = fieldsData.reduce((acc, field) => {
-                acc[field.field_name] = { units: field.units, status: field.status };
-                return acc;
-            }, {});
-
-            const formattedStartDate = start.toISOString().split("T")[0];
-            const formattedEndDate = end.toISOString().split("T")[0];
-            const response = await fetch(`/api/tables/${tableId}/values?startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=1&pageSize=${pageSize}`);
-            const valuesData = await response.json();
-
-            if (response.ok && Array.isArray(valuesData.data)) {
-                const dataWithUnits = valuesData.data.map(row => ({
-                    ...row,
-                    units: fieldsInfo[row.field_name]?.units,
-                    status: fieldsInfo[row.field_name]?.status,
-                    timestamp: new Date(row.timestamp).toDateString() + ' ' + new Date(row.timestamp).toLocaleTimeString('en-GB', { hour12: false })
-                }));
-
-                setTableValues(prev => ({ ...prev, [tableId]: dataWithUnits }));
-                setModalContent(dataWithUnits);
-                setLoading(false);
-                setIsModalOpen(true);
             } else {
-                console.error("Expected valuesData.data to be an array, received:", valuesData);
-                if (valuesData.error) {
-                    console.error("API Error:", valuesData.error);
+                setTableNames([]);
+                setSelectedTable('');
+                setFieldNames([]);
+                setSelectedField('');
+            }
+        };
+        fetchTableNames();
+    }, [selectedServer]);
+
+    useEffect(() => {
+        const fetchFieldNames = async () => {
+            if (selectedTable) {
+                try {
+                    const result = await axios.get('/api/unified_mapping_table/fields', {
+                        params: { serverName: selectedServer, tableName: selectedTable }
+                    });
+                    setFieldNames(result.data.sort());
+                    setSelectedField('');
+                } catch (error) {
+                    console.error('Error fetching field names:', error);
+                    setFieldNames([]);
                 }
-                setLoading(false);
-                setIsModalOpen(false); // Optionally close the modal or show an error state instead
-            }
-        } catch (error) {
-            console.error("Error fetching table details:", error);
-            setLoading(false);
-            setIsModalOpen(false); // Consider closing modal or showing error state
-        }
-    };
-
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setModalContent(null);
-    };
-
-    const downloadData = async () => {
-        if (!currentTableId) return;
-
-        setLoading(true);
-        setLoadingMessage('Downloading data...');
-        const formattedStartDate = startDate.toISOString().split("T")[0];
-        const formattedEndDate = endDate.toISOString().split("T")[0];
-        const url = `/api/tables/${currentTableId}/download?startDate=${formattedStartDate}&endDate=${formattedEndDate}`;
-
-        try {
-            const response = await fetch(url);
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'data.csv';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-                setLoading(false);
             } else {
-                console.error("Failed to download data");
-                setLoading(false);
+                setFieldNames([]);
+                setSelectedField('');
             }
-        } catch (error) {
-            console.error("Error downloading data:", error);
-            setLoading(false);
-        }
-    };
+        };
+        fetchFieldNames();
+    }, [selectedTable]);
 
-    const getStatusIndicator = (lastUpdated) => {
-        const now = new Date();
-        const updatedDate = new Date(lastUpdated);
-        const diffInDays = Math.floor((now - updatedDate) / (1000 * 60 * 60 * 24));
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const result = await axios.get('/api/unified_mapping_table', {
+                    params: {
+                        serverName: selectedServer,
+                        tableName: selectedTable,
+                        fieldName: selectedField,
+                        includeInSummary: includeInSummaryFilter,
+                        page: currentPage,
+                        limit: rowsPerPage
+                    }
+                });
+                // console.log(result.data); // Log the data to check the structure
+                if (result.data && Array.isArray(result.data.rows)) {
+                    setData(result.data.rows);
+                    const totalRows = result.data.total; // Total number of rows from the backend
+                    setTotalPages(Math.ceil(totalRows / rowsPerPage));
+                } else {
+                    setData([]);
+                    setTotalPages(1);
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                setData([]);
+            }
+        };
+        fetchData();
+    }, [selectedServer, selectedTable, selectedField, includeInSummaryFilter, currentPage]);
 
-        if (diffInDays <= 2) {
-            return <span className="status-indicator green">Updated recently (last few days) </span>;
-        } else if (diffInDays <= 7) {
-            return <span className="status-indicator blue">Updated this week</span>;
-        } else if (diffInDays <= 30) {
-            return <span className="status-indicator yellow">Updated this month</span>;
-        } else {
-            return <span className="status-indicator red">Needs update (> month)</span>;
-        }
-    };
+    const handleUpdate = async () => {
+        const { latitude, longitude, ...otherValues } = updateValues;
+        const validLatitude = latitude ? parseFloat(latitude) : null;
+        const validLongitude = longitude ? parseFloat(longitude) : null;
 
-    const renderTableData = (data) => {
-        if (!data || data.length === 0) return <p>No data available</p>;
-
-        const columns = new Set();
-        const columnDetails = {}; // Store units and status for each column
-        data.forEach(entry => {
-            entry.fields.forEach(field => {
-                columns.add(field.field_name);
-                if (!columnDetails[field.field_name]) {
-                    columnDetails[field.field_name] = {
-                        units: field.units || "No units",
-                        status: field.status || "Unknown"
-                    };
+        setLoading(true); // Start loading
+        try {
+            const response = await axios.post('/api/unified_mapping_table/update', {
+                ids: selectedRows,
+                ...otherValues,
+                latitude: validLatitude,
+                longitude: validLongitude
+            });
+            // Handle response status and message
+            if (response.status === 200) {
+                alert(response.data.message); // Display success message
+            }
+            // Refresh data after update
+            const result = await axios.get('/api/unified_mapping_table', {
+                params: {
+                    serverName: selectedServer,
+                    tableName: selectedTable,
+                    fieldName: selectedField,
+                    includeInSummary: includeInSummaryFilter,
+                    page: currentPage,
+                    limit: rowsPerPage
                 }
             });
-        });
-        const sortedColumns = Array.from(columns).sort();
-
-        const rows = data.map((entry) => ({
-            ...entry,
-            fields: entry.fields.sort((a, b) => a.field_name.localeCompare(b.field_name))
-        }));
-
-        return (
-            <div className="date-picker-container">
-                <div className="date-picker">
-                    <DatePicker selected={startDate} onChange={date => setStartDate(date)} dateFormat="dd/MM/yyyy" />
-                    <DatePicker selected={endDate} onChange={date => setEndDate(date)} dateFormat="dd/MM/yyyy" />
-                </div>
-                <div className="download-button">
-                    <button onClick={downloadData}>Download</button>
-                </div>
-                <div>
-                    <button onClick={prevPage} disabled={currentPage === 1}>←</button>
-                    Page: <input type="number" value={currentPage} onChange={e => setCurrentPage(Number(e.target.value))} />
-                    <button onClick={nextPage}>→</button>
-                    Page Size:
-                    <select value={pageSize} onChange={e => handlePageSizeChange(Number(e.target.value))}>
-                        <option value="100">100</option>
-                        <option value="200">200</option>
-                        <option value="300">300</option>
-                        <option value="400">400</option>
-                        <option value="500">500</option>
-                    </select>
-                </div>
-                <table className="data-table">
-                    <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        {sortedColumns.map(col => (
-                            <th key={`header-${col}`}>{col}</th>
-                        ))}
-                    </tr>
-                    <tr>
-                        <th></th>
-                        {sortedColumns.map(col => (
-                            <th key={`units-${col}`}>{columnDetails[col].units}</th>
-                        ))}
-                    </tr>
-                    <tr>
-                        <th></th>
-                        {sortedColumns.map(col => (
-                            <th key={`status-${col}`}>{columnDetails[col].status}</th>
-                        ))}
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {rows.map((row, index) => (
-                        <tr key={index}>
-                            <td>{row.timestamp}</td>
-                            {sortedColumns.map(col => (
-                                <td key={`${col}-${index}`}>{row.fields.find(f => f.field_name === col)?.value || '-'}</td>
-                            ))}
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-            </div>
-        );
+            if (result.data && Array.isArray(result.data.rows)) {
+                setData(result.data.rows);
+                const totalRows = result.data.total; // Total number of rows from the backend
+                setTotalPages(Math.ceil(totalRows / rowsPerPage));
+            } else {
+                setData([]);
+                setTotalPages(1);
+            }
+        } catch (error) {
+            console.error('Error updating data:', error);
+            alert(`Update failed: ${error.response?.data?.message || error.message}`); // Display detailed error message
+        } finally {
+            setLoading(false); // End loading
+        }
     };
 
-    const validateUUID = (uuid) => {
-        const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-        return uuidRegex.test(uuid);
+    const handleRowSelect = (row) => {
+        if (selectedRows.includes(row.id)) {
+            setSelectedRows(selectedRows.filter(id => id !== row.id));
+        } else {
+            setSelectedRows([...selectedRows, row.id]);
+            setUpdateValues({
+                displayServerName: row.display_server_name || '',
+                displayTableName: row.display_table_name || '',
+                displayFieldName: row.display_field_name || '',
+                latitude: row.latitude || '',
+                longitude: row.longitude || '',
+                units: row.display_units || '',
+                aggregationType: row.aggregation_type || '',
+                includeInSummary: row.include_in_summary
+            });
+        }
+
+        const includeInSummaryValues = data.filter(r => selectedRows.includes(r.id)).map(r => r.include_in_summary);
+        const allTrue = includeInSummaryValues.every(value => value === true);
+        const allFalse = includeInSummaryValues.every(value => value === false);
+
+        setIncludeInSummaryIndeterminate(!allTrue && !allFalse);
     };
 
     return (
-        <div className="scrollable-table-container">
-            {loading && (
-                <div className="loading-overlay">
-                    <LoadingSpinner />
-                    <div className="loading-message">{loadingMessage}</div>
+        <div className="unified-mapping-table">
+            <div className="update-section">
+                <div className="input-group">
+                    <label>Display Server Name</label>
+                    <input
+                        type="text"
+                        placeholder="Display Server Name"
+                        value={updateValues.displayServerName}
+                        onChange={e => setUpdateValues({ ...updateValues, displayServerName: e.target.value })}
+                    />
                 </div>
-            )}
+                <div className="input-group">
+                    <label>Display Table Name</label>
+                    <input
+                        type="text"
+                        placeholder="Display Table Name"
+                        value={updateValues.displayTableName}
+                        onChange={e => setUpdateValues({ ...updateValues, displayTableName: e.target.value })}
+                    />
+                </div>
+                <div className="input-group">
+                    <label>Display Field Name</label>
+                    <input
+                        type="text"
+                        placeholder="Display Field Name"
+                        value={updateValues.displayFieldName}
+                        onChange={e => setUpdateValues({ ...updateValues, displayFieldName: e.target.value })}
+                    />
+                </div>
+                <div className="input-group">
+                    <label>Latitude</label>
+                    <input
+                        type="text"
+                        placeholder="Latitude"
+                        value={updateValues.latitude}
+                        onChange={e => setUpdateValues({ ...updateValues, latitude: e.target.value })}
+                    />
+                </div>
+                <div className="input-group">
+                    <label>Longitude</label>
+                    <input
+                        type="text"
+                        placeholder="Longitude"
+                        value={updateValues.longitude}
+                        onChange={e => setUpdateValues({ ...updateValues, longitude: e.target.value })}
+                    />
+                </div>
+                <div className="input-group">
+                    <label>Units</label>
+                    <input
+                        type="text"
+                        placeholder="Units"
+                        value={updateValues.units}
+                        onChange={e => setUpdateValues({ ...updateValues, units: e.target.value })}
+                    />
+                </div>
+                <div className="input-group">
+                    <label>Aggregation Type</label>
+                    <input
+                        type="text"
+                        placeholder="Aggregation Type"
+                        value={updateValues.aggregationType}
+                        onChange={e => setUpdateValues({ ...updateValues, aggregationType: e.target.value })}
+                    />
+                </div>
+                <div className="input-group">
+                    <label>
+                        Include in Summary
+                        <input
+                            type="checkbox"
+                            checked={updateValues.includeInSummary}
+                            indeterminate={includeInSummaryIndeterminate ? "indeterminate" : ""}
+                            onChange={e => setUpdateValues({ ...updateValues, includeInSummary: e.target.checked })}
+                        />
+                    </label>
+                </div>
+                <button onClick={handleUpdate} disabled={loading}>Update Selected Rows</button>
+            </div>
+            <div className="filter-section">
+                <select value={selectedServer} onChange={e => {
+                    setSelectedServer(e.target.value);
+                    setSelectedTable('');
+                    setSelectedField('');
+                }}>
+                    <option value="">Select Server</option>
+                    {serverNames.map(server => (
+                        <option key={server} value={server}>{server}</option>
+                    ))}
+                </select>
+                <select value={selectedTable} onChange={e => setSelectedTable(e.target.value)} disabled={!selectedServer}>
+                    <option value="">Select Table</option>
+                    {tableNames.map(table => (
+                        <option key={table} value={table}>{table}</option>
+                    ))}
+                </select>
+                <select value={selectedField} onChange={e => setSelectedField(e.target.value)} disabled={!selectedTable}>
+                    <option value="">Select Field</option>
+                    {fieldNames.map(field => (
+                        <option key={field} value={field}>{field}</option>
+                    ))}
+                </select>
+                <select value={includeInSummaryFilter} onChange={e => setIncludeInSummaryFilter(e.target.value)}>
+                    <option value="">Included in Summary?</option>
+                    <option value="true">True</option>
+                    <option value="false">False</option>
+                </select>
+            </div>
             <table>
+                <thead>
+                <tr>
+                    <th>Select</th>
+                    <th>Current Server Name</th>
+                    <th>Current Table Name</th>
+                    <th>Current Field Name</th>
+                    <th>Display Server Name</th>
+                    <th>Display Table Name</th>
+                    <th>Display Field Name</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>Units</th>
+                    <th>Aggregation Type</th>
+                    <th>Included in Summary</th>
+                </tr>
+                </thead>
                 <tbody>
-                {servers.map((server) => (
-                    <React.Fragment key={server.server_id}>
-                        <tr>
-                            <td colSpan={6}>
-                                <button className="site-name-button" onClick={() => toggleServer(server.server_id)}>
-                                    <span className="button-content">
-                                        {server.name}
-                                        <span className={`status-indicator ${server.status}`}>{server.status}</span>
-                                        <FontAwesomeIcon icon={activeServer === server.server_id ? farFolderOpen : farFolder} className="icon-right" />
-                                    </span>
-                                </button>
+                {data.length > 0 ? (
+                    data.map(row => (
+                        <tr key={row.id}>
+                            <td>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedRows.includes(row.id)}
+                                    onChange={() => handleRowSelect(row)}
+                                />
                             </td>
+                            <td>{row.current_server_name}</td>
+                            <td>{row.current_table_name}</td>
+                            <td>{row.current_field_name}</td>
+                            <td>{row.display_server_name}</td>
+                            <td>{row.display_table_name}</td>
+                            <td>{row.display_field_name}</td>
+                            <td>{row.latitude}</td>
+                            <td>{row.longitude}</td>
+                            <td>{row.display_units}</td>
+                            <td>{row.aggregation_type}</td>
+                            <td>{row.include_in_summary.toString()}</td>
                         </tr>
-                        {activeServer === server.server_id && tables[server.server_id] && tables[server.server_id].map((table) => (
-                            <tr key={table.table_id}>
-                                <td colSpan={6}>
-                                    <button className="table-name-button" onClick={() => openTableModal(table.table_id)}>
-                                        <FontAwesomeIcon icon={faTable} className="icon-left" />
-                                        {table.table_name}
-                                        <span className={`status-indicator ${table.status}`}>{table.status}</span>
-                                        {/* Display date range if available */}
-                                        <span className="date-range-display">
-                                            {table.dateRange ? `${new Date(table.dateRange.start_date).toLocaleDateString()} - ${new Date(table.dateRange.end_date).toLocaleDateString()}` : 'No dates available'}
-                                        </span>
-                                        {table.dateRange && getStatusIndicator(table.dateRange.end_date)}
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </React.Fragment>
-                ))}
+                    ))
+                ) : (
+                    <tr>
+                        <td colSpan="12">No data available</td>
+                    </tr>
+                )}
                 </tbody>
             </table>
-
-            <Modal
-                isOpen={isModalOpen}
-                onRequestClose={closeModal}
-                contentLabel="Table Data"
-                className="modal"
-                overlayClassName="modal-overlay"
-            >
-                <button className="close-button" onClick={closeModal}>
-                    X
+            {loading && (
+                <div className="loading-spinner">
+                    <Oval
+                        height={80}
+                        width={80}
+                        color="#4fa94d"
+                        wrapperStyle={{}}
+                        wrapperClass=""
+                        visible={true}
+                        ariaLabel='oval-loading'
+                        secondaryColor="#4fa94d"
+                        strokeWidth={2}
+                        strokeWidthSecondary={2}
+                    />
+                </div>
+            )}
+            <div className="pagination">
+                <button onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1 || loading}>
+                    Previous
                 </button>
-                {modalContent && renderTableData(modalContent)}
-            </Modal>
+                <span>Page {currentPage} of {totalPages}</span>
+                <button onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages || loading}>
+                    Next
+                </button>
+            </div>
         </div>
     );
 };
 
-export default ScrollableTable3;
+export default UnifiedMappingTable;
