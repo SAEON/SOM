@@ -1,0 +1,83 @@
+.unified-mapping-table {
+    padding: 20px;
+}
+
+.update-section {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+.input-group label {
+    margin-bottom: 5px;
+    font-size: 0.8em;
+}
+
+.input-group input {
+    padding: 5px;
+    font-size: 0.8em;
+    width: 150px;
+}
+
+button {
+    padding: 10px;
+    font-size: 0.8em;
+}
+
+.filter-section {
+    display: flex;
+    margin-bottom: 20px;
+}
+
+.filter-section select {
+    padding: 5px;
+    font-size: 0.8em;
+    margin-right: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: left;
+    font-size: 0.8em;
+}
+
+th {
+    background-color: #163552;
+}
+
+.pagination {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pagination button {
+    padding: 5px 10px;
+    margin: 0 5px;
+    font-size: 0.8em;
+}
+
+.pagination span {
+    font-size: 0.8em;
+}
+
+.loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+}

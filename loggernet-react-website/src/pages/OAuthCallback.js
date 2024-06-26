@@ -15,8 +15,7 @@ const OAuthCallback = () => {
         } else if (code) {
             console.log('Authorization code:', code);
             // Here, you might want to exchange the code for a token
-            navigate('/', { replace: true });
-
+            navigate('/ScrollableTable3', { replace: true }); // Redirect to TestData component
         }
     }, [navigate]);
 

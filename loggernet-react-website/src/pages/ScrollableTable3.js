@@ -90,7 +90,7 @@ const ScrollableTable3 = () => {
             const tables = await response.json();
             if (response.ok) {
                 const tablesWithDateInfo = await Promise.all(tables.map(async (table) => {
-                    const dateRangeResponse = await fetch(`/api/tables/${table.id}/date-range`);
+                    const dateRangeResponse = await fetch(`/api/tables/${table.table_id}/date-range`);
                     const dateRange = await dateRangeResponse.json();
                     return { ...table, dateRange: dateRangeResponse.ok ? dateRange : null };
                 }));
@@ -151,6 +151,11 @@ const ScrollableTable3 = () => {
     };
 
     const openTableModal = async (tableId) => {
+        if (!validateUUID(tableId)) {
+            console.error("Invalid table ID:", tableId);
+            return;
+        }
+
         setCurrentTableId(tableId);
         setCurrentPage(1);
 
@@ -341,6 +346,11 @@ const ScrollableTable3 = () => {
         );
     };
 
+    const validateUUID = (uuid) => {
+        const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+        return uuidRegex.test(uuid);
+    };
+
     return (
         <div className="scrollable-table-container">
             {loading && (
@@ -365,9 +375,9 @@ const ScrollableTable3 = () => {
                             </td>
                         </tr>
                         {activeServer === server.server_id && tables[server.server_id] && tables[server.server_id].map((table) => (
-                            <tr key={table.id}>
+                            <tr key={table.table_id}>
                                 <td colSpan={6}>
-                                    <button className="table-name-button" onClick={() => openTableModal(table.id)}>
+                                    <button className="table-name-button" onClick={() => openTableModal(table.table_id)}>
                                         <FontAwesomeIcon icon={faTable} className="icon-left" />
                                         {table.table_name}
                                         <span className={`status-indicator ${table.status}`}>{table.status}</span>

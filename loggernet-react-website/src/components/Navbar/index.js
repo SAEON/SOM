@@ -9,12 +9,8 @@ const Navbar = () => {
     const [error, setError] = useState('');
 
     const handleLogin = () => {
-        // Directly redirect the user to the OAuth login URL
-        // This assumes that the server-side '/api/login' endpoint will redirect to the OAuth provider
         window.location = '/api/login';
     };
-
-
 
     return (
         <nav className="nav">
@@ -30,7 +26,7 @@ const Navbar = () => {
                     Monitoring Locations
                 </Link>
                 <Link to="/ScrollableTable3" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                    Test
+                    Live Data
                 </Link>
                 <Link to="/ScrollableTable2" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     Summary
@@ -38,14 +34,17 @@ const Navbar = () => {
                 <Link to="/ScrollableTable" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     Raw Data
                 </Link>
+                <Link to="/UnifiedMappingTable" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                    Unified Mapping
+                </Link> {/* Add new link */}
                 <Link to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     About
                 </Link>
                 <button onClick={handleLogin} className="nav-link" disabled={isLoading}>
                     {isLoading ? 'Logging In...' : 'Login'}
-                </button> {/* Enhanced login button with loading state */}
+                </button>
             </div>
-            {error && <div className="nav-error">{error}</div>} {/* Display error message if any */}
+            {error && <div className="nav-error">{error}</div>}
         </nav>
     );
 };
