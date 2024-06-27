@@ -9,7 +9,8 @@ import Data from './pages/ScrollableTable';
 import SummaryData from './pages/ScrollableTable2';
 import TestData from './pages/ScrollableTable3';
 import OAuthCallback from './pages/OAuthCallback';
-import UnifiedMappingTable from './pages/UnifiedMappingTable'; // Import the new page component
+import UnifiedMappingTable from './pages/UnifiedMappingTable';
+import MappingSummaryTable from './pages/MappingSummaryTable';
 
 function App() {
     return (
@@ -23,6 +24,7 @@ function App() {
                 <Route exact path='/' element={<Home />} />
                 <Route path='/api/logged_in' element={<OAuthCallback />} />
                 <Route path='/UnifiedMappingTable' element={<UnifiedMappingTable />} /> {/* Add the new route */}
+                <Route path='/MappingSummaryTable' element={<MappingSummaryTable />} /> {/* Add the new route */}
                 <Route path='/about' element={<About />} />
             </Routes>
         </Router>

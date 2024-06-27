@@ -1,123 +1,140 @@
 .unified-mapping-table {
     padding: 20px;
-    min-height: 600px; /* Set a minimum height to ensure consistent dimensions */
+    min-height: 600px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
 
-.update-section {
+.unified-mapping-table .update-section {
     display: flex;
     flex-wrap: wrap;
     margin-bottom: 20px;
 }
 
-.input-group {
+.unified-mapping-table .input-group {
     display: flex;
     flex-direction: column;
     margin-right: 10px;
     margin-bottom: 10px;
-    flex: 1; /* Allow the input groups to flex and wrap */
-    min-width: 150px; /* Ensure a minimum width for the input groups */
+    flex: 1;
+    min-width: 150px;
 }
 
-.input-group label {
+.unified-mapping-table .input-group label {
     margin-bottom: 5px;
     font-size: 0.8em;
 }
 
-.input-group input {
+.unified-mapping-table .input-group input {
     padding: 5px;
     font-size: 0.8em;
-    width: 100%; /* Make input fields take the full width of their container */
+    width: 100%;
 }
 
-button {
+.unified-mapping-table button {
     padding: 10px;
     font-size: 0.8em;
-    margin-top: 20px; /* Add some margin to separate from input fields */
+    margin-top: 20px;
 }
 
-.filter-section {
+.unified-mapping-table .filter-section {
     display: flex;
-    flex-wrap: wrap; /* Allow filters to wrap on smaller screens */
+    flex-wrap: wrap;
     margin-bottom: 20px;
 }
 
-.filter-section select {
+.unified-mapping-table .filter-section select {
     padding: 5px;
     font-size: 0.8em;
     margin-right: 10px;
-    flex: 1; /* Allow the select elements to flex and wrap */
-    min-width: 150px; /* Ensure a minimum width for the select elements */
-    margin-bottom: 10px; /* Add margin to the bottom for spacing on smaller screens */
+    flex: 1;
+    min-width: 150px;
+    margin-bottom: 10px;
 }
 
-table {
+.unified-mapping-table table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed; /* Ensure consistent table layout */
+    table-layout: fixed;
 }
 
-th, td {
+.unified-mapping-table th,
+.unified-mapping-table td {
     padding: 10px;
     border: 1px solid #ddd;
     text-align: left;
     font-size: 0.8em;
-    word-wrap: break-word; /* Ensure content wraps within cells */
+    word-wrap: break-word;
 }
 
-th {
+.unified-mapping-table th {
     background-color: #163552;
-    color: #ffffff; /* Ensure the text is readable */
+    color: #ffffff;
 }
 
-.pagination {
+.unified-mapping-table .pagination {
     margin-top: 20px;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-.pagination button {
+.unified-mapping-table .pagination button {
     padding: 5px 10px;
     margin: 0 5px;
     font-size: 0.8em;
 }
 
-.pagination span {
+.unified-mapping-table .pagination span {
     font-size: 0.8em;
 }
 
-.loading-spinner {
+.unified-mapping-table .loading-spinner {
     display: flex;
     justify-content: center;
     align-items: center;
     margin-top: 20px;
 }
 
-/* Responsive styling */
+/*.ReactModal__Overlay {*/
+/*    background-color: rgba(0, 0, 0, 0.75);*/
+/*}*/
+
+/*.ReactModal__Content {*/
+/*    top: 50%;*/
+/*    left: 50%;*/
+/*    right: auto;*/
+/*    bottom: auto;*/
+/*    margin-right: -50%;*/
+/*    transform: translate(-50%, -50%);*/
+/*    padding: 20px;*/
+/*    max-width: 500px;*/
+/*    width: 100%;*/
+/*}*/
+
 @media (max-width: 768px) {
-    .input-group {
-        width: 100%; /* Make input groups take the full width on smaller screens */
-        margin-right: 0; /* Remove right margin on smaller screens */
+    .unified-mapping-table .input-group {
+        width: 100%;
+        margin-right: 0;
     }
 
-    .filter-section {
+    .unified-mapping-table .filter-section {
         flex-direction: column;
         align-items: flex-start;
     }
 
-    .filter-section select {
-        margin-right: 0; /* Remove right margin on smaller screens */
-        margin-bottom: 10px; /* Add margin to the bottom for spacing */
+    .unified-mapping-table .filter-section select {
+        margin-right: 0;
+        margin-bottom: 10px;
     }
 
-    table th, table td {
-        padding: 5px; /* Reduce padding for smaller screens */
+    .unified-mapping-table table th,
+    .unified-mapping-table table td {
+        padding: 5px;
     }
 
-    .pagination button {
-        padding: 5px; /* Reduce padding for smaller screens */
+    .unified-mapping-table .pagination button {
+        padding: 5px;
     }
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Oval } from 'react-loader-spinner'; // Import the spinner
+import { Oval } from 'react-loader-spinner';
+import Modal from 'react-modal';
 import './UnifiedMappingTable.css';
 
 const UnifiedMappingTable = () => {
@@ -26,8 +27,9 @@ const UnifiedMappingTable = () => {
     const [includeInSummaryFilter, setIncludeInSummaryFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [loading, setLoading] = useState(false); // Loading state
+    const [loading, setLoading] = useState(false);
     const rowsPerPage = 100;
+    const [modalIsOpen, setModalIsOpen] = useState(false);
 
     useEffect(() => {
         const fetchServerNames = async () => {
@@ -101,7 +103,7 @@ const UnifiedMappingTable = () => {
                         limit: rowsPerPage
                     }
                 });
-                console.log(result.data); // Log the data to check the structure
+                // console.log(result.data); // Log the data to check the structure
                 if (result.data && Array.isArray(result.data.rows)) {
                     setData(result.data.rows);
                     const totalRows = result.data.total; // Total number of rows from the backend
@@ -119,22 +121,42 @@ const UnifiedMappingTable = () => {
     }, [selectedServer, selectedTable, selectedField, includeInSummaryFilter, currentPage]);
 
     const handleUpdate = async () => {
-        const { latitude, longitude, ...otherValues } = updateValues;
-        const validLatitude = latitude ? parseFloat(latitude) : null;
-        const validLongitude = longitude ? parseFloat(longitude) : null;
+        const { displayServerName, displayTableName, displayFieldName, latitude, longitude, units, aggregationType, includeInSummary } = updateValues;
 
         setLoading(true); // Start loading
         try {
+            // Clear the summary table first
+            await axios.post('/api/summary_table/clear');
+
+            console.log('Updating with values:', {
+                ids: selectedRows,
+                displayServerName,
+                displayTableName,
+                displayFieldName,
+                latitude,
+                longitude,
+                units,
+                aggregationType,
+                includeInSummary
+            });
+
+            // Update the summary table with new values
             const response = await axios.post('/api/unified_mapping_table/update', {
                 ids: selectedRows,
-                ...otherValues,
-                latitude: validLatitude,
-                longitude: validLongitude
+                displayServerName,
+                displayTableName,
+                displayFieldName,
+                latitude,
+                longitude,
+                units,
+                aggregationType,
+                includeInSummary
             });
-            // Handle response status and message
+
             if (response.status === 200) {
                 alert(response.data.message); // Display success message
             }
+
             // Refresh data after update
             const result = await axios.get('/api/unified_mapping_table', {
                 params: {
@@ -146,6 +168,7 @@ const UnifiedMappingTable = () => {
                     limit: rowsPerPage
                 }
             });
+
             if (result.data && Array.isArray(result.data.rows)) {
                 setData(result.data.rows);
                 const totalRows = result.data.total; // Total number of rows from the backend
@@ -161,6 +184,9 @@ const UnifiedMappingTable = () => {
             setLoading(false); // End loading
         }
     };
+
+
+
 
     const handleRowSelect = (row) => {
         if (selectedRows.includes(row.id)) {
@@ -186,8 +212,32 @@ const UnifiedMappingTable = () => {
         setIncludeInSummaryIndeterminate(!allTrue && !allFalse);
     };
 
+    const handleSelectAll = () => {
+        if (selectedRows.length === data.length) {
+            setSelectedRows([]);
+        } else {
+            setSelectedRows(data.map(row => row.id));
+        }
+    };
+
+    const openModal = () => setModalIsOpen(true);
+    const closeModal = () => setModalIsOpen(false);
+
     return (
         <div className="unified-mapping-table">
+            <button onClick={openModal}>Info</button>
+            <Modal isOpen={modalIsOpen} onRequestClose={closeModal} contentLabel="Instructions">
+                <h2>Instructions</h2>
+                <p>Welcome to the Unified Mapping Table page. Here’s how you can use this page:</p>
+                <ol>
+                    <li>Use the dropdown filters to select the Server, Table, and Field you want to view.</li>
+                    <li>Use the checkbox filter to show only rows included or not included in the summary.</li>
+                    <li>Select individual rows by clicking the checkboxes or use the "Select All" checkbox to select all visible rows.</li>
+                    <li>Fill in the fields in the update section to update the selected rows.</li>
+                    <li>Click the "Update Selected Rows" button to apply changes.</li>
+                </ol>
+                <button onClick={closeModal}>Close</button>
+            </Modal>
             <div className="update-section">
                 <div className="input-group">
                     <label>Display Server Name</label>
@@ -297,7 +347,13 @@ const UnifiedMappingTable = () => {
             <table>
                 <thead>
                 <tr>
-                    <th>Select</th>
+                    <th>
+                        <input
+                            type="checkbox"
+                            checked={selectedRows.length === data.length && data.length > 0}
+                            onChange={handleSelectAll}
+                        />
+                    </th>
                     <th>Current Server Name</th>
                     <th>Current Table Name</th>
                     <th>Current Field Name</th>

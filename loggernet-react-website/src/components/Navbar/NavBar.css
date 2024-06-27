@@ -77,7 +77,7 @@
     background-color: #173552; /* Even darker shade for the menu */
     padding: 5px 0; /* Padding above and below the nav links */
     /* Ensure there is no additional margin or padding pushing the links to the side */
-    margin: 0;
+    /*margin: 2;*/
     padding-left: 0;
     padding-right: 0;
 }
@@ -91,7 +91,9 @@
     font-size: 16px;
     cursor: pointer;
 }
-
+.button{
+    margin: 5px;
+}
 /*.nav-link:hover, .nav-link.active {*/
 /*    background-color: #666;*/
 /*    border-radius: 5px;*/

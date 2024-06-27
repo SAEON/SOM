@@ -37,6 +37,9 @@ const Navbar = () => {
                 <Link to="/UnifiedMappingTable" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     Unified Mapping
                 </Link> {/* Add new link */}
+                <Link to="/MappingSummaryTable" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                    Mapping Summary
+                </Link> {/* Add new link */}
                 <Link to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     About
                 </Link>
