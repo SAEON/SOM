@@ -16,33 +16,23 @@ echarts.use([
     VisualMapComponent
 ]);
 
-const MyHeatMap = ({ data, siteName, interval }) => {
+const MyHeatMap = ({ data, siteName, interval, dates, variables }) => {
     const chartRef = useRef(null);
 
     useEffect(() => {
         if (chartRef.current && data && data.length > 0) {
             const myChart = echarts.init(chartRef.current);
 
-            const variables = Object.keys(data[0].variables).sort((a, b) => a.localeCompare(b));
-            const heatmapData = data.map((dayData, index) => {
-                return variables.map(variable => {
-                    // Calculate percentage available (100 - percentage missing)
-                    const percentAvailable = 100 - dayData.variables[variable].percentageMissing;
-                    return [index, variable, percentAvailable];
-                });
-            }).flat();
-
             const option = {
                 title: {
-                    text: `Data Availability for ${siteName} - ${interval}`,
+                    text: `Data Availability for ${siteName}`,
                     left: 'center'
                 },
                 tooltip: {
                     position: 'top',
                     formatter: (params) => {
                         const value = params.value;
-                        // Show percentage available in tooltip
-                        return `${value[1]} on ${data[value[0]].date}: ${value[2]}% available`;
+                        return `${variables[value[1]]} on ${dates[value[0]]}: ${value[2].toFixed(2)}% available`;
                     }
                 },
                 animation: false,
@@ -55,13 +45,13 @@ const MyHeatMap = ({ data, siteName, interval }) => {
                 },
                 xAxis: {
                     type: 'category',
-                    data: data.map(dayData => dayData.date),
+                    data: dates,
                     splitArea: { show: true },
-                    name: 'Date', // X-axis label
-                    nameLocation: 'middle', // Position of the label
-                    nameGap: 30, // Gap between the label and the axis
+                    name: 'Date',
+                    nameLocation: 'middle',
+                    nameGap: 30,
                     nameTextStyle: {
-                        fontWeight: 'bold' // Optional styling for the label
+                        fontWeight: 'bold'
                     }
                 },
                 yAxis: {
@@ -73,12 +63,6 @@ const MyHeatMap = ({ data, siteName, interval }) => {
                         fontSize: 10
                     },
                     splitArea: { show: true }
-                    // name: 'Variables', // Y-axis label
-                    // nameLocation: 'middle', // Position of the label
-                    // nameGap: 50, // Gap between the label and the axis
-                    // nameTextStyle: {
-                    //     fontWeight: 'bold' // Optional styling for the label
-                    // }
                 },
                 visualMap: {
                     min: 0,
@@ -87,21 +71,18 @@ const MyHeatMap = ({ data, siteName, interval }) => {
                     orient: 'horizontal',
                     left: 'center',
                     bottom: '3%',
-                    text: ['High Availability', 'Low Availability'], // Text labels for the two ends of the scale
+                    text: ['High Availability', 'Low Availability'],
                     textStyle: {
-                        color: '#000' // Text color
+                        color: '#000'
                     },
                     inRange: {
-                        color: ['#d73027', '#fc8d59', '#fee08b', '#d9ef8b', '#1a9850'] // Gradient from red to green
-                        
+                        color: ['#d73027', '#fc8d59', '#fee08b', '#d9ef8b', '#1a9850']
                     }
                 },
-
-
                 series: [{
                     name: 'Data Availability',
                     type: 'heatmap',
-                    data: heatmapData,
+                    data: data,
                     emphasis: {
                         itemStyle: {
                             shadowBlur: 10,
@@ -113,7 +94,7 @@ const MyHeatMap = ({ data, siteName, interval }) => {
 
             myChart.setOption(option);
         }
-    }, [data, siteName, interval]);
+    }, [data, siteName, interval, dates, variables]);
 
     return <div ref={chartRef} style={{ height: "100%", width: "100%" }}></div>;
 };

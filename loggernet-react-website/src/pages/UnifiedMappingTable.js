@@ -124,23 +124,20 @@ const UnifiedMappingTable = () => {
         const { displayServerName, displayTableName, displayFieldName, latitude, longitude, units, aggregationType, includeInSummary } = updateValues;
 
         setLoading(true); // Start loading
+        console.log('Updating with values:', {
+            ids: selectedRows,
+            displayServerName,
+            displayTableName,
+            displayFieldName,
+            latitude,
+            longitude,
+            units,
+            aggregationType,
+            includeInSummary
+        });
+
         try {
-            // Clear the summary table first
-            await axios.post('/api/summary_table/clear');
-
-            console.log('Updating with values:', {
-                ids: selectedRows,
-                displayServerName,
-                displayTableName,
-                displayFieldName,
-                latitude,
-                longitude,
-                units,
-                aggregationType,
-                includeInSummary
-            });
-
-            // Update the summary table with new values
+            // Update the unified mapping table with new values
             const response = await axios.post('/api/unified_mapping_table/update', {
                 ids: selectedRows,
                 displayServerName,
@@ -154,10 +151,25 @@ const UnifiedMappingTable = () => {
             });
 
             if (response.status === 200) {
-                alert(response.data.message); // Display success message
-            }
+                alert(response.data.message); // Display success message from server
 
-            // Refresh data after update
+                // Refresh data after update, re-fetching it to reflect any changes made
+                fetchData();
+            } else {
+                console.error('Update unsuccessful:', response.data);
+                alert(`Update failed: ${response.data.message}`);
+            }
+        } catch (error) {
+            console.error('Error updating data:', error);
+            alert(`Update failed: ${error.response?.data?.message || error.message}`); // Display detailed error message
+        } finally {
+            setLoading(false); // End loading
+        }
+    };
+
+// Define fetchData function to fetch updated data
+    const fetchData = async () => {
+        try {
             const result = await axios.get('/api/unified_mapping_table', {
                 params: {
                     serverName: selectedServer,
@@ -178,12 +190,13 @@ const UnifiedMappingTable = () => {
                 setTotalPages(1);
             }
         } catch (error) {
-            console.error('Error updating data:', error);
-            alert(`Update failed: ${error.response?.data?.message || error.message}`); // Display detailed error message
-        } finally {
-            setLoading(false); // End loading
+            console.error('Error fetching data:', error);
+            setData([]);
+            setTotalPages(1);
         }
     };
+
+
 
 
 
@@ -294,7 +307,7 @@ const UnifiedMappingTable = () => {
                     />
                 </div>
                 <div className="input-group">
-                    <label>Aggregation Type</label>
+                    <label>Aggregation (minutes)</label>
                     <input
                         type="text"
                         placeholder="Aggregation Type"

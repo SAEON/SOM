@@ -11,6 +11,7 @@ import TestData from './pages/ScrollableTable3';
 import OAuthCallback from './pages/OAuthCallback';
 import UnifiedMappingTable from './pages/UnifiedMappingTable';
 import MappingSummaryTable from './pages/MappingSummaryTable';
+import DataAvailabilityModalContent from './pages/DataAvailabilityModalContent'; // Import the new component
 
 function App() {
     return (
@@ -19,13 +20,14 @@ function App() {
             <Routes>
                 <Route path='/Map' element={<Map />} />
                 <Route path='/ScrollableTable3' element={<TestData />} />
-                <Route path='/ScrollableTable2' element={<SummaryData />} />
-                <Route path='/ScrollableTable' element={<Data />} />
+                {/*<Route path='/ScrollableTable2' element={<SummaryData />} />*/}
+                {/*<Route path='/ScrollableTable' element={<Data />} />*/}
                 <Route exact path='/' element={<Home />} />
                 <Route path='/api/logged_in' element={<OAuthCallback />} />
-                <Route path='/UnifiedMappingTable' element={<UnifiedMappingTable />} /> {/* Add the new route */}
-                <Route path='/MappingSummaryTable' element={<MappingSummaryTable />} /> {/* Add the new route */}
+                <Route path='/UnifiedMappingTable' element={<UnifiedMappingTable />} />
+                <Route path='/MappingSummaryTable' element={<MappingSummaryTable />} />
                 <Route path='/about' element={<About />} />
+                <Route path='/data-availability' element={<DataAvailabilityModalContent />} /> {/* Add the new route */}
             </Routes>
         </Router>
     );

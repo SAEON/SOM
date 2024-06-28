@@ -28,12 +28,12 @@ const Navbar = () => {
                 <Link to="/ScrollableTable3" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     Live Data
                 </Link>
-                <Link to="/ScrollableTable2" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                    Summary
-                </Link>
-                <Link to="/ScrollableTable" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                    Raw Data
-                </Link>
+                {/*<Link to="/ScrollableTable2" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>*/}
+                {/*    Summary*/}
+                {/*</Link>*/}
+                {/*<Link to="/ScrollableTable" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>*/}
+                {/*    Raw Data*/}
+                {/*</Link>*/}
                 <Link to="/UnifiedMappingTable" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     Unified Mapping
                 </Link> {/* Add new link */}

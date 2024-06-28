@@ -21,6 +21,8 @@ import {
 import "react-datepicker/dist/react-datepicker.css";
 import "./ScrollableTable.css";
 import "./Newmodal.css";
+import DataAvailabilityModalContent from './DataAvailabilityModalContent'; // Import the new component
+import { useLocation } from "react-router-dom";
 
 Modal.setAppElement("#root");
 
@@ -40,6 +42,11 @@ const MappingSummaryTable = () => {
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
+    const [modalData, setModalData] = useState(null);
+    const [modalStartDate, setModalStartDate] = useState(new Date(new Date().setFullYear(new Date().getFullYear() - 1))); // Default to one year ago for modal
+    const [modalEndDate, setModalEndDate] = useState(new Date()); // Default to today for modal
+    const [highlightedTable, setHighlightedTable] = useState(null);
 
     useEffect(() => {
         setLoading(true);
@@ -47,7 +54,6 @@ const MappingSummaryTable = () => {
         fetch("/api/summary_table/servers")
             .then(response => response.json())
             .then(data => {
-                console.log('Servers fetched:', data);
                 const uniqueServers = data.reduce((acc, row) => {
                     if (!acc.some(server => server.display_server_name === row.display_server_name)) {
                         acc.push(row);
@@ -63,6 +69,24 @@ const MappingSummaryTable = () => {
             });
     }, []);
 
+    const location = useLocation();
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const serverName = params.get('server');
+        if (serverName) {
+            toggleServer(serverName);
+        }
+    }, [location.search]);
+
+
+    // const toggleServer = (serverName) => {
+    //     setActiveServer(prev => prev === serverName ? null : serverName);
+    //     if (!tables[serverName]) {
+    //         fetchTables(serverName);
+    //     }
+    // };
+
     const toggleServer = (serverName) => {
         setActiveServer(prev => prev === serverName ? null : serverName);
         if (!tables[serverName]) {
@@ -70,13 +94,13 @@ const MappingSummaryTable = () => {
         }
     };
 
+
     const fetchTables = async (serverName) => {
         try {
             setLoading(true);
             setLoadingMessage('Loading tables...');
             const response = await fetch(`/api/summary_table/tables?serverName=${serverName}`);
             const data = await response.json();
-            console.log(`Tables fetched for ${serverName}:`, data);
             if (response.ok) {
                 const uniqueTables = data.reduce((acc, row) => {
                     if (!acc.some(table => table.display_table_name === row.display_table_name)) {
@@ -90,6 +114,12 @@ const MappingSummaryTable = () => {
                 }));
                 uniqueTables.forEach(table => fetchDateRange(serverName, table.display_table_name));
                 setLoading(false);
+                // Check if there is a table to highlight
+                const params = new URLSearchParams(location.search);
+                const tableName = params.get('table');
+                if (tableName) {
+                    setHighlightedTable(tableName);
+                }
             } else {
                 throw new Error("Failed to fetch tables");
             }
@@ -99,11 +129,39 @@ const MappingSummaryTable = () => {
         }
     };
 
+
+    // const fetchTables = async (serverName) => {
+    //     try {
+    //         setLoading(true);
+    //         setLoadingMessage('Loading tables...');
+    //         const response = await fetch(`/api/summary_table/tables?serverName=${serverName}`);
+    //         const data = await response.json();
+    //         if (response.ok) {
+    //             const uniqueTables = data.reduce((acc, row) => {
+    //                 if (!acc.some(table => table.display_table_name === row.display_table_name)) {
+    //                     acc.push(row);
+    //                 }
+    //                 return acc;
+    //             }, []);
+    //             setTables(prevTables => ({
+    //                 ...prevTables,
+    //                 [serverName]: uniqueTables.sort((a, b) => a.display_table_name.localeCompare(b.display_table_name))
+    //             }));
+    //             uniqueTables.forEach(table => fetchDateRange(serverName, table.display_table_name));
+    //             setLoading(false);
+    //         } else {
+    //             throw new Error("Failed to fetch tables");
+    //         }
+    //     } catch (error) {
+    //         console.error("Error fetching tables:", error);
+    //         setLoading(false);
+    //     }
+    // };
+
     const fetchDateRange = async (serverName, tableName) => {
         try {
             const response = await fetch(`/api/summary_table/date_range?serverName=${serverName}&tableName=${tableName}`);
             const data = await response.json();
-            console.log(`Date range fetched for ${serverName} - ${tableName}:`, data);
             if (response.ok) {
                 setDateRanges(prevDateRanges => ({
                     ...prevDateRanges,
@@ -121,8 +179,8 @@ const MappingSummaryTable = () => {
         const dateRangeKey = `${serverName}-${tableName}`;
         const defaultStartDate = dateRanges[dateRangeKey]?.start_date ? new Date(dateRanges[dateRangeKey].start_date) : new Date(new Date().setFullYear(new Date().getFullYear() - 1));
         const defaultEndDate = dateRanges[dateRangeKey]?.end_date ? new Date(dateRanges[dateRangeKey].end_date) : new Date();
-        setStartDate(defaultStartDate);
-        setEndDate(defaultEndDate);
+        setModalStartDate(defaultStartDate);
+        setModalEndDate(defaultEndDate);
 
         setLoading(true);
         setLoadingMessage('Loading table data...');
@@ -133,7 +191,6 @@ const MappingSummaryTable = () => {
         try {
             const response = await fetch(url);
             const data = await response.json();
-            console.log(`Data fetched for ${tableName} under ${serverName}:`, data.rows);
             if (response.ok && Array.isArray(data.rows)) {
                 setModalContent(data.rows);
                 setTotalRows(data.total);
@@ -152,20 +209,42 @@ const MappingSummaryTable = () => {
         }
     };
 
+    const fetchDataAvailability = async (serverName, tableName) => {
+        setLoading(true);
+        setLoadingMessage('Fetching data availability...');
+        const formattedStartDate = startDate.toISOString().split('T')[0];
+        const formattedEndDate = endDate.toISOString().split('T')[0];
+        const url = `/api/data-availability?startDate=${formattedStartDate}&endDate=${formattedEndDate}&serverName=${serverName}&tableName=${tableName}`;
+
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                const data = await response.json();
+                setModalData(data);
+                setIsCustomModalOpen(true);
+                setLoading(false);
+            } else {
+                console.error("Failed to fetch data availability");
+                setLoading(false);
+            }
+        } catch (error) {
+            console.error("Error fetching data availability:", error);
+            setLoading(false);
+        }
+    };
 
     const clearAndReloadData = async () => {
         setModalContent(null);
         setLoading(true);
         setLoadingMessage('Reloading data...');
 
-        const formattedStartDate = startDate.toISOString().split("T")[0];
-        const formattedEndDate = endDate.toISOString().split("T")[0];
+        const formattedStartDate = modalStartDate.toISOString().split("T")[0];
+        const formattedEndDate = modalEndDate.toISOString().split("T")[0];
         const url = `/api/summary_table/values?tableName=${currentTableName}&serverName=${activeServer}&startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=1&pageSize=${totalRows}`;
 
         try {
             const response = await fetch(url);
             const data = await response.json();
-            console.log(`Data fetched for ${currentTableName} under ${activeServer}:`, data);
             if (response.ok && Array.isArray(data.rows)) {
                 setModalContent(data.rows);
                 setTotalRows(data.total);
@@ -194,14 +273,19 @@ const MappingSummaryTable = () => {
         setModalContent(null);
     };
 
+    const closeCustomModal = () => {
+        setIsCustomModalOpen(false);
+        setModalData(null);
+    };
+
     const downloadData = async () => {
         if (!currentTableName || !activeServer) return;
 
         setLoading(true);
         setLoadingMessage('Downloading data...');
 
-        const formattedStartDate = startDate.toISOString().split("T")[0];
-        const formattedEndDate = endDate.toISOString().split("T")[0];
+        const formattedStartDate = modalStartDate.toISOString().split("T")[0];
+        const formattedEndDate = modalEndDate.toISOString().split("T")[0];
         const url = `/api/summary_table/values?tableName=${currentTableName}&serverName=${activeServer}&startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=1&pageSize=${totalRows}`;
 
         try {
@@ -314,8 +398,8 @@ const MappingSummaryTable = () => {
             <div className="modal-content">
                 <div className="date-picker-container">
                     <div className="date-picker">
-                        <DatePicker selected={startDate} onChange={date => setStartDate(date)} dateFormat="dd/MM/yyyy" />
-                        <DatePicker selected={endDate} onChange={date => setEndDate(date)} dateFormat="dd/MM/yyyy" />
+                        <DatePicker selected={modalStartDate} onChange={date => setModalStartDate(date)} dateFormat="dd/MM/yyyy" />
+                        <DatePicker selected={modalEndDate} onChange={date => setModalEndDate(date)} dateFormat="dd/MM/yyyy" />
                     </div>
                     <div className="download-button">
                         <button onClick={downloadData}>Download</button>
@@ -389,7 +473,6 @@ const MappingSummaryTable = () => {
 
         setStartDate(start);
         setEndDate(adjustedEndDate);
-        // setEndDate(end);
     };
 
     const handleSelectYesterday = () => handleDateRangeSelection(startOfYesterday(), endOfYesterday());
@@ -471,24 +554,25 @@ const MappingSummaryTable = () => {
                             </td>
                         </tr>
                         {activeServer === server.display_server_name && tables[server.display_server_name] && tables[server.display_server_name].map((table) => (
-                            <tr key={table.display_table_name}>
+                            <tr key={table.display_table_name} className={highlightedTable === table.display_table_name ? 'highlighted' : ''}>
                                 <td colSpan={6}>
                                     <button className="table-name-button" onClick={() => openTableModal(table.display_table_name, server.display_server_name)}>
                                         <FontAwesomeIcon icon={faTable} className="icon-left" />
                                         <span className="table-name">{table.display_table_name}</span>
                                         <span className="date-range-display">
-                                            {dateRanges[`${server.display_server_name}-${table.display_table_name}`]
-                                                ? `${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].start_date).toLocaleDateString()} - ${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].end_date).toLocaleDateString()}`
-                                                : 'No dates available'}
-                                        </span>
+                    {dateRanges[`${server.display_server_name}-${table.display_table_name}`]
+                        ? `${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].start_date).toLocaleDateString()} - ${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].end_date).toLocaleDateString()}`
+                        : 'No dates available'}
+                </span>
                                     </button>
                                     {dateRanges[`${server.display_server_name}-${table.display_table_name}`] && getStatusIndicator(dateRanges[`${server.display_server_name}-${table.display_table_name}`].end_date)}
-                                    <button className="data-availability-button" onClick={() => {/* Functionality to be added later */}}>
+                                    <button className="data-availability-button" onClick={() => fetchDataAvailability(server.display_server_name, table.display_table_name)}>
                                         <FontAwesomeIcon icon={faInfoCircle} /> Data Availability
                                     </button>
                                 </td>
                             </tr>
                         ))}
+
                     </React.Fragment>
                 ))}
                 </tbody>
@@ -507,6 +591,29 @@ const MappingSummaryTable = () => {
                     </button>
                 </div>
                 {modalContent && renderTableData(modalContent)}
+            </Modal>
+
+            <Modal
+                isOpen={isCustomModalOpen}
+                onRequestClose={closeCustomModal}
+                contentLabel="Data Availability"
+                className="modal"
+                overlayClassName="modal-overlay"
+            >
+                <div className="modal-header">
+                    <button className="close-button" onClick={closeCustomModal}>
+                        X
+                    </button>
+                </div>
+                {modalData && (
+                    <DataAvailabilityModalContent
+                        data={modalData}
+                        siteName={activeServer}
+                        interval="Daily"
+                        startDate={startDate}
+                        endDate={endDate}
+                    />
+                )}
             </Modal>
         </div>
     );
