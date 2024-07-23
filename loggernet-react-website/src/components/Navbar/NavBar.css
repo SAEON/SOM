@@ -84,6 +84,7 @@
 
 
 .nav-link {
+    border: none;
     background-color: #173552; /* Even darker shade for the menu */
     /*color: white;*/
     text-decoration: none;
@@ -98,6 +99,20 @@
 /*    background-color: #666;*/
 /*    border-radius: 5px;*/
 /*}*/
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
 
 
 @media screen and (min-width: 768px) {

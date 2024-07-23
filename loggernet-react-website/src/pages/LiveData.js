@@ -8,9 +8,9 @@ import "react-datepicker/dist/react-datepicker.css";
 import "./ScrollableTable.css";
 import "./Newmodal.css";
 
-Modal.setAppElement("#root");
+// Modal.setAppElement("#root");
 
-const ScrollableTable3 = () => {
+const LiveData = () => {
     const [servers, setServers] = useState([]);
     const [activeServer, setActiveServer] = useState(null);
     const [tables, setTables] = useState({});
@@ -239,14 +239,14 @@ const ScrollableTable3 = () => {
             const response = await fetch(url);
             if (response.ok) {
                 const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
+                const downloadUrl = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
+                a.href = downloadUrl;
                 a.download = 'data.csv';
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
-                window.URL.revokeObjectURL(url);
+                window.URL.revokeObjectURL(downloadUrl);
                 setLoading(false);
             } else {
                 console.error("Failed to download data");
@@ -257,6 +257,7 @@ const ScrollableTable3 = () => {
             setLoading(false);
         }
     };
+
 
     const getStatusIndicator = (lastUpdated) => {
         const now = new Date();
@@ -421,4 +422,4 @@ const ScrollableTable3 = () => {
     );
 };
 
-export default ScrollableTable3;
+export default LiveData;

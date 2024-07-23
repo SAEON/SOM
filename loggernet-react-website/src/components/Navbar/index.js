@@ -1,15 +1,19 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import './NavBar.css';
 import logo from '../images/transparent-medium-white.png'; // Adjust the path as necessary
-import { NavLink as Link } from "react-router-dom";
-import { FaBars } from "react-icons/fa";
+import { NavLink as Link } from 'react-router-dom';
+import { FaBars } from 'react-icons/fa';
+import LoginRegisterPage from '../../pages/LoginRegisterPage';
 
 const Navbar = () => {
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [modalIsOpen, setModalIsOpen] = useState(false);
 
-    const handleLogin = () => {
-        window.location = '/api/login';
+    const openModal = () => {
+        setModalIsOpen(true);
+    };
+
+    const closeModal = () => {
+        setModalIsOpen(false);
     };
 
     return (
@@ -25,29 +29,26 @@ const Navbar = () => {
                 <Link to="/Map" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     Monitoring Locations
                 </Link>
-                <Link to="/ScrollableTable3" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <Link to="/LiveData" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     Live Data
                 </Link>
-                {/*<Link to="/ScrollableTable2" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>*/}
-                {/*    Summary*/}
-                {/*</Link>*/}
-                {/*<Link to="/ScrollableTable" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>*/}
-                {/*    Raw Data*/}
-                {/*</Link>*/}
                 <Link to="/UnifiedMappingTable" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     Unified Mapping
-                </Link> {/* Add new link */}
+                </Link>
                 <Link to="/MappingSummaryTable" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     Mapping Summary
-                </Link> {/* Add new link */}
+                </Link>
                 <Link to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     About
                 </Link>
-                <button onClick={handleLogin} className="nav-link" disabled={isLoading}>
-                    {isLoading ? 'Logging In...' : 'Login'}
+                <Link to="/Analytics" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                    Analytics
+                </Link>
+                <button onClick={openModal} className="nav-link">
+                    Login/Register
                 </button>
             </div>
-            {error && <div className="nav-error">{error}</div>}
+            <LoginRegisterPage isOpen={modalIsOpen} closeModal={closeModal} />
         </nav>
     );
 };

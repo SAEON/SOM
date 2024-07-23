@@ -6,7 +6,7 @@ import './UnifiedMappingTable.css';
 
 const UnifiedMappingTable = () => {
     const [data, setData] = useState([]);
-    const [selectedRows, setSelectedRows] = useState([]);
+    const [selectedRow, setSelectedRow] = useState(null);
     const [updateValues, setUpdateValues] = useState({
         displayServerName: '',
         displayTableName: '',
@@ -30,6 +30,11 @@ const UnifiedMappingTable = () => {
     const [loading, setLoading] = useState(false);
     const rowsPerPage = 100;
     const [modalIsOpen, setModalIsOpen] = useState(false);
+    const [errorModalIsOpen, setErrorModalIsOpen] = useState(false);
+    const [alertModalIsOpen, setAlertModalIsOpen] = useState(false);
+    const [modalMessage, setModalMessage] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
 
     useEffect(() => {
         const fetchServerNames = async () => {
@@ -90,84 +95,6 @@ const UnifiedMappingTable = () => {
         fetchFieldNames();
     }, [selectedTable]);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const result = await axios.get('/api/unified_mapping_table', {
-                    params: {
-                        serverName: selectedServer,
-                        tableName: selectedTable,
-                        fieldName: selectedField,
-                        includeInSummary: includeInSummaryFilter,
-                        page: currentPage,
-                        limit: rowsPerPage
-                    }
-                });
-                // console.log(result.data); // Log the data to check the structure
-                if (result.data && Array.isArray(result.data.rows)) {
-                    setData(result.data.rows);
-                    const totalRows = result.data.total; // Total number of rows from the backend
-                    setTotalPages(Math.ceil(totalRows / rowsPerPage));
-                } else {
-                    setData([]);
-                    setTotalPages(1);
-                }
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                setData([]);
-            }
-        };
-        fetchData();
-    }, [selectedServer, selectedTable, selectedField, includeInSummaryFilter, currentPage]);
-
-    const handleUpdate = async () => {
-        const { displayServerName, displayTableName, displayFieldName, latitude, longitude, units, aggregationType, includeInSummary } = updateValues;
-
-        setLoading(true); // Start loading
-        console.log('Updating with values:', {
-            ids: selectedRows,
-            displayServerName,
-            displayTableName,
-            displayFieldName,
-            latitude,
-            longitude,
-            units,
-            aggregationType,
-            includeInSummary
-        });
-
-        try {
-            // Update the unified mapping table with new values
-            const response = await axios.post('/api/unified_mapping_table/update', {
-                ids: selectedRows,
-                displayServerName,
-                displayTableName,
-                displayFieldName,
-                latitude,
-                longitude,
-                units,
-                aggregationType,
-                includeInSummary
-            });
-
-            if (response.status === 200) {
-                alert(response.data.message); // Display success message from server
-
-                // Refresh data after update, re-fetching it to reflect any changes made
-                fetchData();
-            } else {
-                console.error('Update unsuccessful:', response.data);
-                alert(`Update failed: ${response.data.message}`);
-            }
-        } catch (error) {
-            console.error('Error updating data:', error);
-            alert(`Update failed: ${error.response?.data?.message || error.message}`); // Display detailed error message
-        } finally {
-            setLoading(false); // End loading
-        }
-    };
-
-// Define fetchData function to fetch updated data
     const fetchData = async () => {
         try {
             const result = await axios.get('/api/unified_mapping_table', {
@@ -180,10 +107,9 @@ const UnifiedMappingTable = () => {
                     limit: rowsPerPage
                 }
             });
-
             if (result.data && Array.isArray(result.data.rows)) {
                 setData(result.data.rows);
-                const totalRows = result.data.total; // Total number of rows from the backend
+                const totalRows = result.data.total;
                 setTotalPages(Math.ceil(totalRows / rowsPerPage));
             } else {
                 setData([]);
@@ -192,20 +118,83 @@ const UnifiedMappingTable = () => {
         } catch (error) {
             console.error('Error fetching data:', error);
             setData([]);
-            setTotalPages(1);
         }
     };
 
+    useEffect(() => {
+        fetchData();
+    }, [selectedServer, selectedTable, selectedField, includeInSummaryFilter, currentPage]);
 
+    const handleUpdate = async () => {
+        const { displayServerName, displayTableName, displayFieldName, latitude, longitude, units, aggregationType, includeInSummary } = updateValues;
 
+        if (isNaN(latitude) || isNaN(longitude) || isNaN(aggregationType)) {
+            setErrorMessage('Latitude, Longitude, and Aggregation Type must be numeric.');
+            setErrorModalIsOpen(true);
+            return;
+        } else {
+            setErrorMessage('');
+        }
 
+        setLoading(true);
+        try {
+            // Check for duplicates
+            const duplicateCheckResponse = await axios.post('/api/unified_mapping_table/check_duplicates', {
+                displayServerName,
+                displayTableName,
+                displayFieldName,
+                aggregationType
+            });
 
+            if (duplicateCheckResponse.status === 409) {
+                setAlertMessage(`Warning: ${duplicateCheckResponse.data.message}`);
+                setAlertModalIsOpen(true);
+                console.log('Duplicates:', duplicateCheckResponse.data.duplicates); // Log duplicates to console or handle them as needed
+                setLoading(false);
+                return; // Prevent update if duplicates are found
+            }
+
+            // Proceed with update
+            const response = await axios.post('/api/unified_mapping_table/update', {
+                ids: [selectedRow],
+                displayServerName,
+                displayTableName,
+                displayFieldName,
+                latitude,
+                longitude,
+                units,
+                aggregationType,
+                includeInSummary
+            });
+
+            if (response.status === 200) {
+                setAlertMessage('Update successful. Summary table updated.');
+                setAlertModalIsOpen(true);
+                fetchData();
+            } else {
+                setAlertMessage(`Update failed: ${response.data.message || response.data.error}`);
+                setAlertModalIsOpen(true);
+            }
+        } catch (error) {
+            const errorMessage = error.response?.data?.message || error.message;
+            if (error.response && error.response.status === 409) {
+                setAlertMessage('Update failed due to duplicate entries.');
+            } else if (errorMessage.includes('Summary table update failed due to conflict resolution issue.')) {
+                setAlertMessage('Update failed due to a conflict/duplicate entry issue.');
+            } else {
+                setAlertMessage(`Update failed: ${errorMessage}`);
+            }
+            setAlertModalIsOpen(true);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleRowSelect = (row) => {
-        if (selectedRows.includes(row.id)) {
-            setSelectedRows(selectedRows.filter(id => id !== row.id));
+        if (selectedRow === row.id) {
+            setSelectedRow(null);
         } else {
-            setSelectedRows([...selectedRows, row.id]);
+            setSelectedRow(row.id);
             setUpdateValues({
                 displayServerName: row.display_server_name || '',
                 displayTableName: row.display_table_name || '',
@@ -217,24 +206,35 @@ const UnifiedMappingTable = () => {
                 includeInSummary: row.include_in_summary
             });
         }
-
-        const includeInSummaryValues = data.filter(r => selectedRows.includes(r.id)).map(r => r.include_in_summary);
-        const allTrue = includeInSummaryValues.every(value => value === true);
-        const allFalse = includeInSummaryValues.every(value => value === false);
-
-        setIncludeInSummaryIndeterminate(!allTrue && !allFalse);
-    };
-
-    const handleSelectAll = () => {
-        if (selectedRows.length === data.length) {
-            setSelectedRows([]);
-        } else {
-            setSelectedRows(data.map(row => row.id));
-        }
     };
 
     const openModal = () => setModalIsOpen(true);
     const closeModal = () => setModalIsOpen(false);
+
+    const closeErrorModal = () => setErrorModalIsOpen(false);
+    const closeAlertModal = () => setAlertModalIsOpen(false);
+
+    const showDuplicates = async () => {
+        try {
+            const duplicateCheckResponse = await axios.post('/api/unified_mapping_table/check_duplicates', {
+                displayServerName: updateValues.displayServerName,
+                displayTableName: updateValues.displayTableName,
+                displayFieldName: updateValues.displayFieldName,
+                aggregationType: updateValues.aggregationType
+            });
+
+            if (duplicateCheckResponse.status === 200 && duplicateCheckResponse.data.message !== 'No duplicates found') {
+                setAlertMessage(`Warning: ${duplicateCheckResponse.data.message}`);
+                setAlertModalIsOpen(true);
+                console.log('Duplicates:', duplicateCheckResponse.data.duplicates); // Log duplicates to console or handle them as needed
+            } else {
+                alert('No duplicates found');
+            }
+        } catch (error) {
+            console.error('Error checking for duplicates:', error);
+            alert('Error checking for duplicates');
+        }
+    };
 
     return (
         <div className="unified-mapping-table">
@@ -250,6 +250,16 @@ const UnifiedMappingTable = () => {
                     <li>Click the "Update Selected Rows" button to apply changes.</li>
                 </ol>
                 <button onClick={closeModal}>Close</button>
+            </Modal>
+            <Modal isOpen={errorModalIsOpen} onRequestClose={closeErrorModal} contentLabel="Error Message">
+                <h2>Error</h2>
+                <p>{errorMessage}</p>
+                <button onClick={closeErrorModal}>Close</button>
+            </Modal>
+            <Modal isOpen={alertModalIsOpen} onRequestClose={closeAlertModal} contentLabel="Alert Message">
+                <h2>Alert</h2>
+                <p>{alertMessage}</p>
+                <button onClick={closeAlertModal}>Close</button>
             </Modal>
             <div className="update-section">
                 <div className="input-group">
@@ -280,21 +290,21 @@ const UnifiedMappingTable = () => {
                     />
                 </div>
                 <div className="input-group">
-                    <label>Latitude</label>
-                    <input
-                        type="text"
-                        placeholder="Latitude"
-                        value={updateValues.latitude}
-                        onChange={e => setUpdateValues({ ...updateValues, latitude: e.target.value })}
-                    />
-                </div>
-                <div className="input-group">
                     <label>Longitude</label>
                     <input
                         type="text"
                         placeholder="Longitude"
                         value={updateValues.longitude}
                         onChange={e => setUpdateValues({ ...updateValues, longitude: e.target.value })}
+                    />
+                </div>
+                <div className="input-group">
+                    <label>Latitude</label>
+                    <input
+                        type="text"
+                        placeholder="Latitude"
+                        value={updateValues.latitude}
+                        onChange={e => setUpdateValues({ ...updateValues, latitude: e.target.value })}
                     />
                 </div>
                 <div className="input-group">
@@ -326,7 +336,8 @@ const UnifiedMappingTable = () => {
                         />
                     </label>
                 </div>
-                <button onClick={handleUpdate} disabled={loading}>Update Selected Rows</button>
+                <button onClick={handleUpdate} disabled={loading}>Update Selected Row</button>
+                <button onClick={showDuplicates}>Show Duplicates</button>
             </div>
             <div className="filter-section">
                 <select value={selectedServer} onChange={e => {
@@ -360,21 +371,15 @@ const UnifiedMappingTable = () => {
             <table>
                 <thead>
                 <tr>
-                    <th>
-                        <input
-                            type="checkbox"
-                            checked={selectedRows.length === data.length && data.length > 0}
-                            onChange={handleSelectAll}
-                        />
-                    </th>
+                    <th></th>
                     <th>Current Server Name</th>
                     <th>Current Table Name</th>
                     <th>Current Field Name</th>
                     <th>Display Server Name</th>
                     <th>Display Table Name</th>
                     <th>Display Field Name</th>
-                    <th>Latitude</th>
                     <th>Longitude</th>
+                    <th>Latitude</th>
                     <th>Units</th>
                     <th>Aggregation Type</th>
                     <th>Include in Summary</th>
@@ -387,7 +392,7 @@ const UnifiedMappingTable = () => {
                             <td>
                                 <input
                                     type="checkbox"
-                                    checked={selectedRows.includes(row.id)}
+                                    checked={selectedRow === row.id}
                                     onChange={() => handleRowSelect(row)}
                                 />
                             </td>
@@ -397,8 +402,8 @@ const UnifiedMappingTable = () => {
                             <td>{row.display_server_name}</td>
                             <td>{row.display_table_name}</td>
                             <td>{row.display_field_name}</td>
-                            <td>{row.latitude}</td>
                             <td>{row.longitude}</td>
+                            <td>{row.latitude}</td>
                             <td>{row.display_units}</td>
                             <td>{row.aggregation_type}</td>
                             <td>{row.include_in_summary.toString()}</td>

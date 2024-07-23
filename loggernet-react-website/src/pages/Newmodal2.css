@@ -1,4 +1,3 @@
-/* Newmodal.css */
 .modal {
     position: fixed;
     top: 50%;
@@ -101,6 +100,12 @@
     color: #ffffff;
 }
 
+.data-table td.timestamp-column {
+    white-space: normal;
+    word-break: break-word;
+    max-width: 100px; /* Adjust this value as needed */
+}
+
 .modal-content {
     max-height: 70vh;
     overflow-y: auto;
@@ -119,25 +124,12 @@
 
 .table-container {
     overflow-x: auto;
+    max-height: 60vh;
 }
 
-/* Ensure the table header and body alignment */
 .table-container table {
     width: 100%;
     border-collapse: collapse;
-}
-
-.table-container table thead {
-    display: table;
-    width: calc(100% - 17px);
-}
-
-.table-container table tbody {
-    display: table;
-    width: 100%;
-    overflow-y: auto;
-    max-height: 60vh;
-    overflow-x: hidden;
 }
 
 .table-container table th, .table-container table td {
@@ -145,4 +137,25 @@
     border: 1px solid #ddd;
     text-align: left;
     white-space: nowrap;
+}
+
+.table-container table thead {
+    display: table;
+    width: calc(100% - 17px);
+    table-layout: fixed;
+}
+
+.table-container table tbody {
+    display: table;
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 55vh;
+    display: block;
+}
+
+.table-container table tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
 }

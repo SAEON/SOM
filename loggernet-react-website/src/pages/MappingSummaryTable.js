@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFolder as farFolder, faFolderOpen as farFolderOpen, faTable, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import Modal from "react-modal";
 import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFolder as farFolder, faFolderOpen as farFolderOpen, faTable, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import {
     startOfToday,
     endOfToday,
@@ -18,13 +19,12 @@ import {
     subMonths,
     subYears
 } from 'date-fns';
-import "react-datepicker/dist/react-datepicker.css";
 import "./ScrollableTable.css";
-import "./Newmodal.css";
-import DataAvailabilityModalContent from './DataAvailabilityModalContent'; // Import the new component
+import "./Newmodal2.css";
+import DataAvailabilityModalContent from './DataAvailabilityModalContent';
 import { useLocation } from "react-router-dom";
 
-Modal.setAppElement("#root");
+// Modal.setAppElement("#root");
 
 const MappingSummaryTable = () => {
     const [servers, setServers] = useState([]);
@@ -33,7 +33,7 @@ const MappingSummaryTable = () => {
     const [dateRanges, setDateRanges] = useState({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState(null);
-    const [startDate, setStartDate] = useState(new Date(new Date().setFullYear(new Date().getFullYear() - 1))); // Default to one year ago
+    const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)));
     const [endDate, setEndDate] = useState(new Date());
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(100);
@@ -79,21 +79,12 @@ const MappingSummaryTable = () => {
         }
     }, [location.search]);
 
-
-    // const toggleServer = (serverName) => {
-    //     setActiveServer(prev => prev === serverName ? null : serverName);
-    //     if (!tables[serverName]) {
-    //         fetchTables(serverName);
-    //     }
-    // };
-
     const toggleServer = (serverName) => {
         setActiveServer(prev => prev === serverName ? null : serverName);
         if (!tables[serverName]) {
             fetchTables(serverName);
         }
     };
-
 
     const fetchTables = async (serverName) => {
         try {
@@ -114,7 +105,6 @@ const MappingSummaryTable = () => {
                 }));
                 uniqueTables.forEach(table => fetchDateRange(serverName, table.display_table_name));
                 setLoading(false);
-                // Check if there is a table to highlight
                 const params = new URLSearchParams(location.search);
                 const tableName = params.get('table');
                 if (tableName) {
@@ -128,35 +118,6 @@ const MappingSummaryTable = () => {
             setLoading(false);
         }
     };
-
-
-    // const fetchTables = async (serverName) => {
-    //     try {
-    //         setLoading(true);
-    //         setLoadingMessage('Loading tables...');
-    //         const response = await fetch(`/api/summary_table/tables?serverName=${serverName}`);
-    //         const data = await response.json();
-    //         if (response.ok) {
-    //             const uniqueTables = data.reduce((acc, row) => {
-    //                 if (!acc.some(table => table.display_table_name === row.display_table_name)) {
-    //                     acc.push(row);
-    //                 }
-    //                 return acc;
-    //             }, []);
-    //             setTables(prevTables => ({
-    //                 ...prevTables,
-    //                 [serverName]: uniqueTables.sort((a, b) => a.display_table_name.localeCompare(b.display_table_name))
-    //             }));
-    //             uniqueTables.forEach(table => fetchDateRange(serverName, table.display_table_name));
-    //             setLoading(false);
-    //         } else {
-    //             throw new Error("Failed to fetch tables");
-    //         }
-    //     } catch (error) {
-    //         console.error("Error fetching tables:", error);
-    //         setLoading(false);
-    //     }
-    // };
 
     const fetchDateRange = async (serverName, tableName) => {
         try {
@@ -286,42 +247,13 @@ const MappingSummaryTable = () => {
 
         const formattedStartDate = modalStartDate.toISOString().split("T")[0];
         const formattedEndDate = modalEndDate.toISOString().split("T")[0];
-        const url = `/api/summary_table/values?tableName=${currentTableName}&serverName=${activeServer}&startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=1&pageSize=${totalRows}`;
+        const url = `/api/summary_table/download?tableName=${currentTableName}&serverName=${activeServer}&startDate=${formattedStartDate}&endDate=${formattedEndDate}`;
 
         try {
             const response = await fetch(url);
             if (response.ok) {
-                const data = await response.json();
-
-                // Transform the data for download
-                const transformedData = transformData(data.rows);
-
-                // Get unique field names for header
-                const fieldNames = Array.from(new Set(data.rows.map(item => item.display_field_name.trim()))).sort();
-                const fieldUnits = data.rows.reduce((acc, item) => {
-                    acc[item.display_field_name.trim()] = item.units;
-                    return acc;
-                }, {});
-
-                // Create headers and units row
-                const headers = ['Timestamp', ...fieldNames, 'Latitude', 'Longitude'];
-                const units = ['', ...fieldNames.map(name => fieldUnits[name] || ''), '', ''];
-
-                // Convert array to CSV string
-                const csvContent = [
-                    headers.join(','),
-                    units.join(','),
-                    ...transformedData.map(row => [
-                        row.timestamp.replace(',', 'T'),  // Replace comma with 'T'
-                        ...fieldNames.map(name => row[name] || ''),
-                        row.latitude,
-                        row.longitude
-                    ].join(','))
-                ].join('\n');
-
-                // Create new blob with CSV content
-                const csvBlob = new Blob([csvContent], { type: 'text/csv' });
-                const downloadUrl = window.URL.createObjectURL(csvBlob);
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = downloadUrl;
                 a.download = 'data.csv';
@@ -384,10 +316,8 @@ const MappingSummaryTable = () => {
     const renderTableData = (data) => {
         if (!data || data.length === 0) return <p>No data available</p>;
 
-        // Transform the data
         const transformedData = transformData(data);
 
-        // Get unique field names for header
         const fieldNames = Array.from(new Set(data.map(item => item.display_field_name.trim()))).sort();
         const fieldUnits = data.reduce((acc, item) => {
             acc[item.display_field_name.trim()] = item.units;
@@ -420,38 +350,40 @@ const MappingSummaryTable = () => {
                     <span>Total Records: {totalRows}</span>
                     <span>Total Pages: {Math.ceil(totalRows / pageSize)}</span>
                 </div>
-                <table className="data-table">
-                    <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        {fieldNames.map(fieldName => (
-                            <th key={fieldName}>{fieldName}</th>
-                        ))}
-                        <th>Latitude</th>
-                        <th>Longitude</th>
-                    </tr>
-                    <tr>
-                        <th></th>
-                        {fieldNames.map(fieldName => (
-                            <th key={`${fieldName}-unit`}>{fieldUnits[fieldName]}</th>
-                        ))}
-                        <th></th>
-                        <th></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {transformedData.map((row, index) => (
-                        <tr key={index}>
-                            <td>{row.timestamp}</td>
+                <div className="table-container">
+                    <table className="data-table">
+                        <thead>
+                        <tr>
+                            <th className="timestamp-column">Timestamp</th>
                             {fieldNames.map(fieldName => (
-                                <td key={fieldName}>{row[fieldName] || ''}</td>
+                                <th key={fieldName}>{fieldName}</th>
                             ))}
-                            <td>{row.latitude}</td>
-                            <td>{row.longitude}</td>
+                            <th>Longitude</th>
+                            <th>Latitude</th>
                         </tr>
-                    ))}
-                    </tbody>
-                </table>
+                        <tr>
+                            <th></th>
+                            {fieldNames.map(fieldName => (
+                                <th key={`${fieldName}-unit`}>{fieldUnits[fieldName]}</th>
+                            ))}
+                            <th></th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {transformedData.map((row, index) => (
+                            <tr key={index}>
+                                <td className="timestamp-column">{row.timestamp}</td>
+                                {fieldNames.map(fieldName => (
+                                    <td key={fieldName}>{row[fieldName] || ''}</td>
+                                ))}
+                                <td>{row.longitude}</td>
+                                <td>{row.latitude}</td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         );
     };
@@ -459,16 +391,12 @@ const MappingSummaryTable = () => {
     const handleDropdownClick = () => {
         const isOpening = !dropdownOpen;
         setDropdownOpen(isOpening);
-
-        // Disable body scroll when dropdown is open
         document.body.style.overflow = isOpening ? 'hidden' : 'auto';
     };
 
     const handleDateRangeSelection = (start, end) => {
         const today = new Date();
-        today.setHours(23, 59, 59, 999); // Set to the end of today
-
-        // Ensure end date is not after today
+        today.setHours(23, 59, 59, 999);
         const adjustedEndDate = new Date(Math.min(end, today));
 
         setStartDate(start);
@@ -560,10 +488,10 @@ const MappingSummaryTable = () => {
                                         <FontAwesomeIcon icon={faTable} className="icon-left" />
                                         <span className="table-name">{table.display_table_name}</span>
                                         <span className="date-range-display">
-                    {dateRanges[`${server.display_server_name}-${table.display_table_name}`]
-                        ? `${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].start_date).toLocaleDateString()} - ${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].end_date).toLocaleDateString()}`
-                        : 'No dates available'}
-                </span>
+                                            {dateRanges[`${server.display_server_name}-${table.display_table_name}`]
+                                                ? `${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].start_date).toLocaleDateString()} - ${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].end_date).toLocaleDateString()}`
+                                                : 'No dates available'}
+                                        </span>
                                     </button>
                                     {dateRanges[`${server.display_server_name}-${table.display_table_name}`] && getStatusIndicator(dateRanges[`${server.display_server_name}-${table.display_table_name}`].end_date)}
                                     <button className="data-availability-button" onClick={() => fetchDataAvailability(server.display_server_name, table.display_table_name)}>
@@ -572,11 +500,11 @@ const MappingSummaryTable = () => {
                                 </td>
                             </tr>
                         ))}
-
                     </React.Fragment>
                 ))}
                 </tbody>
             </table>
+
 
             <Modal
                 isOpen={isModalOpen}
@@ -585,13 +513,12 @@ const MappingSummaryTable = () => {
                 className="modal"
                 overlayClassName="modal-overlay"
             >
-                <div className="modal-header">
-                    <button className="close-button" onClick={closeModal}>
-                        X
-                    </button>
-                </div>
+                <button className="close-button" onClick={closeModal}>
+                    X
+                </button>
                 {modalContent && renderTableData(modalContent)}
             </Modal>
+
 
             <Modal
                 isOpen={isCustomModalOpen}
