@@ -24,19 +24,19 @@
 }
 
 .close-button {
-    background: darkred;
-    border: darkred;
+    /*background: darkred;*/
+    /*border: darkred;*/
     cursor: pointer;
     font-size: 1.5em;
     position: sticky;
     top: auto;
     left: auto;
-    color: white;
+    color: black;
     right: auto;
     bottom: auto;
     align-self: flex-start;
     margin-left: auto;
-    border-radius: 20px;
+    /*border-radius: 20px;*/
     width: 30px;
     height: 30px;
 }
@@ -61,6 +61,88 @@
 
 .download-button {
     margin-left: 20px;
+    margin-right: 20px;
+}
+
+.important-notice {
+    background-color: #ffeedd;
+    border-left: 6px solid #ff5733;
+    padding: 20px;
+    margin-top: 20px;
+    font-family: 'Arial', sans-serif;
+    font-size: 1.2rem;
+    color: #333;
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.important-notice strong {
+    color: #ff5733;
+    font-size: 1.3rem;
+    display: block;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.important-notice p {
+    margin: 0;
+    line-height: 1.6;
+}
+/* Header styling */
+.consent-modal-content h3 {
+    margin-top: 0;
+    font-size: 1.5rem;
+    color: #333;
+}
+
+/* Paragraph styling */
+.consent-modal-content p {
+    font-size: 1rem;
+    color: #555;
+    margin: 10px 0 20px;
+    line-height: 1.5;
+}
+
+/* Checkbox styling */
+.consent-checkbox {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.consent-checkbox input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+/* Button styling */
+.consent-modal-actions {
+    display: flex;
+    justify-content: space-between;
+}
+
+.consent-modal-actions button {
+    background-color: #3768af; /* Blue button */
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.consent-modal-actions button:hover {
+    background-color: #2e5a94; /* Darker blue on hover */
+}
+
+/* Cancel button styling */
+.consent-modal-actions button:last-child {
+    background-color: #ccc; /* Gray button */
+    color: #333;
+}
+
+.consent-modal-actions button:last-child:hover {
+    background-color: #aaa;
 }
 
 .pagination-controls {
@@ -82,33 +164,63 @@
 .pagination-controls select {
     padding: 5px;
 }
+/*.table-name {*/
+/*    margin-right: 20px;*/
+/*}*/
+/*.data-table {*/
+/*    width: 100%;*/
+/*    border-collapse: collapse;*/
+/*    table-layout: auto;*/
+/*}*/
 
-.data-table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: auto;
-}
+/*.data-table th, .data-table td {*/
+/*    padding: 10px;*/
+/*    border: 1px solid #ddd;*/
+/*    text-align: left;*/
+/*    white-space: nowrap;*/
+/*}*/
 
-.data-table th, .data-table td {
-    padding: 10px;
-    border: 1px solid #ddd;
-    text-align: left;
-    white-space: nowrap;
-}
+/*.data-table th {*/
+/*    background-color: #163552;*/
+/*    color: #ffffff;*/
+/*}*/
 
-.data-table th {
-    background-color: #163552;
-    color: #ffffff;
-}
+/*.table-container {*/
+/*    overflow-x: auto;*/
+/*}*/
+
+/*!* Ensure the table header and body alignment *!*/
+/*.table-container table {*/
+/*    width: 100%;*/
+/*    border-collapse: collapse;*/
+/*}*/
+
+/*.table-container table thead {*/
+/*    display: table;*/
+/*    width: calc(100% - 17px);*/
+/*}*/
+
+/*.table-container table tbody {*/
+/*    display: table;*/
+/*    width: 100%;*/
+/*    overflow-y: auto;*/
+/*    max-height: 60vh;*/
+/*    overflow-x: hidden;*/
+/*}*/
+
+/*.table-container table th, .table-container table td {*/
+/*    padding: 10px;*/
+/*    border: 1px solid #ddd;*/
+/*    text-align: left;*/
+/*    white-space: nowrap;*/
+/*}*/
 
 .modal-content {
     max-height: 70vh;
     overflow-y: auto;
 }
 
-.table-name {
-    margin-right: 20px;
-}
+
 
 .date-range-display {
     border: 1px solid #ddd;
@@ -117,32 +229,198 @@
     border-radius: 4px;
 }
 
-.table-container {
-    overflow-x: auto;
+
+.button-row {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 10px;
 }
 
-/* Ensure the table header and body alignment */
-.table-container table {
-    width: 100%;
-    border-collapse: collapse;
+.data-availability-button {
+    padding: 8px 16px;
+    background-color: #aea9a3;
+    color: black;
+    border: 1px solid black;
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 5px;
 }
 
-.table-container table thead {
-    display: table;
-    width: calc(100% - 17px);
+.data-availability-button:hover {
+    background-color: #3768af;
+    color: white;
 }
-
-.table-container table tbody {
-    display: table;
-    width: 100%;
+/* Newmodal2.css */
+.server-list {
+    max-height: 400px;
     overflow-y: auto;
-    max-height: 60vh;
-    overflow-x: hidden;
+    margin: 20px 0;
 }
 
-.table-container table th, .table-container table td {
-    padding: 10px;
-    border: 1px solid #ddd;
-    text-align: left;
-    white-space: nowrap;
+.server-list div {
+    margin-bottom: 10px;
+}
+
+.server-modal-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+}
+
+.server-modal-actions button {
+    padding: 8px 16px;
+    border: 1px solid #ccc;
+    background-color: #f5f5f5;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.server-modal-actions button:hover {
+    background-color: #e0e0e0;
+}
+
+/* Tooltip container */
+.tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+}
+
+/* Tooltip text */
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 160px;
+    background-color: #555;
+    color: #fff;
+    text-align: center;
+    border-radius: 5px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%; /* Adjust this to position the tooltip */
+    left: 50%;
+    margin-left: -80px; /* Use half of the tooltip width to center it */
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+/* Tooltip arrow */
+.tooltip .tooltiptext::after {
+    content: "";
+    position: absolute;
+    top: 100%; /* At the bottom of the tooltip */
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #555 transparent transparent transparent;
+}
+
+/* Show the tooltip text when hovering over the tooltip container */
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Disabled button styling */
+.disabled-button {
+    background-color: #ccc;
+    color: #666;
+    cursor: not-allowed;
+}
+
+.disabled-button:hover {
+    background-color: #ccc;
+    color: #666;
+}
+
+
+/* Responsive Adjustments for Newmodal.css */
+@media screen and (max-width: 768px) {
+
+    /* Modal adjustments for smaller screens */
+    .modal {
+        width: 95%; /* Full width minus padding */
+        height: auto; /* Adjust height for smaller screens */
+        padding: 15px; /* Less padding on smaller screens */
+    }
+
+    /* Close button adjustments */
+    .close-button {
+        font-size: 1.2em; /* Slightly smaller for mobile */
+        width: 25px; /* Adjusted size */
+        height: 25px; /* Adjusted size */
+    }
+
+    /* Flex adjustments for buttons */
+    .button-row {
+        flex-direction: column; /* Stack buttons vertically */
+        gap: 10px; /* Add space between buttons */
+    }
+
+    /* Important Notice adjustments */
+    .important-notice {
+        font-size: 1rem; /* Smaller font size for mobile */
+        padding: 15px; /* Less padding on smaller screens */
+    }
+
+    /* Date Picker container adjustments */
+    .date-picker-container {
+        flex-direction: column; /* Stack date pickers vertically */
+        gap: 15px; /* Add space between date pickers */
+    }
+
+    .date-picker {
+        justify-content: flex-start; /* Align date pickers to the left */
+        width: 100%; /* Full width */
+    }
+
+    /* Pagination controls adjustments */
+    .pagination-controls {
+        flex-direction: column; /* Stack pagination controls vertically */
+        gap: 10px;
+        align-items: stretch;
+    }
+
+    .pagination-controls input {
+        width: 100%; /* Full width for inputs */
+    }
+
+    /* Consent modal button adjustments */
+    .consent-modal-actions {
+        flex-direction: column; /* Stack buttons vertically */
+        gap: 10px;
+    }
+
+    .consent-modal-actions button {
+        width: 100%; /* Full width buttons */
+        padding: 8px; /* Adjust padding */
+    }
+
+    /* Tooltip container adjustments */
+    .tooltip .tooltiptext {
+        width: 120px; /* Slightly smaller tooltip width */
+        margin-left: -60px; /* Adjust margin to center tooltip */
+    }
+}
+
+/* Modal content max-height adjustments */
+.modal-content {
+    max-height: 60vh; /* Less height for scrolling on smaller screens */
+    overflow-y: auto;
+}
+
+/* Button Row adjustments for general usage */
+.button-row {
+    flex-direction: row;
+    gap: 15px;
+    justify-content: center;
+}
+
+/* Server List adjustments for scrollable content */
+.server-list {
+    max-height: 300px; /* Less height for scrollable list */
+    overflow-y: auto;
 }

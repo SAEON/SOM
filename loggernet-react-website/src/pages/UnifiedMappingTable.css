@@ -4,6 +4,7 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    background-color: white; /* Ensures the table background is solid */
 }
 
 .unified-mapping-table .update-section {
@@ -42,6 +43,10 @@
     display: flex;
     flex-wrap: wrap;
     margin-bottom: 20px;
+    background-color: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .unified-mapping-table .filter-section select {
@@ -97,22 +102,6 @@
     margin-top: 20px;
 }
 
-/*.ReactModal__Overlay {*/
-/*    background-color: rgba(0, 0, 0, 0.75);*/
-/*}*/
-
-/*.ReactModal__Content {*/
-/*    top: 50%;*/
-/*    left: 50%;*/
-/*    right: auto;*/
-/*    bottom: auto;*/
-/*    margin-right: -50%;*/
-/*    transform: translate(-50%, -50%);*/
-/*    padding: 20px;*/
-/*    max-width: 500px;*/
-/*    width: 100%;*/
-/*}*/
-
 @media (max-width: 768px) {
     .unified-mapping-table .input-group {
         width: 100%;
@@ -137,4 +126,232 @@
     .unified-mapping-table .pagination button {
         padding: 5px;
     }
+}
+
+/* Site Mapping Modal Styles */
+.site-mapping-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 800px;
+    max-height: 90%;
+    overflow-y: auto;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.site-mapping-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.site-mapping-save-button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.site-mapping-close-button {
+    background-color: darkred;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.site-mapping-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.site-mapping-table th,
+.site-mapping-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+    font-size: 12px;
+}
+
+.site-mapping-table th {
+    background-color: #f2f2f2;
+    color: black;
+}
+
+/* Info Modal Styles */
+.info-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 800px;
+    max-height: 90%;
+    overflow-y: auto;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.info-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.info-modal-close-button {
+    background-color: darkred;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.info-modal button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.8em;
+}
+
+/* Fullscreen modal overlay */
+.sankey-modal-overlay {
+    /*background-color: rgba(0, 0, 0, 0.75);*/
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+/* Slightly smaller modal to ensure scrollbars appear */
+.sankey-modal {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    height: 90%;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Header styling */
+.sankey-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+/* Close button styling */
+.sankey-modal-close-button {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 5px;
+}
+
+/* Container for the Sankey diagram with improved scrolling */
+.sankey-container {
+    flex: 1;
+    overflow: auto;
+    width: 100%;
+    height: calc(100% - 50px);
+}
+
+/* Save button styling */
+.sankey-save-button {
+    margin-left: 10px;
+    padding: 8px 16px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.sankey-save-button:hover {
+    background-color: #0056b3;
+}
+
+/* Filter Modal Header */
+.filter-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 1px solid #ccc;
+}
+
+.filter-modal-header h2 {
+    margin: 0;
+    flex: 1;
+    text-align: center;
+}
+
+.filter-modal-close-button {
+    /*background-color: transparent;*/
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    margin-left: auto;
+}
+
+/* Modal Actions Centering */
+.filter-modal-actions {
+    display: flex;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+/* Server Selection Grid Layout */
+.server-selection {
+    padding: 20px;
+    background: white;
+    /*display: grid;*/
+    /*grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));*/
+    /*gap: 15px;*/
+    justify-content: center;
+}
+
+/* Ensure checkboxes align with labels */
+.server-selection div {
+    display: flex;
+    align-items: center;
+}
+
+.server-selection input[type="checkbox"] {
+    margin-right: 10px;
 }

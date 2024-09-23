@@ -1,4 +1,4 @@
-/* General modal styling */
+/* General modal styling for the login page */
 .login-register-modal-overlay {
     position: fixed;
     top: 0;
@@ -31,6 +31,12 @@
     align-items: center;
     padding-bottom: 1rem;
     border-bottom: 1px solid #ddd;
+}
+
+.error-message {
+    color: darkred;
+    font-weight: bold;
+    margin-bottom: 10px;
 }
 
 .login-register-close-button {
@@ -101,16 +107,6 @@
     background-color: #0056b3;
 }
 
-.login-register-toggle-button {
-    background: none;
-    border: none;
-    color: #3768af;
-    cursor: pointer;
-    margin-top: 1rem;
-    font-size: 1rem;
-    text-align: center;
-}
-
 /* Mobile styling */
 @media (max-width: 600px) {
     .login-register-modal-content {
@@ -126,7 +122,7 @@
         font-size: 0.875rem;
     }
 
-    .login-register-button, .login-register-toggle-button {
+    .login-register-button {
         font-size: 0.875rem;
     }
 }

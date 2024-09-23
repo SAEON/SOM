@@ -21,55 +21,65 @@ const MyHeatMap = ({ data, siteName, interval, dates, variables }) => {
 
     useEffect(() => {
         if (chartRef.current && data && data.length > 0) {
+            // Dispose of any previous chart instance to fully reset
+            echarts.dispose(chartRef.current);
+
             const myChart = echarts.init(chartRef.current);
 
             const option = {
-                title: {
-                    text: `Data Availability for ${siteName}`,
-                    left: 'center'
-                },
                 tooltip: {
                     position: 'top',
                     formatter: (params) => {
                         const value = params.value;
-                        return `${variables[value[1]]} on ${dates[value[0]]}: ${value[2].toFixed(2)}% available`;
+
+                        // Extract and format the date to remove the time portion
+                        const rawDate = dates[value[0]];
+                        const formattedDate = new Date(rawDate).toLocaleDateString('en-ZA'); // Format date to 'YYYY-MM-DD'
+
+                        const formattedValue = value[2] ? value[2].toFixed(2) : '0.00';
+
+                        // Use the formatted date in the tooltip
+                        return `${variables[value[1]]} on ${formattedDate}: ${formattedValue}% available`;
                     }
                 },
                 animation: false,
                 grid: {
-                    left: '10%',
-                    right: '10%',
-                    top: 30,
+                    left: '5%',
+                    right: '5%',
+                    top: '0%',
                     bottom: 80,
                     containLabel: true
                 },
                 xAxis: {
                     type: 'category',
-                    data: dates,
+                    data: dates.map(date => new Date(date).toISOString().split('T')[0]), // Keep date format as yyyy-mm-dd
                     splitArea: { show: true },
                     name: 'Date',
                     nameLocation: 'middle',
                     nameGap: 30,
                     nameTextStyle: {
                         fontWeight: 'bold'
+                    },
+                    axisLabel: {
+                        rotate: 0
                     }
                 },
                 yAxis: {
                     type: 'category',
                     data: variables,
+                    splitArea: { show: true },
                     axisLabel: {
                         interval: 0,
-                        rotate: 45,
-                        fontSize: 10
-                    },
-                    splitArea: { show: true }
+                        fontSize: 10,
+                        rotate: 0
+                    }
                 },
                 visualMap: {
                     min: 0,
                     max: 100,
                     calculable: true,
                     orient: 'horizontal',
-                    left: 'center',
+                    right: '3%',
                     bottom: '3%',
                     text: ['High Availability', 'Low Availability'],
                     textStyle: {
@@ -93,10 +103,23 @@ const MyHeatMap = ({ data, siteName, interval, dates, variables }) => {
             };
 
             myChart.setOption(option);
-        }
-    }, [data, siteName, interval, dates, variables]);
 
-    return <div ref={chartRef} style={{ height: "100%", width: "100%" }}></div>;
+            // Handle window resize for responsive charts
+            window.addEventListener('resize', myChart.resize);
+
+            return () => {
+                // Dispose of the chart instance on cleanup
+                myChart.dispose();
+                window.removeEventListener('resize', myChart.resize);
+            };
+        }
+    }, [data, dates, variables]);
+
+    return (
+        <div style={{ height: '100%', width: '100%' }}>
+            <div ref={chartRef} style={{ height: "100%", width: "100%" }}></div>
+        </div>
+    );
 };
 
 export default MyHeatMap;

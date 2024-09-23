@@ -1,131 +1,198 @@
 /* NavBar.css */
 .nav {
-    background-color: #004f6e; /* Adjust to match SAEON's theme */
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
-    padding: 0;
+    background-color: var(--secondary-color);
+    padding-top: 20px;
     z-index: 12;
+    width: 100%;
 }
 
-/* Adjust the nav-header to ensure the title is centered */
+/* Header Section */
 .nav-header {
     position: relative;
-    display: flex;
     width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
     align-items: center;
-    justify-content: space-between; /* This keeps the logo and nav-menu at the ends */
-    padding: 0 2rem; /* Adjusted padding */
-    height: 85px;
-    background-color: #3869af; /* Darker shade for the header */
+    justify-content: center;
 }
-.nav-logo {
-    /* Adjust the width as necessary for the logo */
-    /*height: 5vh;*/
-    max-height: 100%;
-    width: auto; /* Adjust width to content */
-    /*max-width: 150px; !* Set a max-width for larger screens if necessary *!*/
-    /* ... other styles */
-}
-/*.nav-logo img {*/
 
-/*    max-width: 30%; !* Increase the max-width for a bigger logo *!*/
-/*    max-height: 100%; !* Make sure the logo height does not exceed the nav-header *!*/
-/*    object-fit: contain;*/
-/*    margin-right: 1rem; !* Space after logo *!*/
-/*}*/
+.nav-logo {
+    position: absolute;
+    left: 0;
+    display: flex;
+    align-items: center;
+}
 
 .nav-logo img {
     height: auto;
-    width: 10vw; /* Adjust this value as needed */
-    max-width: 150px; /* Set a max-width to prevent the logo from getting too large */
-    min-width: 60px; /* Set a min-width to prevent the logo from getting too small */
+    max-width: 150px;
+    min-width: 60px;
     object-fit: contain;
+    margin-top: 10px;
+}
+
+.nav-title-container {
+    text-align: center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
 }
 
 .nav-title {
-    position: absolute; /* Position absolutely to the parent .nav-header */
-    left: 50%; /* Center based on the full width of the .nav-header */
-    top: 50%; /* Align text in the middle vertically */
-    transform: translate(-50%, -50%); /* Offset the element by its own dimensions */
-    font-size: 1.5rem;
-    color: #ffffff;
-    margin: 0; /* Remove any margin to prevent offset */
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--white);
+    margin: 0;
 }
 
-.nav-link {
-    color: #ffffff; /* White color for links */
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    padding: 0 1rem;
-    cursor: pointer;
-    transition: color 0.3s ease; /* Smooth transition for hover effect */
+.nav-subtitle {
+    font-size: 14px;
+    color: var(--white);
+    margin-top: 5px;
 }
 
-.nav-link.active,
-.nav-link:hover {
-    color: #ffc72c; /* Highlight color for active/hover state */
+.login-status {
+    position: absolute;
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    color: #333;
+    padding: 5px 10px;
+    background-color: #f8f9fa;
+    border: 1px solid #d1d1d1;
+    border-radius: 5px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .nav-menu {
     display: flex;
     justify-content: center;
-    align-items: center; /* Align the links vertically */
-    width: 100%;
-    background-color: #173552; /* Even darker shade for the menu */
-    padding: 5px 0; /* Padding above and below the nav links */
-    /* Ensure there is no additional margin or padding pushing the links to the side */
-    /*margin: 2;*/
-    padding-left: 0;
-    padding-right: 0;
+    align-items: center;
+    gap: 20px;
+    background-color: #173552;
+    padding: 5px 0;
+    margin-top: 5px;
+    margin-bottom: 5px;
 }
-
 
 .nav-link {
-    border: none;
-    background-color: #173552; /* Even darker shade for the menu */
-    /*color: white;*/
+    color: #ffffff;
     text-decoration: none;
-    /*padding: 10px 15px;*/
-    font-size: 16px;
+    padding: 0 1rem;
     cursor: pointer;
-}
-.button{
-    margin: 5px;
-}
-/*.nav-link:hover, .nav-link.active {*/
-/*    background-color: #666;*/
-/*    border-radius: 5px;*/
-/*}*/
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.close-button {
-    background: none;
+    transition: color 0.3s ease;
     border: none;
-    font-size: 1.5rem;
+    background: none;
+}
+
+.nav-link.active,
+.nav-link:hover {
+    color: #ffc72c;
+}
+
+.styled-button2 {
+    font-size: inherit;
+    padding: 0;
     cursor: pointer;
 }
 
+.styled-button2:hover,
+.styled-button2:focus {
+    color: #ffc72c;
+    outline: none;
+}
 
-
+/* Adjustments for larger screens */
 @media screen and (min-width: 768px) {
     .nav-title {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        /* No need to set justify-content as the positioning is absolute */
+        font-size: 1.8rem;
+    }
+
+    .nav-subtitle {
+        font-size: 1rem;
+    }
+}
+
+.info-icon {
+    margin-left: 8px;
+    cursor: pointer;
+    color: #007bff;
+}
+
+/* Styles for the modal overlay */
+.info-modal-overlay {
+    position: fixed; /* Ensures the overlay covers the entire viewport */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+    z-index: 1200; /* Adjust to be higher than other elements */
+}
+
+/* Styles for the modal content */
+.info-modal {
+    position: absolute; /* Positions the modal relative to the viewport */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Centers the modal */
+    background-color: white; /* Background for the modal content */
+    padding: 20px; /* Padding inside the modal */
+    border-radius: 8px; /* Rounded corners */
+    z-index: 1201; /* Higher than the overlay */
+    max-width: 500px; /* Adjust as needed */
+    width: 90%; /* Responsive width */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); /* Optional shadow */
+}
+
+
+
+
+/* Responsive Mobile Nav */
+@media screen and (max-width: 768px) {
+    /* Stack the header elements vertically */
+    .nav-header {
+        flex-direction: column;
+        padding: 0 10px;
+    }
+
+    .nav-title-container {
+        margin-top: 10px;
+        order: 1;
+    }
+
+    .nav-logo {
+        position: static;
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+
+    .login-status {
+        position: static;
+        margin: 10px 0;
+        transform: none;
     }
 
     .nav-menu {
-        justify-content: center; /* Center the links horizontally on larger screens */
-        /* ... other styles */
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .nav-bars {
+        font-size: 28px;
+        color: var(--white);
+        cursor: pointer;
+        display: block;
     }
 }

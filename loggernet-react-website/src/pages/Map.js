@@ -1,13 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
-import { LayersControl, MapContainer, TileLayer, useMap, WMSTileLayer } from 'react-leaflet';
-import MousePosition from '../leaflet_extensions/MousePosition';
+import { LayersControl, MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/leaflet.markercluster.js';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+import 'leaflet-gesture-handling/dist/leaflet-gesture-handling.css';
+import 'leaflet-gesture-handling';
 import './Map.css';
+import MousePosition from '../leaflet_extensions/MousePosition';
+
 
 const colorMap = {
     green: 'rgba(27, 151, 79, 0.75)',
@@ -43,9 +46,9 @@ const createIcon = (statuses) => {
             const endAngle = startAngle + angle;
 
             const x1 = centerX + radius * Math.cos(startAngle);
-            const y1 = centerY + radius * Math.sin(startAngle);
+            const y1 = centerX + radius * Math.sin(startAngle);
             const x2 = centerX + radius * Math.cos(endAngle);
-            const y2 = centerY + radius * Math.sin(endAngle);
+            const y2 = centerX + radius * Math.sin(endAngle);
 
             const d = `M${centerX},${centerY} L${x1},${y1} A${radius},${radius} 0 0,1 ${x2},${y2} Z`;
             svgPaths += `<path d="${d}" fill="${colorMap[status]}" />`;
@@ -63,7 +66,7 @@ const createIcon = (statuses) => {
     });
 };
 
-const MarkerClusterComponent = ({ locations, navigate, clusterRadius }) => {
+const MarkerClusterComponent = ({ locations, navigate, clusterRadius, onSelectSite }) => {
     const map = useMap();
 
     useEffect(() => {
@@ -102,23 +105,25 @@ const MarkerClusterComponent = ({ locations, navigate, clusterRadius }) => {
                     <strong>Longitude:</strong> ${location.longitude}<br/>
                     <button onclick="window.navigateToSite('${location.display_server_name}')" 
                             style="background-color: #007bff; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; text-transform: uppercase; font-size: 14px;">
-                        Go to Summary
+                        Go to data
                     </button>
                 </div>
             `);
+
+            marker.on('click', () => onSelectSite(location.display_server_name));
 
             window.markerClusterGroup.addLayer(marker);
         });
 
         map.addLayer(window.markerClusterGroup);
 
-        window.navigateToSite = (serverName) => navigate(`/MappingSummaryTable?server=${encodeURIComponent(serverName)}`);
+        window.navigateToSite = (serverName) => navigate(`/Data?server=${encodeURIComponent(serverName)}`);
 
         return () => {
             window.markerClusterGroup.clearLayers();
             delete window.navigateToSite;
         };
-    }, [locations, map, navigate, clusterRadius]);
+    }, [locations, map, navigate, clusterRadius, onSelectSite]);
 
     return null;
 };
@@ -157,18 +162,11 @@ const DateSliderControl = ({ selectedDate, setSelectedDate }) => {
     return null;
 };
 
-const Map = () => {
+const Map = ({ user, onSiteHover, onMapSiteSelect, selectedCoordinates }) => {
     const [clusterRadius, setClusterRadius] = useState(80);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
     const [locations, setLocations] = useState([]);
-    const [showMarkers] = useState(true);
-    const [setCoordinates] = useState({ lat: 'N/A', lng: 'N/A' });
-
-    const navigate = useNavigate();
-
-    const handleIconClick = (siteName) => {
-        navigate(`/ScrollableTable?site=${encodeURIComponent(siteName)}`);
-    };
+    const mapRef = useRef();
 
     useEffect(() => {
         const fetchLocations = async () => {
@@ -184,9 +182,11 @@ const Map = () => {
         fetchLocations();
     }, []);
 
-    const handleMouseMove = (e) => {
-        setCoordinates({ lat: e.latlng.lat.toFixed(5), lng: e.latlng.lng.toFixed(5) });
-    };
+    useEffect(() => {
+        if (selectedCoordinates && mapRef.current) {
+            mapRef.current.setView([selectedCoordinates.lat, selectedCoordinates.lng], 12);
+        }
+    }, [selectedCoordinates]);
 
     return (
         <div>
@@ -205,17 +205,19 @@ const Map = () => {
                 zoom={5}
                 minZoom={0}
                 maxZoom={20}
-                style={{ height: '500px', width: '100%' }}
+                style={{ height: '400px', width: '100%' }}
                 scrollWheelZoom={true}
-                eventHandlers={{ mousemove: handleMouseMove }}
+                gestureHandling={true}
+                whenCreated={(mapInstance) => { mapRef.current = mapInstance; }}
             >
                 <LayersControl position="topright">
-                    <LayersControl.BaseLayer name="OpenStreetMap Stadia" checked>
+                    <LayersControl.BaseLayer name="OpenStreetMap Default" checked>
                         <TileLayer
-                            url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png"
-                            attribution='&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                         />
                     </LayersControl.BaseLayer>
+
                     <LayersControl.BaseLayer name="OpenStreetMap">
                         <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -259,11 +261,14 @@ const Map = () => {
                             tileMatrixSet="GoogleMapsCompatible_Level9"
                         />
                     </LayersControl.Overlay>
-                    {showMarkers && (
-                        <LayersControl.Overlay name="Marker Clusters" checked>
-                            <MarkerClusterComponent locations={locations} navigate={navigate} clusterRadius={clusterRadius} />
-                        </LayersControl.Overlay>
-                    )}
+                    <LayersControl.Overlay name="Marker Clusters" checked>
+                        <MarkerClusterComponent
+                            locations={locations}
+                            navigate={useNavigate()}
+                            clusterRadius={clusterRadius}
+                            onSelectSite={(siteName) => onMapSiteSelect(siteName)}
+                        />
+                    </LayersControl.Overlay>
                 </LayersControl>
                 <DateSliderControl selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
                 <MousePosition />

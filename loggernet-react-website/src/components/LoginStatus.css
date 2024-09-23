@@ -1,0 +1,28 @@
+/* src/components/LoginStatus.css */
+
+
+
+/*.login-status {*/
+/*    font-size: 14px;*/
+/*    color: var(--white);*/
+/*    font-weight: 500;*/
+/*    border-left: 2px solid #ffffff40;*/
+/*    padding-left: 400px;*/
+/*    background-color: rgba(255, 255, 255, 0.1);*/
+/*    padding: 5px 10px;*/
+/*    border-radius: 5px;*/
+/*    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);*/
+/*    margin-left: fill; !* Align to the right of the container *!*/
+/*}*/
+
+.login-status p {
+    margin: 0;
+    text-align: center;
+}
+
+/*@media screen and (max-width: 768px) {*/
+/*    .login-status {*/
+/*        padding: 8px 16px;*/
+/*        font-size: 1rem;*/
+/*    }*/
+/*}*/

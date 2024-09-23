@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import './Lognet_styles.css';
+ // import './Lognet_styles.css';
+import '../universal.css'
 
 const BASE_URL = "https://proxy.saeon.ac.za/lognet/?command=browsesymbols&uri=";
 

@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFolder as farFolder, faFolderOpen as farFolderOpen, faTable } from "@fortawesome/free-solid-svg-icons";
+import { faFolder as farFolder, faFolderOpen as farFolderOpen, faTable, faDownload } from "@fortawesome/free-solid-svg-icons";
 import Modal from "react-modal";
 import DatePicker from "react-datepicker";
 import LoadingSpinner from "./LoadingSpinner";
 import "react-datepicker/dist/react-datepicker.css";
 import "./ScrollableTable.css";
 import "./Newmodal.css";
+import { logInteraction } from '../utils/logInteraction'; // Import the logInteraction function
 
-// Modal.setAppElement("#root");
+Modal.setAppElement("#root");
 
-const LiveData = () => {
+const LiveData = ({ user }) => { // Ensure user is passed as a prop
     const [servers, setServers] = useState([]);
     const [activeServer, setActiveServer] = useState(null);
     const [tables, setTables] = useState({});
@@ -20,24 +21,28 @@ const LiveData = () => {
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date());
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(100);
+    const [pageSize, setPageSize] = useState(10);
     const [totalRows, setTotalRows] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [currentTableId, setCurrentTableId] = useState(null);
-    const [columnOrder, setColumnOrder] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [loadingMessage, setLoadingMessage] = useState('');
+    const [loadingMessage, setLoadingMessage] = useState("");
+    const [tableLoading, setTableLoading] = useState({});
+
+    useEffect(() => {// Log the interaction whether the user is logged in or not
+        logInteraction('page_view', { viewport: { width: window.innerWidth, height: window.innerHeight } }, user);
+    }, [user]);
 
     useEffect(() => {
         setLoading(true);
-        setLoadingMessage('Loading servers...');
+        setLoadingMessage("Loading servers...");
         fetch("/api/servers")
-            .then(response => response.json())
-            .then(data => {
+            .then((response) => response.json())
+            .then((data) => {
                 setServers(data.sort((a, b) => a.name.localeCompare(b.name)));
                 setLoading(false);
             })
-            .catch(error => {
+            .catch((error) => {
                 console.error("Error fetching servers:", error);
                 setLoading(false);
             });
@@ -49,11 +54,24 @@ const LiveData = () => {
         }
     }, [currentPage, currentTableId, pageSize]);
 
-    const toggleServer = (serverId) => {
-        setActiveServer(prev => prev === serverId ? null : serverId);
+
+    const toggleServer = async (serverId) => {
+        setLoading(true); // Set loading to true when toggle starts
+        setActiveServer((prev) => (prev === serverId ? null : serverId));
+
         if (!tables[serverId]) {
-            fetchTablesAndDateRanges(serverId);
+            await fetchTablesAndDateRanges(serverId);
         }
+
+        // Find the server name based on the serverId
+        const server = servers.find((server) => server.server_id === serverId);
+        const serverName = server ? server.name : `Unknown Server (${serverId})`;
+
+        // Log the interaction with the server name
+        logInteraction('toggle_server', { serverName }, user);
+
+        // Set loading to false only after everything is done
+        setLoading(false);
     };
 
     const fetchFieldsWithUnits = async (tableId) => {
@@ -66,8 +84,8 @@ const LiveData = () => {
 
     const handlePageSizeChange = (newSize) => {
         setPageSize(newSize);
-        setCurrentPage(1);  // Reset to first page when page size changes
-        fetchTableData(currentTableId, 1);  // Refetch data with new page size starting from page 1
+        setCurrentPage(1); // Reset to first page when page size changes
+        fetchTableData(currentTableId, 1); // Refetch data with new page size starting from page 1
     };
 
     const nextPage = () => {
@@ -86,37 +104,55 @@ const LiveData = () => {
         }
     };
 
+
     const fetchTablesAndDateRanges = async (serverId) => {
         try {
             setLoading(true);
-            setLoadingMessage('Loading tables and date ranges...');
+            setLoadingMessage("Loading tables...");
+
+            // Fetch tables for the selected server
             const response = await fetch(`/api/servers/${serverId}/tables`);
+            if (!response.ok) throw new Error("Failed to fetch tables");
+
             const tables = await response.json();
-            if (response.ok) {
-                const tablesWithDateInfo = await Promise.all(tables.map(async (table) => {
-                    const dateRangeResponse = await fetch(`/api/tables/${table.table_id}/date-range`);
-                    const dateRange = await dateRangeResponse.json();
-                    return { ...table, dateRange: dateRangeResponse.ok ? dateRange : null };
-                }));
-                setTables(prevTables => ({
-                    ...prevTables,
-                    [serverId]: tablesWithDateInfo.sort((a, b) => a.table_name.localeCompare(b.table_name))
-                }));
-                setLoading(false);
-            } else {
-                throw new Error("Failed to fetch tables");
-            }
+
+            // Fetch date ranges for each table individually from the new endpoint
+            const tablesWithDateInfo = await Promise.all(
+                tables.map(async (table) => {
+                    try {
+                        // Fetch date range for each table from the precomputed table
+                        const dateRangeResponse = await fetch(`/api/tables/${table.table_id}/date-range`);
+                        if (!dateRangeResponse.ok) throw new Error("Failed to fetch date range");
+
+                        const dateRange = await dateRangeResponse.json();
+                        return { ...table, dateRange };
+                    } catch (error) {
+                        console.error("Error fetching date range for table:", table.table_id, error);
+                        return { ...table, dateRange: null }; // Set dateRange to null if an error occurs
+                    }
+                })
+            );
+
+            // Update state after all data is fetched
+            setTables((prevTables) => ({
+                ...prevTables,
+                [serverId]: tablesWithDateInfo.sort((a, b) => a.table_name.localeCompare(b.table_name)),
+            }));
+
+            setLoading(false);
         } catch (error) {
             console.error("Error fetching tables and date ranges:", error);
             setLoading(false);
         }
     };
 
-    const fetchTableData = async (tableId, page = currentPage) => {
+
+
+    const fetchTableData = async (tableId, page = currentPage, prefetch = false) => {
         if (!tableId) return;
 
-        setLoading(true);
-        setLoadingMessage('Loading table data...');
+        setTableLoading((prev) => ({ ...prev, [tableId]: true }));
+        setLoadingMessage("Loading table data...");
         const formattedStartDate = startDate.toISOString().split("T")[0];
         const formattedEndDate = endDate.toISOString().split("T")[0];
         const url = `/api/tables/${tableId}/values?startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=${page}&pageSize=${pageSize}`;
@@ -131,28 +167,33 @@ const LiveData = () => {
                     return acc;
                 }, {});
 
-                const dataWithUnits = valuesData.data.map(row => ({
+                const dataWithUnits = valuesData.data.map((row) => ({
                     ...row,
                     units: fieldsInfo[row.field_name]?.units,
                     status: fieldsInfo[row.field_name]?.status,
-                    timestamp: row.timestamp // Use raw timestamp
+                    timestamp: row.timestamp, // Use raw timestamp
                 }));
 
-                setTableValues(prev => ({ ...prev, [tableId]: dataWithUnits }));
-                setModalContent(dataWithUnits);
-                setTotalRows(valuesData.totalRecords);  // Set total rows
-                setTotalPages(valuesData.totalPages);   // Set total pages
+                setTableValues((prev) => ({ ...prev, [tableId]: dataWithUnits }));
+                if (!prefetch) {
+                    setModalContent(dataWithUnits);
+                    setTotalRows(valuesData.totalRecords); // Set total rows
+                    setTotalPages(valuesData.totalPages); // Set total pages
+                    setIsModalOpen(true);
+                }
+                setTableLoading((prev) => ({ ...prev, [tableId]: false }));
                 setLoading(false);
-                setIsModalOpen(true);
             } else {
                 console.error("Expected valuesData.data to be an array, received:", valuesData);
                 if (valuesData.error) {
                     console.error("API Error:", valuesData.error);
                 }
+                setTableLoading((prev) => ({ ...prev, [tableId]: false }));
                 setLoading(false);
             }
         } catch (error) {
             console.error("Error fetching table details:", error);
+            setTableLoading((prev) => ({ ...prev, [tableId]: false }));
             setLoading(false);
         }
     };
@@ -166,21 +207,41 @@ const LiveData = () => {
         setCurrentTableId(tableId);
         setCurrentPage(1);
 
+        // console.log('Table ID:', tableId);
+
         try {
             setLoading(true);
-            setLoadingMessage('Opening table...');
+            setLoadingMessage("Opening table...");
+
+            // Fetch date range and other data
             const dateRangeResponse = await fetch(`/api/tables/${tableId}/date-range`);
             const dateRange = await dateRangeResponse.json();
             if (!dateRangeResponse.ok) throw new Error("Failed to fetch date range.");
 
             const start = new Date(dateRange.start_date);
             const end = new Date(dateRange.end_date);
-            end.setDate(end.getDate());  // Include the end date fully
+            end.setDate(end.getDate()); // Include the end date fully
             setStartDate(start);
             setEndDate(end);
 
             const fieldsData = await fetchFieldsWithUnits(tableId);
             if (!fieldsData) throw new Error("Failed to fetch fields with units.");
+
+            // Fetch server and table information
+            const serverAndTableResponse = await fetch(`/api/tables/${tableId}/info`);
+            const serverAndTableInfo = await serverAndTableResponse.json();
+            if (!serverAndTableResponse.ok) throw new Error("Failed to fetch server and table information.");
+
+            // Use unique property names
+            const { servername: fetchedServerName, tablename: fetchedTableName } = serverAndTableInfo;
+
+            // // DEBUG: Log the values to check if they are being fetched correctly
+            // console.log("Fetched Server Name:", fetchedServerName);
+            // console.log("Fetched Table Name:", fetchedTableName);
+
+            if (!fetchedServerName || !fetchedTableName) {
+                console.error("Server name or table name is missing. Interaction logging might fail.");
+            }
 
             const fieldsInfo = fieldsData.reduce((acc, field) => {
                 acc[field.field_name] = { units: field.units, status: field.status };
@@ -193,19 +254,22 @@ const LiveData = () => {
             const valuesData = await response.json();
 
             if (response.ok && Array.isArray(valuesData.data)) {
-                const dataWithUnits = valuesData.data.map(row => ({
+                const dataWithUnits = valuesData.data.map((row) => ({
                     ...row,
                     units: fieldsInfo[row.field_name]?.units,
                     status: fieldsInfo[row.field_name]?.status,
-                    timestamp: row.timestamp // Use raw timestamp
+                    timestamp: row.timestamp, // Use raw timestamp
                 }));
 
-                setTableValues(prev => ({ ...prev, [tableId]: dataWithUnits }));
+                setTableValues((prev) => ({ ...prev, [tableId]: dataWithUnits }));
                 setModalContent(dataWithUnits);
-                setTotalRows(valuesData.totalRecords);  // Set total rows
-                setTotalPages(valuesData.totalPages);   // Set total pages
+                setTotalRows(valuesData.totalRecords); // Set total rows
+                setTotalPages(valuesData.totalPages); // Set total pages
                 setLoading(false);
                 setIsModalOpen(true);
+
+                // Log the interaction with server and table names
+                logInteraction('view_table', { serverName: fetchedServerName, tableName: fetchedTableName }, user);
             } else {
                 console.error("Expected valuesData.data to be an array, received:", valuesData);
                 if (valuesData.error) {
@@ -221,43 +285,153 @@ const LiveData = () => {
         }
     };
 
+
+
+
     const closeModal = () => {
         setIsModalOpen(false);
         setModalContent(null);
     };
 
-    const downloadData = async () => {
-        if (!currentTableId) return;
+    // const downloadData = async (tableId, startDate, endDate) => {
+    //     if (!tableId) return;
+    //
+    //     setLoading(true);
+    //     setLoadingMessage("Downloading data...");
+    //
+    //     const formattedStartDate = startDate.toISOString().split("T")[0];
+    //     const formattedEndDate = endDate.toISOString().split("T")[0];
+    //     const url = `/api/tables/${tableId}/download?startDate=${formattedStartDate}&endDate=${formattedEndDate}`;
+    //
+    //     try {
+    //         // Fetch server and table information based on the tableId
+    //         const serverAndTableResponse = await fetch(`/api/tables/${tableId}/info`);
+    //         const serverAndTableInfo = await serverAndTableResponse.json();
+    //         if (!serverAndTableResponse.ok) throw new Error("Failed to fetch server and table information.");
+    //
+    //         const { servername: fetchedServerName, tablename: fetchedTableName } = serverAndTableInfo;
+    //
+    //         if (!fetchedServerName || !fetchedTableName) {
+    //             console.error("Server name or table name is missing. Interaction logging might fail.");
+    //         }
+    //
+    //         const response = await fetch(url);
+    //         if (response.ok) {
+    //             const blob = await response.blob();
+    //             const downloadUrl = window.URL.createObjectURL(blob);
+    //             const a = document.createElement("a");
+    //             a.href = downloadUrl;
+    //             a.download = "data.csv";
+    //             document.body.appendChild(a);
+    //             a.click();
+    //             a.remove();
+    //             window.URL.revokeObjectURL(downloadUrl);
+    //             setLoading(false);
+    //
+    //             // Log the download interaction with server and table names
+    //             await logInteraction("consent_given", { serverName: fetchedServerName, tableName: fetchedTableName }, user); // Log when consent is given
+    //             await logInteraction('download_data', { serverName: fetchedServerName, tableName: fetchedTableName }, user);
+    //         } else {
+    //             console.error("Failed to download data");
+    //             setLoading(false);
+    //         }
+    //     } catch (error) {
+    //         console.error("Error downloading data:", error);
+    //         setLoading(false);
+    //     }
+    // };
+
+    // const downloadData = async (tableId) => {
+    //     if (!tableId) return;
+    //
+    //     setLoading(true);
+    //     setLoadingMessage("Downloading data...");
+    //
+    //     const url = `/api/tables/${tableId}/download`;
+    //
+    //     try {
+    //         const serverAndTableResponse = await fetch(`/api/tables/${tableId}/info`);
+    //         const serverAndTableInfo = await serverAndTableResponse.json();
+    //         if (!serverAndTableResponse.ok) throw new Error("Failed to fetch server and table information.");
+    //
+    //         const { servername: fetchedServerName, tablename: fetchedTableName } = serverAndTableInfo;
+    //
+    //         if (!fetchedServerName || !fetchedTableName) {
+    //             console.error("Server name or table name is missing.");
+    //         }
+    //
+    //         const response = await fetch(url);
+    //         if (response.ok) {
+    //             const blob = await response.blob();
+    //             const downloadUrl = window.URL.createObjectURL(blob);
+    //             const a = document.createElement("a");
+    //             a.href = downloadUrl;
+    //             a.download = `${fetchedTableName}_${fetchedServerName}.csv`;
+    //             document.body.appendChild(a);
+    //             a.click();
+    //             a.remove();
+    //             window.URL.revokeObjectURL(downloadUrl);
+    //             setLoading(false);
+    //
+    //             await logInteraction("consent_given", { serverName: fetchedServerName, tableName: fetchedTableName }, user);
+    //             await logInteraction('download_data', { serverName: fetchedServerName, tableName: fetchedTableName }, user);
+    //         } else {
+    //             console.error("Failed to download data");
+    //             setLoading(false);
+    //         }
+    //     } catch (error) {
+    //         console.error("Error downloading data:", error);
+    //         setLoading(false);
+    //     }
+    // };
+    const downloadData = async (tableId) => {
+        if (!tableId) return;
 
         setLoading(true);
-        setLoadingMessage('Downloading data...');
-        const formattedStartDate = startDate.toISOString().split("T")[0];
-        const formattedEndDate = endDate.toISOString().split("T")[0];
-        const url = `/api/tables/${currentTableId}/download?startDate=${formattedStartDate}&endDate=${formattedEndDate}`;
+        setLoadingMessage("Downloading data...");
 
         try {
-            const response = await fetch(url);
-            if (response.ok) {
-                const blob = await response.blob();
-                const downloadUrl = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = 'data.csv';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(downloadUrl);
-                setLoading(false);
-            } else {
-                console.error("Failed to download data");
-                setLoading(false);
+            // Fetch server and table information
+            const serverAndTableResponse = await fetch(`/api/tables/${tableId}/info`);
+            const serverAndTableInfo = await serverAndTableResponse.json();
+
+            if (!serverAndTableResponse.ok || !serverAndTableInfo) {
+                throw new Error("Failed to fetch server and table information.");
             }
+
+            const { servername: fetchedServerName, tablename: fetchedTableName } = serverAndTableInfo;
+
+            if (!fetchedServerName || !fetchedTableName) {
+                console.error("Server name or table name is missing.");
+                setLoading(false);
+                return;
+            }
+
+            // Construct the download URL
+            const url = `/api/tables/${tableId}/download`;
+
+            // Create a temporary link element for the download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${fetchedTableName}_${fetchedServerName}.csv`;
+
+            // Append the link to the body and trigger the download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setLoading(false);
+
+            // Log interactions after download
+            await logInteraction("consent_given", { serverName: fetchedServerName, tableName: fetchedTableName }, user);
+            await logInteraction('download_data', { serverName: fetchedServerName, tableName: fetchedTableName }, user);
+
         } catch (error) {
             console.error("Error downloading data:", error);
             setLoading(false);
+            alert('Failed to start the download. Please try again.');
         }
     };
-
 
     const getStatusIndicator = (lastUpdated) => {
         const now = new Date();
@@ -275,18 +449,20 @@ const LiveData = () => {
         }
     };
 
+
+
     const renderTableData = (data) => {
-        if (!data || data.length === 0) return <p>No data available</p>;
+        if (!data || data.length === 0) return <p>No data available for preview, try download instead</p>;
 
         const columns = new Set();
         const columnDetails = {}; // Store units and status for each column
-        data.forEach(entry => {
-            entry.fields.forEach(field => {
+        data.forEach((entry) => {
+            entry.fields.forEach((field) => {
                 columns.add(field.field_name);
                 if (!columnDetails[field.field_name]) {
                     columnDetails[field.field_name] = {
                         units: field.units || "No units",
-                        status: field.status || "Unknown"
+                        status: field.status || "Unknown",
                     };
                 }
             });
@@ -295,64 +471,114 @@ const LiveData = () => {
 
         const rows = data.map((entry) => ({
             ...entry,
-            fields: entry.fields.sort((a, b) => a.field_name.localeCompare(b.field_name))
+            fields: entry.fields.sort((a, b) => a.field_name.localeCompare(b.field_name)),
         }));
 
         return (
-            <div className="date-picker-container">
-                <div className="date-picker">
-                    <DatePicker selected={startDate} onChange={date => setStartDate(date)} dateFormat="dd/MM/yyyy" />
-                    <DatePicker selected={endDate} onChange={date => setEndDate(date)} dateFormat="dd/MM/yyyy" />
+            <div className="livedata-modal-content">
+                <div className="livedata-date-picker-container">
+                    <div className="livedata-date-picker">
+                        <DatePicker
+                            selected={startDate}
+                            onChange={(date) => setStartDate(date)}
+                            dateFormat="dd/MM/yyyy"
+                        />
+                        <DatePicker
+                            selected={endDate}
+                            onChange={(date) => setEndDate(date)}
+                            dateFormat="dd/MM/yyyy"
+                        />
+                    </div>
+                    <div className="livedata-download-button">
+                        <button
+                            className="livedata-button"
+                            // onClick={() => downloadData(currentTableId, startDate, endDate)}
+                            onClick={() => downloadData(currentTableId)}
+                            disabled={loading}
+                        >
+                            {loading ? "Loading..." : "Download"}
+                        </button>
+                    </div>
                 </div>
-                <div className="download-button">
-                    <button onClick={downloadData}>Download</button>
-                </div>
-                <div>
-                    <button onClick={prevPage} disabled={currentPage === 1}>←</button>
-                    Page: <input type="number" value={currentPage} onChange={e => setCurrentPage(Number(e.target.value))} />
-                    <button onClick={nextPage} disabled={currentPage === totalPages}>→</button>
-                    Page Size:
-                    <select value={pageSize} onChange={e => handlePageSizeChange(Number(e.target.value))}>
-                        <option value="100">100</option>
-                        <option value="200">200</option>
-                        <option value="300">300</option>
-                        <option value="400">400</option>
-                        <option value="500">500</option>
+                <div className="livedata-pagination-controls">
+                    <button
+                        className="livedata-button"
+                        onClick={prevPage}
+                        disabled={currentPage === 1}
+                    >
+                        ←
+                    </button>
+                    <span>
+                    Page:{" "}
+                        <input
+                            type="number"
+                            value={currentPage}
+                            onChange={(e) => setCurrentPage(Number(e.target.value))}
+                        />
+                </span>
+                    <button
+                        className="livedata-button"
+                        onClick={nextPage}
+                        disabled={currentPage === totalPages}
+                    >
+                        →
+                    </button>
+                    <span>
+                    Page Size:{" "}
+                        <select
+                            value={pageSize}
+                            onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                        >
+                        {[10, 20, 30, 40, 50, 100].map((size) => (
+                            <option key={size} value={size}>
+                                {size}
+                            </option>
+                        ))}
                     </select>
+                </span>
+                    <span>Total Rows: {totalRows}</span>
+                    <span>Total Pages: {totalPages}</span>
                 </div>
-                <div>Total Rows: {totalRows} Total Pages: {totalPages}</div>
-                <table className="data-table">
-                    <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        {sortedColumns.map(col => (
-                            <th key={`header-${col}`}>{col}</th>
-                        ))}
-                    </tr>
-                    <tr>
-                        <th></th>
-                        {sortedColumns.map(col => (
-                            <th key={`units-${col}`}>{columnDetails[col].units}</th>
-                        ))}
-                    </tr>
-                    <tr>
-                        <th></th>
-                        {sortedColumns.map(col => (
-                            <th key={`status-${col}`}>{columnDetails[col].status}</th>
-                        ))}
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {rows.map((row, index) => (
-                        <tr key={index}>
-                            <td>{row.timestamp.split('T')[0] + ' ' + row.timestamp.split('T')[1].slice(0, 8)}</td>
-                            {sortedColumns.map(col => (
-                                <td key={`${col}-${index}`}>{row.fields.find(f => f.field_name === col)?.value || '-'}</td>
+                <div className="livedata-table-container">
+                    <table className="livedata-data-table">
+                        <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            {sortedColumns.map((col) => (
+                                <th key={`header-${col}`}>{col}</th>
                             ))}
                         </tr>
-                    ))}
-                    </tbody>
-                </table>
+                        <tr>
+                            <th></th>
+                            {sortedColumns.map((col) => (
+                                <th key={`units-${col}`}>{columnDetails[col].units}</th>
+                            ))}
+                        </tr>
+                        <tr>
+                            <th></th>
+                            {sortedColumns.map((col) => (
+                                <th key={`status-${col}`}>{columnDetails[col].status}</th>
+                            ))}
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {rows.map((row, index) => (
+                            <tr key={index}>
+                                <td>
+                                    {row.timestamp.split("T")[0] +
+                                    " " +
+                                    row.timestamp.split("T")[1].slice(0, 8)}
+                                </td>
+                                {sortedColumns.map((col) => (
+                                    <td key={`${col}-${index}`}>
+                                        {row.fields.find((f) => f.field_name === col)?.value || "-"}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         );
     };
@@ -377,27 +603,35 @@ const LiveData = () => {
                         <tr>
                             <td colSpan={6}>
                                 <button className="site-name-button" onClick={() => toggleServer(server.server_id)}>
-                                    <span className="button-content">
-                                        {server.name}
-                                        <span className={`status-indicator ${server.status}`}>{server.status}</span>
-                                        <FontAwesomeIcon icon={activeServer === server.server_id ? farFolderOpen : farFolder} className="icon-right" />
-                                    </span>
+                                        <span className="button-content">
+                                            {server.name}
+                                            <span className={`status-indicator ${server.status}`}>{server.status}</span>
+                                            <FontAwesomeIcon icon={activeServer === server.server_id ? farFolderOpen : farFolder} className="icon-right" />
+                                        </span>
                                 </button>
                             </td>
                         </tr>
-                        {activeServer === server.server_id && tables[server.server_id] && tables[server.server_id].map((table) => (
+                        {activeServer === server.server_id &&
+                        tables[server.server_id] &&
+                        tables[server.server_id].map((table) => (
                             <tr key={table.table_id}>
                                 <td colSpan={6}>
                                     <button className="table-name-button" onClick={() => openTableModal(table.table_id)}>
                                         <FontAwesomeIcon icon={faTable} className="icon-left" />
                                         {table.table_name}
                                         <span className={`status-indicator ${table.status}`}>{table.status}</span>
+                                        <span className="table-name">
+        {table.display_table_name} <span className="preview-text">(View lastest month's data)</span>
+    </span>
                                         {/* Display date range if available */}
-                                        <span className="date-range-display">
-                                            {table.dateRange ? `${new Date(table.dateRange.start_date).toLocaleDateString()} - ${new Date(table.dateRange.end_date).toLocaleDateString()}` : 'No dates available'}
-                                        </span>
+                                        <span className="date-range-display">{table.dateRange ? `${new Date(table.dateRange.start_date).toLocaleDateString()} - ${new Date(table.dateRange.end_date).toLocaleDateString()}` : "No dates available"}</span>
                                         {table.dateRange && getStatusIndicator(table.dateRange.end_date)}
                                     </button>
+                                    <button className="download-button" onClick={() => downloadData(table.table_id)}>
+                                        <FontAwesomeIcon icon={faDownload} className="icon-right" />
+                                        Download
+                                    </button>
+
                                 </td>
                             </tr>
                         ))}
@@ -406,16 +640,13 @@ const LiveData = () => {
                 </tbody>
             </table>
 
-            <Modal
-                isOpen={isModalOpen}
-                onRequestClose={closeModal}
-                contentLabel="Table Data"
-                className="modal"
-                overlayClassName="modal-overlay"
-            >
-                <button className="close-button" onClick={closeModal}>
-                    X
-                </button>
+            <Modal isOpen={isModalOpen} onRequestClose={closeModal} contentLabel="Table Data" className="modal" overlayClassName="modal-overlay">
+
+                <div className="macos-window-controls">
+                    <div className="macos-button close" onClick={() => closeModal()}></div>
+
+                </div>
+
                 {modalContent && renderTableData(modalContent)}
             </Modal>
         </div>

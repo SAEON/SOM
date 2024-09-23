@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Modal from 'react-modal';
+import axios from 'axios';
 import { sectors } from './sectors';
 import { disciplines } from './disciplines';
 import './LoginRegisterPage.css';
 
-const LoginRegisterPage = ({ isOpen, closeModal }) => {
+const LoginRegisterPage = ({ isOpen, closeModal, setUser }) => {
     const [isRegistering, setIsRegistering] = useState(false);
     const [formData, setFormData] = useState({
         firstName: '',
@@ -17,6 +18,7 @@ const LoginRegisterPage = ({ isOpen, closeModal }) => {
         country: ''
     });
     const [countries, setCountries] = useState([]);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         const fetchCountries = async () => {
@@ -41,20 +43,43 @@ const LoginRegisterPage = ({ isOpen, closeModal }) => {
         });
     };
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
         const { username, password } = formData;
-        console.log('Login:', { username, password });
-        // Replace with actual API call
-        // const response = await axios.post('/api/login', { username, password });
+        try {
+            const response = await axios.post('/api/login', { username, password });
+            console.log('Login successful:', response.data);
+            setUser(response.data); // Set the user state after login
+            localStorage.setItem('user', JSON.stringify(response.data)); // Store the user in localStorage
+            setError(''); // Clear any previous error
+            closeModal();
+        } catch (error) {
+            setError('Invalid username or password. Please try again.');
+            console.error('Error logging in:', error);
+        }
     };
 
-    const handleRegister = (e) => {
+    const handleRegister = async (e) => {
         e.preventDefault();
-        console.log('Register:', formData);
-        // Replace with actual API call
-        // const response = await axios.post('/api/register', formData);
+        try {
+            const response = await axios.post('/api/register', formData);
+            console.log('Register successful:', response.data);
+            setUser(response.data); // Set the user state after registration
+            localStorage.setItem('user', JSON.stringify(response.data)); // Store the user in localStorage
+            setError(''); // Clear any previous error
+            closeModal();
+        } catch (error) {
+            setError('Error registering. Please try again.');
+            console.error('Error registering:', error);
+        }
     };
+
+    // Reset scroll position when modal opens/closes
+    useEffect(() => {
+        if (isOpen) {
+            window.scrollTo(0, 0);
+        }
+    }, [isOpen]);
 
     return (
         <Modal
@@ -64,16 +89,21 @@ const LoginRegisterPage = ({ isOpen, closeModal }) => {
             className="login-register-modal-content"
             overlayClassName="login-register-modal-overlay"
         >
-            <button onClick={closeModal} className="login-register-close-button">X</button>
+            <div className="macos-window-controls">
+                <div className="macos-button close"
+                     onClick={() => closeModal()}></div>
+
+            </div>
+            {/*<button onClick={closeInfoModal} className="close-modal-button">Close</button>*/}
+            {/*<button onClick={closeModal} className="login-register-close-button">X</button>*/}
             <div className="login-register-modal-header">
-                <h2 className="login-register-title">{isRegistering ? 'Register' : 'Login/Register'}</h2>
+                <h2 className="login-register-title">{isRegistering ? 'Register' : 'Login'}</h2>
             </div>
             <div className="login-register-modal-body">
-                <button onClick={() => setIsRegistering(!isRegistering)} className="login-register-toggle-button">
-                    {isRegistering ? 'Go to Login' : 'Go to Register'}
-                </button>
+                {error && <div className="error-message">{error}</div>}
                 {isRegistering ? (
                     <form onSubmit={handleRegister} className="login-register-form">
+                        {/* Registration Form Fields */}
                         <div>
                             <label htmlFor="firstName" className="login-register-label">First Name:</label>
                             <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} required className="login-register-input" />
@@ -122,9 +152,11 @@ const LoginRegisterPage = ({ isOpen, closeModal }) => {
                             </select>
                         </div>
                         <button type="submit" className="login-register-button">Register</button>
+                        <button type="button" onClick={() => setIsRegistering(false)} className="login-register-button">Go to Login</button>
                     </form>
                 ) : (
                     <form onSubmit={handleLogin} className="login-register-form">
+                        {/* Login Form Fields */}
                         <div>
                             <label htmlFor="username" className="login-register-label">Username:</label>
                             <input type="text" id="username" name="username" value={formData.username} onChange={handleChange} required className="login-register-input" />
@@ -134,6 +166,7 @@ const LoginRegisterPage = ({ isOpen, closeModal }) => {
                             <input type="password" id="password" name="password" value={formData.password} onChange={handleChange} required className="login-register-input" />
                         </div>
                         <button type="submit" className="login-register-button">Login</button>
+                        <button type="button" onClick={() => setIsRegistering(true)} className="login-register-button">Go to Register</button>
                     </form>
                 )}
             </div>
