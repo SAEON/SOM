@@ -16,7 +16,7 @@ const externalLinks = [
 
 const blogPosts = [{
     id: 1,
-    title: "Welcome to the SAEON Terrestrial Observations Monitor",
+    title: "Welcome to the SAEON terrestrial observations monitor",
     summary: `Explore real-time environmental data from SAEON’s weather and eddy covariance stations across South Africa through the Terrestrial Observations Monitor. The platform collects and stores raw, unprocessed data directly from the stations. The map displays the locations of these sites. Clicking a site marker reveals detailed information below the map. To access the data, click “Go to data” on the marker or select a site card. Each card offers a summary and quick access to the data. In the Data tab, you’ll find tables showing data availability, key variables, and recent update statuses. You can also download raw datasets for direct analysis. Visual indicators and timestamps keep you informed about the latest updates and data availability.`
 }];
 

@@ -471,9 +471,165 @@ const UnifiedMappingTable = () => {
 
 
 
+    const [isVariableDescModalVisible, setIsVariableDescModalVisible] = useState(false);
+    const [isUnitDescModalVisible, setIsUnitDescModalVisible] = useState(false);
+
+    const [variableDescriptionList, setVariableDescriptionList] = useState([]);
+    const [unitDescriptionList, setUnitDescriptionList] = useState([]);
+
+    useEffect(() => {
+        if (isVariableDescModalVisible) {
+            fetchVariableDescriptionList();
+        }
+    }, [isVariableDescModalVisible]);
+
+    useEffect(() => {
+        if (isUnitDescModalVisible) {
+            fetchUnitDescriptionList();
+        }
+    }, [isUnitDescModalVisible]);
+
+    const fetchVariableDescriptionList = async () => {
+        try {
+            const result = await axios.get('/api/field_metadata_names');
+            setVariableDescriptionList(result.data);
+        } catch (error) {
+            console.error('Error fetching variable descriptions:', error);
+        }
+    };
+
+    const fetchUnitDescriptionList = async () => {
+        try {
+            const result = await axios.get('/api/field_metadata_units');
+            setUnitDescriptionList(result.data);
+        } catch (error) {
+            console.error('Error fetching unit descriptions:', error);
+        }
+    };
+
+    const handleVariableDescChange = (index, value) => {
+        const updatedDescriptions = [...variableDescriptionList];
+        updatedDescriptions[index].description = value;
+        setVariableDescriptionList(updatedDescriptions);
+    };
+
+    const handleUnitDescChange = (index, value) => {
+        const updatedDescriptions = [...unitDescriptionList];
+        updatedDescriptions[index].units_description = value;
+        setUnitDescriptionList(updatedDescriptions);
+    };
+
+    const updateVariableDescriptionList = async () => {
+        if (!Array.isArray(variableDescriptionList)) {
+            console.error("variableDescriptionList is not an array:", variableDescriptionList);
+            return;
+        }
+
+        try {
+            await axios.post('/api/field_metadata_names/update', { variableDescriptions: variableDescriptionList });
+            alert('Variable descriptions updated successfully');
+            setIsVariableDescModalVisible(false);
+        } catch (error) {
+            console.error('Error updating variable descriptions:', error);
+        }
+    };
+
+    const updateUnitDescriptionList = async () => {
+        if (!Array.isArray(unitDescriptionList)) {
+            console.error("unitDescriptionList is not an array:", unitDescriptionList);
+            return;
+        }
+
+        try {
+            await axios.post('/api/field_metadata_units/update', { unitDescriptions: unitDescriptionList });
+            alert('Unit descriptions updated successfully');
+            setIsUnitDescModalVisible(false);
+        } catch (error) {
+            console.error('Error updating unit descriptions:', error);
+        }
+    };
+
+
     return (
         <div className="unified-mapping-table">
             <button onClick={openModal}>Info</button>
+
+            <button onClick={() => setIsVariableDescModalVisible(true)}>Update Variable Descriptions</button>
+            <button onClick={() => setIsUnitDescModalVisible(true)}>Update Unit Descriptions</button>
+
+            <Modal
+                isOpen={isVariableDescModalVisible}
+                onRequestClose={() => setIsVariableDescModalVisible(false)}
+                contentLabel="Variable Descriptions"
+                className="variable-description-modal"
+            >
+                <div className="variable-description-modal-header">
+                    <button className="variable-description-close-button" onClick={() => setIsVariableDescModalVisible(false)}>X</button>
+                    <h2>Variable Descriptions</h2>
+                    <button className="variable-description-save-button" onClick={updateVariableDescriptionList}>Save Changes</button>
+                </div>
+                <div className="variable-description-modal-body">
+                    <table className="variable-description-table">
+                        <thead>
+                        <tr>
+                            <th>Variable Name</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {variableDescriptionList.map((variable, index) => (
+                            <tr key={index}>
+                                <td>{variable.display_field_name}</td>
+                                <td className={variable.description ? '' : 'empty-description'}>
+                                    <input
+                                        type="text"
+                                        value={variable.description || ''}
+                                        onChange={(e) => handleVariableDescChange(index, e.target.value)}
+                                    />
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={isUnitDescModalVisible}
+                onRequestClose={() => setIsUnitDescModalVisible(false)}
+                contentLabel="Unit Descriptions"
+                className="unit-description-modal"
+            >
+                <div className="unit-description-modal-header">
+                    <button className="unit-description-close-button" onClick={() => setIsUnitDescModalVisible(false)}>X</button>
+                    <h2>Unit Descriptions</h2>
+                    <button className="unit-description-save-button" onClick={updateUnitDescriptionList}>Save Changes</button>
+                </div>
+                <div className="unit-description-modal-body">
+                    <table className="unit-description-table">
+                        <thead>
+                        <tr>
+                            <th>Unit</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {unitDescriptionList.map((unit, index) => (
+                            <tr key={index}>
+                                <td>{unit.units}</td>
+                                <td className={unit.units_description ? '' : 'empty-description'}>
+                                    <input
+                                        type="text"
+                                        value={unit.units_description || ''}
+                                        onChange={(e) => handleUnitDescChange(index, e.target.value)}
+                                    />
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Modal>
 
             <button onClick={() => setFilterModalIsOpen(true)}>Filter and Generate Sankey</button>
 

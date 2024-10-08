@@ -1,0 +1,82 @@
+import requests
+from requests.auth import HTTPBasicAuth
+import os
+from datetime import datetime
+import pytz
+
+# API URLs
+servers_url = "https://observationsmonitor.saeon.ac.za/api/public/servers"
+tables_url = "https://observationsmonitor.saeon.ac.za/api/public/tables"
+date_range_url = "https://observationsmonitor.saeon.ac.za/api/public/date-range"
+download_url = "https://observationsmonitor.saeon.ac.za/api/public/download"
+
+# User credentials
+username = "your_username"
+password = "your_password"
+
+# Download directory
+download_directory = "/path/to/your/download/directory"
+os.makedirs(download_directory, exist_ok=True)
+
+# Headers
+headers = {
+    "Accept": "application/json"
+}
+
+# SAST timezone definition
+sast_tz = pytz.timezone("Africa/Johannesburg")
+
+def convert_to_sast(utc_str):
+    utc_dt = datetime.strptime(utc_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+    utc_dt = pytz.utc.localize(utc_dt)
+    sast_dt = utc_dt.astimezone(sast_tz)
+    return sast_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+try:
+    # Get list of servers
+    response = requests.get(servers_url, headers=headers, auth=HTTPBasicAuth(username, password), verify=False)
+    if response.status_code == 200:
+        servers_data = response.json()
+        print("List of available sites:", [server["site_name"] for server in servers_data])
+        chosen_site = servers_data[0]["site_name"]
+
+        # Get tables for chosen site
+        tables_response = requests.get(tables_url, headers=headers, params={"server": chosen_site}, auth=HTTPBasicAuth(username, password), verify=False)
+        if tables_response.status_code == 200:
+            tables_data = tables_response.json()
+            chosen_table = tables_data[0]["display_table_name"]
+
+            # Get date range for chosen server and table
+            date_range_response = requests.get(date_range_url, headers=headers, params={"server": chosen_site, "table": chosen_table}, auth=HTTPBasicAuth(username, password), verify=False)
+            if date_range_response.status_code == 200:
+                date_range_data = date_range_response.json()
+                print(f"Data Range: {convert_to_sast(date_range_data['start_date'])} to {convert_to_sast(date_range_data['end_date'])}")
+
+                # Download data for the table
+                download_params = {
+                    "tableName": chosen_table,
+                    "serverName": chosen_site,
+                    "startDate": date_range_data["start_date"],
+                    "endDate": date_range_data["end_date"],
+                    "consent": "yes"
+                }
+                download_response = requests.get(download_url, headers=headers, params=download_params, auth=HTTPBasicAuth(username, password), verify=False, stream=True)
+
+                # Save to file
+                if download_response.status_code == 200:
+                    file_path = os.path.join(download_directory, f"{chosen_table}_{chosen_site}_data.csv")
+                    with open(file_path, "wb") as file:
+                        for chunk in download_response.iter_content(chunk_size=8192):
+                            file.write(chunk)
+                    print(f"Downloaded data saved to {file_path}")
+                else:
+                    print("Failed to download data:", download_response.status_code)
+            else:
+                print("Failed to fetch date range:", date_range_response.status_code)
+        else:
+            print("Failed to fetch tables:", tables_response.status_code)
+    else:
+        print("Failed to fetch servers:", response.status_code)
+
+except Exception as e:
+    print(f"An error occurred: {e}")

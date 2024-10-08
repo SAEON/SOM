@@ -14,6 +14,7 @@ import About from './pages/About';
 import LoginRegisterPage from './pages/LoginRegisterPage';
 import axios from 'axios';
 import Footer from './components/Footer'; // Import the footer component
+// import Metadata from './pages/MetadataDisplay';
 
 Modal.setAppElement('#root');
 
@@ -72,16 +73,22 @@ function App() {
                                 <Route path="/adminpanel" element={<AdminPanel currentUser={user} />} />
                             </>
                         )}
+                        {(user.role === 'Admin' || user.role === 'SU') && (
+                            <>
+                                <Route path="/Analytics" element={<Analytics />} />
+                            </>
+                        )}
                         {/*{(user.role === 'Admin' || user.role === 'SU') && (*/}
                         {/*    <>*/}
                                 <Route path="/api-reference" element={<ApiReference user={user}/>} /> {/* Add the API reference route */}
-                        <Route path="/Analytics" element={<Analytics />} />
+
                         {/*    </>*/}
                         {/*)}*/}
 
                     </>
                 )}
                 <Route path="/api/logged_in" element={<OAuthCallback />} />
+                {/*<Route path="/metadata" element={<Metadata user={user} />} />*/}
                 <Route path="/about" element={<About user={user} />} />
             </Routes>
             <LoginRegisterPage

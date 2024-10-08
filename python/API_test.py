@@ -10,10 +10,10 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # API URLs
-servers_url = "https://41.133.92.45/api/public/servers"
-tables_url = "https://41.133.92.45/api/public/tables"
-date_range_url = "https://41.133.92.45/api/public/date-range"
-download_url = "https://41.133.92.45/api/public/download"  # New download API endpoint
+servers_url = "https://observationsmonitor.saeon.ac.za/api/public/servers"
+tables_url = "https://observationsmonitor.saeon.ac.za/api/public/tables"
+date_range_url = "https://observationsmonitor.saeon.ac.za/api/public/date-range"
+download_url = "https://observationsmonitor.saeon.ac.za/api/public/download"  # New download API endpoint
 
 username = "Marc"
 password = "Pienaar"

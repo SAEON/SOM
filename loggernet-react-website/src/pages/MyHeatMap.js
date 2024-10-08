@@ -44,10 +44,10 @@ const MyHeatMap = ({ data, siteName, interval, dates, variables }) => {
                 },
                 animation: false,
                 grid: {
-                    left: '5%',
-                    right: '5%',
+                    left: '2%',
+                    right: '2%',
                     top: '0%',
-                    bottom: 80,
+                    bottom: '15%%',
                     containLabel: true
                 },
                 xAxis: {
@@ -68,10 +68,13 @@ const MyHeatMap = ({ data, siteName, interval, dates, variables }) => {
                     type: 'category',
                     data: variables,
                     splitArea: { show: true },
+                    nameTextStyle: {
+                        fontSize: 10
+                    },
                     axisLabel: {
                         interval: 0,
                         fontSize: 10,
-                        rotate: 0
+                        margin: 8 // Increase margin between axis and labels
                     }
                 },
                 visualMap: {
@@ -79,8 +82,8 @@ const MyHeatMap = ({ data, siteName, interval, dates, variables }) => {
                     max: 100,
                     calculable: true,
                     orient: 'horizontal',
-                    right: '3%',
-                    bottom: '3%',
+                    right: '5%',
+                    bottom: '4%',
                     text: ['High Availability', 'Low Availability'],
                     textStyle: {
                         color: '#000'
@@ -116,8 +119,8 @@ const MyHeatMap = ({ data, siteName, interval, dates, variables }) => {
     }, [data, dates, variables]);
 
     return (
-        <div style={{ height: '100%', width: '100%' }}>
-            <div ref={chartRef} style={{ height: "100%", width: "100%" }}></div>
+        <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
+            <div ref={chartRef} style={{ height: "100%", width: "90%" }}></div>
         </div>
     );
 };

@@ -5,27 +5,48 @@ import {logInteraction} from "../utils/logInteraction";
 const AdminPanel = ({ user }) => {
     const [users, setUsers] = useState([]);
     const [roles, setRoles] = useState([]);
+    const [interactions, setInteractions] = useState([]);  // Add state for interactions
+
+    useEffect(() => {
+        const fetchUsersAndRolesAndInteractions = async () => {
+            try {
+                const [usersResponse, rolesResponse, interactionsResponse] = await Promise.all([
+                    axios.get('/api/users'),
+                    axios.get('/api/roles'),
+                    axios.get('/api/interactions') // Fetch interactions
+                ]);
+                setUsers(usersResponse.data);
+                setRoles(rolesResponse.data);
+                setInteractions(interactionsResponse.data); // Set interactions state
+            } catch (error) {
+                console.error('Error fetching users, roles, and interactions:', error);
+            }
+        };
+
+        fetchUsersAndRolesAndInteractions();
+    }, []);
+
 
     // useEffect(() => {// Log the interaction whether the user is logged in or not
     //     logInteraction('page_view', { viewport: { width: window.innerWidth, height: window.innerHeight } }, user);
     // }, [user]);
 
-    useEffect(() => {
-        const fetchUsersAndRoles = async () => {
-            try {
-                const [usersResponse, rolesResponse] = await Promise.all([
-                    axios.get('/api/users'),
-                    axios.get('/api/roles')
-                ]);
-                setUsers(usersResponse.data);
-                setRoles(rolesResponse.data);
-            } catch (error) {
-                console.error('Error fetching users and roles:', error);
-            }
-        };
-
-        fetchUsersAndRoles();
-    }, []);
+    // useEffect(() => {
+    //     const fetchUsersAndRoles = async () => {
+    //         try {
+    //             const [usersResponse, rolesResponse] = await Promise.all([
+    //                 axios.get('/api/users'),
+    //                 axios.get('/api/roles')
+    //             ]);
+    //             setUsers(usersResponse.data);
+    //             setRoles(rolesResponse.data);
+    //         } catch (error) {
+    //             console.error('Error fetching users and roles:', error);
+    //         }
+    //     };
+    //
+    //     fetchUsersAndRoles();
+    // }, []);
 
     const handleRoleChange = async (userId, roleId) => {
         try {
@@ -99,6 +120,32 @@ const AdminPanel = ({ user }) => {
                                 Delete
                             </button>
                         </td>
+                    </tr>
+                ))}
+                </tbody>
+            </table>
+            {/* Interactions Table */}
+            <h2>Latest Interactions</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Interaction Type</th>
+                    <th>Request Path</th>
+                    <th>Timestamp</th>
+                </tr>
+                </thead>
+                <tbody>
+                {interactions.map(interaction => (
+                    <tr key={interaction.interaction_id}>
+                        <td>{interaction.user_id}</td>
+                        <td>{interaction.first_name}</td>
+                        <td>{interaction.last_name}</td>
+                        <td>{interaction.interaction_type}</td>
+                        <td>{interaction.request_path}</td>
+                        <td>{new Date(interaction.timestamp).toLocaleString()}</td>
                     </tr>
                 ))}
                 </tbody>

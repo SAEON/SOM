@@ -121,12 +121,163 @@ body {
     visibility: hidden;
 }
 
+#downloadProgressWidgetPopup {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8); /* Dark semi-transparent background */
+    padding: 20px;
+    border-radius: 10px;
+    color: white;
+    text-align: center;
+    z-index: 10000;
+    width: 300px; /* Adjust width as needed */
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5); /* Optional shadow for aesthetics */
+}
+
+#downloadProgressWidgetTitle {
+    margin-bottom: 15px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+#downloadProgressWidgetBar {
+    width: 100%;
+    height: 20px;
+    margin-bottom: 10px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+#downloadProgressWidgetBar::-webkit-progress-bar {
+    background-color: #ddd; /* Light gray background for the progress bar */
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#downloadProgressWidgetBar::-webkit-progress-value {
+    background-color: #76c7c0; /* Cyan color for the progress indicator */
+    border-radius: 10px;
+}
+
+#downloadProgressWidgetBar::-moz-progress-bar {
+    background-color: #76c7c0; /* Cyan color for Firefox */
+}
+
+#downloadProgressWidgetBar::-ms-fill {
+    background-color: #76c7c0; /* Cyan color for Internet Explorer/Edge */
+    border-radius: 10px;
+}
+
+#downloadProgressWidgetText {
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.expandable-container2 {
+    display: grid;
+    gap: 20px; /* Adjust spacing between the rows and columns */
+    grid-template-columns: repeat(2, 1fr); /* 2 columns of equal width */
+    width: 100%; /* Ensure the container spans the full width of its parent */
+}
+
+.expandable-row2 {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center the button horizontally */
+    width: 100%; /* Ensure the container spans the full width of its parent */
+}
+/* Overlay specific to the modal */
+.field-names-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5); /* Background dimming */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* Modal container */
+.field-names-modal {
+    background: white;
+    padding: 20px;
+    width: 50%; /* Set modal width to 50% of the screen */
+    height: 70%; /* Set modal height to 70% of the screen */
+    max-width: 800px; /* Optional: Cap the maximum width */
+    max-height: 600px; /* Optional: Cap the maximum height */
+    border-radius: 8px;
+    overflow-y: auto; /* Enable vertical scrolling */
+    position: relative;
+}
+
+/* Modal header */
+.field-names-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+/*!* Close button *!*/
+/*.field-names-modal .macos-window-controls .macos-button.close {*/
+/*    width: 15px;*/
+/*    height: 15px;*/
+/*    background-color: red;*/
+/*    border-radius: 50%;*/
+/*    cursor: pointer;*/
+/*}*/
+
+/* Modal body */
+.field-names-modal-body {
+    overflow-y: auto;
+    height: calc(100% - 50px); /* Ensure the body fills remaining space */
+}
+
+/* Table styling inside modal */
+.field-names-modal .metadata-table {
+    width: 100%;
+}
+
+.field-names-modal .metadata-table th,
+.field-names-modal .metadata-table td {
+    padding: 5px;
+    text-align: left;
+}
+
+/* Light red background for cells with empty descriptions */
+.field-names-modal .metadata-table .empty-description {
+    background-color: #f8d7da; /* Light red */
+    color: #721c24; /* Darker text for contrast */
+}
+
+
 /* Custom Button Styles */
 .home-view-details-button,
 .home-pagination-prev-button,
 .home-pagination-next-button,
 .home-read-more-button,
 .site-name-button {
+    background-color: var(--gray-tone);
+    color: var(--white);
+    border: none;
+    border-radius: 5px;
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    margin: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.site-name-button2 {
     background-color: var(--gray-tone);
     color: var(--white);
     border: none;
@@ -299,7 +450,7 @@ table {
 
 th,
 td {
-    border: 1px solid #ddd;
+    /*border: 1px solid #ddd;*/
     padding: 8px 12px;
     text-align: left;
 }
@@ -543,6 +694,49 @@ th {
 }
 
 
+/* Tooltip container */
+.tooltip2 {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    width: 100%;
+}
+
+/* Tooltip text */
+.tooltip2 .tooltiptext2 {
+    visibility: hidden;
+    width: 160px;
+    background-color: #555;
+    color: #fff;
+    text-align: center;
+    border-radius: 5px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1001;
+    bottom: 125%; /* Adjust this to position the tooltip */
+    left: 50%;
+    margin-left: -80px; /* Use half of the tooltip width to center it */
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+/* Tooltip arrow */
+.tooltip2 .tooltiptext2::after {
+    content: "";
+    position: absolute;
+    top: 100%; /* At the bottom of the tooltip */
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #555 transparent transparent transparent;
+}
+
+/* Show the tooltip text when hovering over the tooltip container */
+.tooltip2:hover .tooltiptext2 {
+    visibility: visible;
+    opacity: 1;
+}/* Tooltip container */
 
 
 .button-container,

@@ -14,10 +14,10 @@ const About = ({user}) => {
     return (
         <div className="about-container">
             <header className="about-header">
-                <h1>About the SAEON Terrestrial Observations Monitor</h1>
+                <h1>About the SAEON terrestrial observations monitor</h1>
                 <div className="about-header-text">
                 <p>
-                    The SAEON Terrestrial observations monitor is a platform developed to monitor environmental data across multiple sites in South Africa. The platform collects and stores data from specific monitoring sites via LoggerNet endpoints provided by Campbell Scientific.
+                    The SAEON terrestrial observations monitor is a platform developed to monitor environmental data across multiple sites in South Africa. The platform collects and stores data from specific monitoring sites.
                     It handles frequent site configuration changes by storing both active and inactive records. This ensures that historical data remains archived while current data is maintained. It features data availability calculations, provides download options, and supports site analytics.
 
                 </p>
@@ -51,7 +51,7 @@ const About = ({user}) => {
                     <li>Near real-time data monitoring and visualisation</li>
                     <li>Data availability calculations</li>
                     <li>Responsive, user-friendly interface for researchers</li>
-                    <li>Seamless integration with LoggerNet API</li>
+                    <li>Seamless integration</li>
                 </ul>
             </section>
 
@@ -104,9 +104,11 @@ const About = ({user}) => {
                 <h2>Related Links</h2>
                 <ul>
                     <li><a href="https://www.saeon.ac.za" target="_blank" rel="noopener noreferrer">SAEON Official Website</a></li>
-                    <li><a href="https://ulwazi.saeon.ac.za" target="_blank" rel="noopener noreferrer">Ulwazi Node</a></li>
+                    <li><a href="https://ulwazi.saeon.ac.za" target="_blank" rel="noopener noreferrer">SAEON Ulwazi Node</a></li>
+
                     <li><a href="https://catalogue.saeon.ac.za" target="_blank" rel="noopener noreferrer">SAEON Data Catalogue</a></li>
                     <li><a href="https://observations.saeon.ac.za" target="_blank" rel="noopener noreferrer">SAEON Observations Database</a></li>
+                    <li><a href="https://sarva.saeon.ac.za" target="_blank" rel="noopener noreferrer">The South African Risk and Vulnerability Atlas​</a></li>
                 </ul>
             </section>
 

@@ -86,7 +86,7 @@ const Navbar = ({ user, onLogout, openLoginModal }) => {
                 </div>
                 <div className="nav-title-container">
                     <div className="title-and-status">
-                        <h1 className="nav-title">SAEON Terrestrial Observations Monitor</h1>
+                        <h1 className="nav-title">SAEON terrestrial observations monitor</h1>
                         <div className="login-status">
                             {user ? (
                                 <button className="logged-in-button" onClick={onLogout}>
@@ -123,12 +123,12 @@ const Navbar = ({ user, onLogout, openLoginModal }) => {
                 overlayClassName="info-modal-overlay"
             >
                 <div className="modal-content">
-                    <h2>What Do These Numbers Mean?</h2>
+                    <h2>What do these numbers mean?</h2>
                     <p>
-                        <strong>Available Data Entries:</strong> This represents the total number of data entries currently available in the Data tab.
+                        <strong>Available data entries:</strong> This represents the total number of data entries currently available in the Data tab.
                     </p>
                     <p>
-                        <strong>Full Dataset Size:</strong> This represents the total number of raw data entries collected, including data from statistics, public tables, and other auxiliary sources that are not necessarily displayed in the Data tab.
+                        <strong>Full dataset size:</strong> This represents the total number of raw data entries collected, including data from statistics, public tables, and other auxiliary sources that are not necessarily displayed in the Data tab.
                     </p>
                     <div className="macos-window-controls">
                         <div className="macos-button close"
@@ -153,9 +153,9 @@ const Navbar = ({ user, onLogout, openLoginModal }) => {
 
                         {user.role === 'SU' && (
                             <>
-                                <Link to="/LiveData" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                                    Raw Data
-                                </Link>
+                                {/*<Link to="/LiveData" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>*/}
+                                {/*    Raw Data*/}
+                                {/*</Link>*/}
                                 <Link to="/UnifiedMappingTable" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                                     Unified Mapping
                                 </Link>
@@ -176,14 +176,26 @@ const Navbar = ({ user, onLogout, openLoginModal }) => {
                         <Link to="/api-reference" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                             API Reference
                         </Link>
+                        {(user.role === 'Admin' || user.role === 'SU') && (
+                            <>
+                                <Link to="/LiveData" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                                    Raw Data
+                                </Link>
                         <Link to="/Analytics" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+
                             Analytics
                         </Link>
+                            </>
+                        )}
                         {/*<li><Link to="/api-reference">API Reference</Link></li> /!* Link to API Reference *!/*/}
                     </>
                 ) : (
                     <button onClick={openLoginModal} className="nav-link styled-button2">Login</button>
                 )}
+                {/*<Link to="/metadata" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>*/}
+                {/*    Field Metadata*/}
+                {/*</Link>*/}
+
                 <Link to="/about" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                     About
                 </Link>

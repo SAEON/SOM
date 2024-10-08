@@ -355,3 +355,91 @@
 .server-selection input[type="checkbox"] {
     margin-right: 10px;
 }
+/* Modal Container */
+.variable-description-modal,
+.unit-description-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50%;
+    height: 70%;
+    background-color: white; /* Solid background */
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Shadow for effect */
+}
+
+/* Header */
+.variable-description-modal-header,
+.unit-description-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f4f4f4;
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+/* Save and Close Buttons */
+.variable-description-save-button,
+.unit-description-save-button {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.variable-description-close-button,
+.unit-description-close-button {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+/* Modal Body with Scroll */
+.variable-description-modal-body,
+.unit-description-modal-body {
+    flex-grow: 1;
+    overflow-y: auto; /* Enable vertical scrolling */
+    padding: 10px;
+    background-color: #fff;
+}
+
+/* Table Styling */
+.variable-description-table,
+.unit-description-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.variable-description-table th,
+.unit-description-table th,
+.variable-description-table td,
+.unit-description-table td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+}
+
+.variable-description-table th,
+.unit-description-table th {
+    /*background-color: #f4f4f4;*/
+}
+
+/* Styling for empty descriptions */
+.empty-description {
+    background-color: #ffcccc; /* Light red background */
+}
+
+.empty-description input {
+    background-color: #ffcccc; /* Make the input field match the background */
+}

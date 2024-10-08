@@ -286,60 +286,10 @@ const LiveData = ({ user }) => { // Ensure user is passed as a prop
     };
 
 
-
-
     const closeModal = () => {
         setIsModalOpen(false);
         setModalContent(null);
     };
-
-    // const downloadData = async (tableId, startDate, endDate) => {
-    //     if (!tableId) return;
-    //
-    //     setLoading(true);
-    //     setLoadingMessage("Downloading data...");
-    //
-    //     const formattedStartDate = startDate.toISOString().split("T")[0];
-    //     const formattedEndDate = endDate.toISOString().split("T")[0];
-    //     const url = `/api/tables/${tableId}/download?startDate=${formattedStartDate}&endDate=${formattedEndDate}`;
-    //
-    //     try {
-    //         // Fetch server and table information based on the tableId
-    //         const serverAndTableResponse = await fetch(`/api/tables/${tableId}/info`);
-    //         const serverAndTableInfo = await serverAndTableResponse.json();
-    //         if (!serverAndTableResponse.ok) throw new Error("Failed to fetch server and table information.");
-    //
-    //         const { servername: fetchedServerName, tablename: fetchedTableName } = serverAndTableInfo;
-    //
-    //         if (!fetchedServerName || !fetchedTableName) {
-    //             console.error("Server name or table name is missing. Interaction logging might fail.");
-    //         }
-    //
-    //         const response = await fetch(url);
-    //         if (response.ok) {
-    //             const blob = await response.blob();
-    //             const downloadUrl = window.URL.createObjectURL(blob);
-    //             const a = document.createElement("a");
-    //             a.href = downloadUrl;
-    //             a.download = "data.csv";
-    //             document.body.appendChild(a);
-    //             a.click();
-    //             a.remove();
-    //             window.URL.revokeObjectURL(downloadUrl);
-    //             setLoading(false);
-    //
-    //             // Log the download interaction with server and table names
-    //             await logInteraction("consent_given", { serverName: fetchedServerName, tableName: fetchedTableName }, user); // Log when consent is given
-    //             await logInteraction('download_data', { serverName: fetchedServerName, tableName: fetchedTableName }, user);
-    //         } else {
-    //             console.error("Failed to download data");
-    //             setLoading(false);
-    //         }
-    //     } catch (error) {
-    //         console.error("Error downloading data:", error);
-    //         setLoading(false);
-    //     }
-    // };
 
     // const downloadData = async (tableId) => {
     //     if (!tableId) return;
@@ -347,41 +297,46 @@ const LiveData = ({ user }) => { // Ensure user is passed as a prop
     //     setLoading(true);
     //     setLoadingMessage("Downloading data...");
     //
-    //     const url = `/api/tables/${tableId}/download`;
-    //
     //     try {
+    //         // Fetch server and table information
     //         const serverAndTableResponse = await fetch(`/api/tables/${tableId}/info`);
     //         const serverAndTableInfo = await serverAndTableResponse.json();
-    //         if (!serverAndTableResponse.ok) throw new Error("Failed to fetch server and table information.");
+    //
+    //         if (!serverAndTableResponse.ok || !serverAndTableInfo) {
+    //             throw new Error("Failed to fetch server and table information.");
+    //         }
     //
     //         const { servername: fetchedServerName, tablename: fetchedTableName } = serverAndTableInfo;
     //
     //         if (!fetchedServerName || !fetchedTableName) {
     //             console.error("Server name or table name is missing.");
+    //             setLoading(false);
+    //             return;
     //         }
     //
-    //         const response = await fetch(url);
-    //         if (response.ok) {
-    //             const blob = await response.blob();
-    //             const downloadUrl = window.URL.createObjectURL(blob);
-    //             const a = document.createElement("a");
-    //             a.href = downloadUrl;
-    //             a.download = `${fetchedTableName}_${fetchedServerName}.csv`;
-    //             document.body.appendChild(a);
-    //             a.click();
-    //             a.remove();
-    //             window.URL.revokeObjectURL(downloadUrl);
-    //             setLoading(false);
+    //         // Construct the download URL
+    //         const url = `/api/tables/${tableId}/download`;
     //
-    //             await logInteraction("consent_given", { serverName: fetchedServerName, tableName: fetchedTableName }, user);
-    //             await logInteraction('download_data', { serverName: fetchedServerName, tableName: fetchedTableName }, user);
-    //         } else {
-    //             console.error("Failed to download data");
-    //             setLoading(false);
-    //         }
+    //         // Create a temporary link element for the download
+    //         const link = document.createElement('a');
+    //         link.href = url;
+    //         link.download = `${fetchedTableName}_${fetchedServerName}.csv`;
+    //
+    //         // Append the link to the body and trigger the download
+    //         document.body.appendChild(link);
+    //         link.click();
+    //         document.body.removeChild(link);
+    //
+    //         setLoading(false);
+    //
+    //         // Log interactions after download
+    //         await logInteraction("consent_given", { serverName: fetchedServerName, tableName: fetchedTableName }, user);
+    //         await logInteraction('download_data', { serverName: fetchedServerName, tableName: fetchedTableName }, user);
+    //
     //     } catch (error) {
     //         console.error("Error downloading data:", error);
     //         setLoading(false);
+    //         alert('Failed to start the download. Please try again.');
     //     }
     // };
     const downloadData = async (tableId) => {
@@ -407,15 +362,16 @@ const LiveData = ({ user }) => { // Ensure user is passed as a prop
                 return;
             }
 
-            // Construct the download URL
-            const url = `/api/tables/${tableId}/download`;
+            // Construct the file name (ensure it matches the actual file name on the server)
+            const fileName = `${fetchedTableName}_${fetchedServerName}.csv`;
+            console.log(fileName);
+            // Construct the download URL pointing to the Nginx-served file
+            const url = `/express_downloads/${encodeURIComponent(fileName)}`;
 
             // Create a temporary link element for the download
             const link = document.createElement('a');
             link.href = url;
-            link.download = `${fetchedTableName}_${fetchedServerName}.csv`;
-
-            // Append the link to the body and trigger the download
+            link.download = fileName; // Ensure the downloaded file has the correct name
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -432,6 +388,8 @@ const LiveData = ({ user }) => { // Ensure user is passed as a prop
             alert('Failed to start the download. Please try again.');
         }
     };
+
+
 
     const getStatusIndicator = (lastUpdated) => {
         const now = new Date();

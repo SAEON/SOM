@@ -1,4 +1,3 @@
-
 import React, {useEffect, useRef, useState} from "react";
 import ReactECharts from 'echarts-for-react'; // Import ECharts
 import axios from "axios";
@@ -46,7 +45,7 @@ Modal.setAppElement("#root");
 const fetchMetadata = async (displayName) => {
     try {
         const response = await axios.get('/api/site_metadata', {
-            params: { displayName }
+            params: {displayName}
         });
 
         if (response.data) {
@@ -69,7 +68,7 @@ const Data = ({user}) => { // Receive user as a prop
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState(null);
     const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)));
-    const [endDate, setEndDate] = useState(new Date());
+    const [endDate, setEndDate] = useState(new Date(new Date().setDate(new Date().getDate() - 1)));
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [totalRows, setTotalRows] = useState(0);
@@ -87,10 +86,23 @@ const Data = ({user}) => { // Receive user as a prop
     const isUserLoggedIn = !!user;
     const isAdmin = user?.role === "Admin" || user?.role === "SU";
 
+
+    const [metadata, setMetadata] = useState({fieldNames: [], fieldUnits: []});
+    const [isFieldNamesExpanded, setIsFieldNamesExpanded] = useState(false);
+    const [isFieldUnitsExpanded, setIsFieldUnitsExpanded] = useState(false);
+
+    useEffect(() => {
+        // Fetch metadata from the backend
+        fetch('/api/field-metadata')
+            .then(response => response.json())
+            .then(data => setMetadata(data))
+            .catch(error => console.error('Error fetching metadata:', error));
+    }, []);
+
+
     useEffect(() => {// Log the interaction whether the user is logged in or not
         logInteraction('page_view', {viewport: {width: window.innerWidth, height: window.innerHeight}}, user);
     }, [user]);
-
 
 
     useEffect(() => {
@@ -217,14 +229,14 @@ const Data = ({user}) => { // Receive user as a prop
                 console.error("Failed to fetch date range");
                 setDateRanges(prevDateRanges => ({
                     ...prevDateRanges,
-                    [`${serverName}-${tableName}`]: { error: true }
+                    [`${serverName}-${tableName}`]: {error: true}
                 }));
             }
         } catch (error) {
             console.error("Error fetching date range:", error);
             setDateRanges(prevDateRanges => ({
                 ...prevDateRanges,
-                [`${serverName}-${tableName}`]: { error: true }
+                [`${serverName}-${tableName}`]: {error: true}
             }));
         }
     };
@@ -251,13 +263,13 @@ const Data = ({user}) => { // Receive user as a prop
                 console.error("Invalid date encountered:", date);
                 return new Date();
             }
-            return new Date(date.toLocaleString('en-US', { timeZone: 'Africa/Johannesburg' }));
+            return new Date(date.toLocaleString('en-US', {timeZone: 'Africa/Johannesburg'}));
         };
 
         const formattedStartDate = formatToSAST(defaultStartDate).toISOString().split("T")[0];
         const formattedEndDate = formatToSAST(defaultEndDate).toISOString().split("T")[0];
 
-        return { formattedStartDate, formattedEndDate };
+        return {formattedStartDate, formattedEndDate};
     };
 
 
@@ -297,16 +309,16 @@ const Data = ({user}) => { // Receive user as a prop
                 const url = `/api/summary_table/values?tableName=${tableName}&serverName=${serverName}&startDate=${formattedStartDate}&endDate=${formattedEndDate}&page=${page}&pageSize=${pageSize}`;
                 const response = await fetch(url);
                 const data = await response.json();
-                console.log("checking date range data table" ,data);
+                console.log("checking date range data table", data);
                 if (response.ok && Array.isArray(data.rows)) {
                     // Adjust timestamps to SAST
                     const adjustedRows = data.rows.map(row => {
-                        const adjustedTimestamp = new Date(row.timestamp).toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg' });
-                        return { ...row, timestamp: adjustedTimestamp };
+                        const adjustedTimestamp = new Date(row.timestamp).toLocaleString('en-ZA', {timeZone: 'Africa/Johannesburg'});
+                        return {...row, timestamp: adjustedTimestamp};
                     });
 
                     // Log the interaction
-                    logInteraction('view_table', { serverName, tableName }, user);
+                    logInteraction('view_table', {serverName, tableName}, user);
 
                     // Update the modal content and UI state
                     setModalContent(adjustedRows);
@@ -324,7 +336,7 @@ const Data = ({user}) => { // Receive user as a prop
                 console.error("Failed to fetch date range");
                 setDateRanges(prevDateRanges => ({
                     ...prevDateRanges,
-                    [dateRangeKey]: { error: true }
+                    [dateRangeKey]: {error: true}
                 }));
                 setLoading(false);
             }
@@ -332,12 +344,11 @@ const Data = ({user}) => { // Receive user as a prop
             console.error("Error fetching table details:", error);
             setDateRanges(prevDateRanges => ({
                 ...prevDateRanges,
-                [dateRangeKey]: { error: true }
+                [dateRangeKey]: {error: true}
             }));
             setLoading(false);
         }
     };
-
 
 
     const fetchDataAvailability = async (serverName, tableName) => {
@@ -540,7 +551,6 @@ const Data = ({user}) => { // Receive user as a prop
 //
 
 
-
 // Automatically select all servers when the modal opens
     useEffect(() => {
         if (isServerSelectionOpen && servers.length > 0) {
@@ -698,272 +708,246 @@ const Data = ({user}) => { // Receive user as a prop
     };
 
 
-    // const downloadData = async (tableName, serverName) => {
+    // const downloadData = async (tableName, serverName, attempt = 1, maxAttempts = 5) => {
     //     if (!tableName || !serverName) {
     //         alert('Table name and server name are required.');
     //         return;
     //     }
     //
     //     try {
+    //         // Log interactions
     //         await logInteraction("consent_given", { tableName, serverName }, user);
     //         await logInteraction("download_data", { tableName, serverName }, user);
     //
+    //         // Initialize and format the dates
     //         const { formattedStartDate, formattedEndDate } = initializeDates(serverName, tableName);
+    //
+    //         // Construct the download URL
     //         const url = `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}&startDate=${encodeURIComponent(formattedStartDate)}&endDate=${encodeURIComponent(formattedEndDate)}`;
     //
-    //         const downloadButton = document.getElementById('downloadButton');
-    //         if (downloadButton) {
-    //             downloadButton.textContent = 'Download Starting...';
-    //             downloadButton.disabled = true;
-    //         }
+    //         // Create a hidden anchor tag for the download
+    //         const link = document.createElement('a');
+    //         link.href = url;
+    //         link.setAttribute('download', `${tableName}_${serverName}.csv`);  // Set filename for download
     //
+    //         // Append link to body to trigger download
+    //         document.body.appendChild(link);
+    //         link.click();
+    //
+    //         // Clean up the DOM by removing the link element
+    //         document.body.removeChild(link);
+    //
+    //     } catch (error) {
+    //         console.error(`Download attempt ${attempt} failed:`, error);
+    //
+    //         if (attempt < maxAttempts) {
+    //             console.log(`Retrying download... Attempt ${attempt + 1}`);
+    //             downloadData(tableName, serverName, attempt + 1, maxAttempts);
+    //         } else {
+    //             alert('Failed to download after multiple attempts. Please try again later.');
+    //         }
+    //     }
+    // };
+    // let downloadController;
+    //
+    // const downloadData = async (tableName, serverName, attempt = 1, maxAttempts = 5) => {
+    //     if (!tableName || !serverName) {
+    //         alert('Table name and server name are required.');
+    //         return;
+    //     }
+    //
+    //     // Abort the previous attempt if any
+    //     if (downloadController) {
+    //         downloadController.abort();
+    //     }
+    //
+    //     downloadController = new AbortController();
+    //     const { signal } = downloadController;
+    //
+    //     try {
+    //         // Log interactions
+    //         await logInteraction("consent_given", { tableName, serverName }, user);
+    //         await logInteraction("download_data", { tableName, serverName }, user);
+    //
+    //         // Construct the download URL
+    //         const url = `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}`;
+    //
+    //         // Create a hidden anchor tag for the download
+    //         const link = document.createElement('a');
+    //         link.href = url;
+    //         link.setAttribute('download', `${tableName}_${serverName}.csv`);
+    //
+    //         // Append link to body to trigger download
+    //         document.body.appendChild(link);
+    //         link.click();
+    //
+    //         // Clean up the DOM by removing the link element
+    //         document.body.removeChild(link);
+    //
+    //     } catch (error) {
+    //         console.error(`Download attempt ${attempt} failed:`, error);
+    //
+    //         if (attempt < maxAttempts) {
+    //             console.log(`Retrying download... Attempt ${attempt + 1}`);
+    //             downloadData(tableName, serverName, attempt + 1, maxAttempts);
+    //         } else {
+    //             alert('Failed to download after multiple attempts. Please try again later.');
+    //         }
+    //     }
+    // };
+
+    const [downloadTitle, setDownloadTitle] = useState('Downloading...');
+    const [progressText, setProgressText] = useState('Starting download...');
+    const [progressValue, setProgressValue] = useState(0); // Progress value
+    const [progressMax, setProgressMax] = useState(0); // Max value for progress bar
+    const [isDownloading, setIsDownloading] = useState(false); // Control the popup visibility
+    const progressRef = useRef(null); // Ref for the progress bar
+
+    const showDownloadProgressWidget = () => {
+        setIsDownloading(true); // Show the progress widget
+    };
+
+    const hideDownloadProgressWidget = () => {
+        setIsDownloading(false); // Hide the progress widget
+    };
+
+    const updateDownloadProgressWidget = (receivedBytes, totalBytes) => {
+        const percentComplete = totalBytes > 0 ? ((receivedBytes / totalBytes) * 100).toFixed(2) : 0;
+
+        setProgressValue(receivedBytes);
+        setProgressMax(totalBytes);
+
+        setProgressText(
+            totalBytes > 0
+                ? `Downloaded ${receivedBytes} of ${totalBytes} bytes (${percentComplete}%)`
+                : `Received ${receivedBytes} bytes`
+        );
+
+        setDownloadTitle(`Download in Progress... ${percentComplete}%`);
+    };
+
+    // const downloadData = async (tableName, serverName, attempt = 1, maxAttempts = 5) => {
+    //     if (!tableName || !serverName) {
+    //         alert('Table name and server name are required.');
+    //         return;
+    //     }
+    //
+    //     try {
+    //         // Show the progress bar popup
+    //         showDownloadProgressWidget();
+    //
+    //         // Log interactions (assuming `logInteraction` is available)
+    //         await logInteraction('consent_given', {tableName, serverName});
+    //         await logInteraction('download_data', {tableName, serverName});
+    //
+    //         // Construct the download URL
+    //         const url = `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}`;
+    //
+    //         // Use the Fetch API to request the file
     //         const response = await fetch(url);
-    //         if (!response.ok) throw new Error('Failed to download the file.');
     //
-    //         const contentDisposition = response.headers.get('Content-Disposition');
-    //         let filename = `${tableName}_${serverName}.csv`;
-    //         if (contentDisposition && contentDisposition.includes('filename=')) {
-    //             filename = contentDisposition.split('filename=')[1].replace(/"/g, '');
+    //         if (!response.ok) {
+    //             throw new Error(`HTTP error! Status: ${response.status}`);
     //         }
     //
-    //         // Stream response to monitor progress
+    //         // Get the total file size from the 'Content-Length' header
+    //         const totalBytes = +response.headers.get('Content-Length') || 0;
+    //
+    //         // Create a writable stream to store the file data
+    //         const fileStream = streamSaver.createWriteStream(`${tableName}_${serverName}.csv`);
+    //
     //         const reader = response.body.getReader();
-    //         const contentLength = +response.headers.get('Content-Length');
+    //         const writer = fileStream.getWriter();
+    //         let receivedBytes = 0;
     //
-    //         let receivedLength = 0;
-    //         let chunks = [];
-    //
+    //         // Read the stream in chunks and update the progress bar
     //         while (true) {
-    //             const { done, value } = await reader.read();
+    //             const {done, value} = await reader.read();
     //             if (done) break;
-    //             chunks.push(value);
-    //             receivedLength += value.length;
+    //             receivedBytes += value.length;
     //
-    //             // Display progress
-    //             const progress = Math.floor((receivedLength / contentLength) * 100);
-    //             if (downloadButton) {
-    //                 downloadButton.textContent = `Downloading... ${progress}%`;
-    //             }
+    //             // Update the popup progress bar
+    //             updateDownloadProgressWidget(receivedBytes, totalBytes);
+    //
+    //             // Write the chunk to the file
+    //             await writer.write(value);
     //         }
     //
-    //         const blob = new Blob(chunks);
-    //         const link = document.createElement('a');
-    //         link.href = window.URL.createObjectURL(blob);
-    //         link.download = filename;
-    //         link.click();
+    //         // Close the stream
+    //         await writer.close();
     //
-    //         window.URL.revokeObjectURL(link.href);
-    //         link.remove();
+    //         // Update the popup to show completion
+    //         updateDownloadProgressWidget(totalBytes, totalBytes);
+    //         setProgressText('Download complete!');
+    //         setDownloadTitle('Download Complete!');
     //
-    //         if (downloadButton) {
-    //             downloadButton.textContent = 'Download Data';
-    //             downloadButton.disabled = false;
-    //         }
-    //
+    //         // Hide the popup after a short delay
+    //         setTimeout(hideDownloadProgressWidget, 3000);
     //     } catch (error) {
-    //         console.error('Error during download:', error);
-    //         alert('Failed to log download or start the download. Please try again.');
+    //         console.error(`Download attempt ${attempt} failed:`, error);
     //
-    //         const downloadButton = document.getElementById('downloadButton');
-    //         if (downloadButton) {
-    //             downloadButton.textContent = 'Download Data';
-    //             downloadButton.disabled = false;
+    //         if (attempt < maxAttempts) {
+    //             console.log(`Retrying download... Attempt ${attempt + 1}`);
+    //             downloadData(tableName, serverName, attempt + 1, maxAttempts);
+    //         } else {
+    //             alert('Failed to download after multiple attempts. Please try again later.');
+    //             hideDownloadProgressWidget(); // Hide the popup in case of failure
     //         }
     //     }
     // };
-
-
-    // const downloadData = async (tableName, serverName) => {
-    //     if (!tableName || !serverName) {
-    //         alert('Table name and server name are required.');
-    //         return;
-    //     }
-    //
-    //     try {
-    //         await logInteraction("consent_given", { tableName, serverName }, user);
-    //         await logInteraction("download_data", { tableName, serverName }, user);
-    //
-    //         const { formattedStartDate, formattedEndDate } = initializeDates(serverName, tableName);
-    //         const url = `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}&startDate=${encodeURIComponent(formattedStartDate)}&endDate=${encodeURIComponent(formattedEndDate)}`;
-    //
-    //         const downloadButton = document.getElementById('downloadButton');
-    //         if (downloadButton) {
-    //             downloadButton.textContent = 'Download Starting...';
-    //             downloadButton.disabled = true;
-    //         }
-    //
-    //         // Start the fetch request
-    //         const response = await fetch(url);
-    //         if (!response.ok) throw new Error('Failed to download the file.');
-    //
-    //         const contentDisposition = response.headers.get('Content-Disposition');
-    //         let filename = `${tableName}_${serverName}.csv`;
-    //         if (contentDisposition && contentDisposition.includes('filename=')) {
-    //             filename = contentDisposition.split('filename=')[1].replace(/"/g, '');
-    //         }
-    //
-    //         // Use a ReadableStream to process the response body in chunks
-    //         const reader = response.body.getReader();
-    //         const contentLength = +response.headers.get('Content-Length');
-    //         let receivedLength = 0;
-    //         let chunks = [];
-    //
-    //         while (true) {
-    //             const { done, value } = await reader.read();
-    //             if (done) break;
-    //             chunks.push(value);
-    //             receivedLength += value.length;
-    //
-    //             // Display download progress
-    //             const progress = Math.floor((receivedLength / contentLength) * 100);
-    //             if (downloadButton) {
-    //                 downloadButton.textContent = `Downloading... ${progress}%`;
-    //             }
-    //         }
-    //
-    //         // Combine chunks into a Blob and trigger the download
-    //         const blob = new Blob(chunks);
-    //         const link = document.createElement('a');
-    //         link.href = window.URL.createObjectURL(blob);
-    //         link.download = filename;
-    //
-    //         link.click();
-    //
-    //         // Clean up the object URL
-    //         window.URL.revokeObjectURL(link.href);
-    //         link.remove();
-    //
-    //         // Reset the button
-    //         if (downloadButton) {
-    //             downloadButton.textContent = 'Download Data';
-    //             downloadButton.disabled = false;
-    //         }
-    //
-    //     } catch (error) {
-    //         console.error('Error during download:', error);
-    //         alert('Failed to log download or start the download. Please try again.');
-    //
-    //         const downloadButton = document.getElementById('downloadButton');
-    //         if (downloadButton) {
-    //             downloadButton.textContent = 'Download Data';
-    //             downloadButton.disabled = false;
-    //         }
-    //     }
-    // };
-
-    // const downloadData = async (tableName, serverName) => {
-    //     if (!tableName || !serverName) {
-    //         alert('Table name and server name are required.');
-    //         return;
-    //     }
-    //
-    //     try {
-    //         await logInteraction("consent_given", { tableName, serverName }, user);
-    //         await logInteraction("download_data", { tableName, serverName }, user);
-    //
-    //         const { formattedStartDate, formattedEndDate } = initializeDates(serverName, tableName);
-    //         const url = `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}&startDate=${encodeURIComponent(formattedStartDate)}&endDate=${encodeURIComponent(formattedEndDate)}`;
-    //
-    //         const downloadButton = document.getElementById('downloadButton');
-    //         if (downloadButton) {
-    //             downloadButton.textContent = 'Download Starting...';
-    //             downloadButton.disabled = true;
-    //         }
-    //
-    //         // Start the fetch request
-    //         const response = await fetch(url);
-    //         if (!response.ok) throw new Error('Failed to download the file.');
-    //
-    //         const contentDisposition = response.headers.get('Content-Disposition');
-    //         let filename = `${tableName}_${serverName}.csv`;
-    //         if (contentDisposition && contentDisposition.includes('filename=')) {
-    //             filename = contentDisposition.split('filename=')[1].replace(/"/g, '');
-    //         }
-    //
-    //         // Use a ReadableStream to progressively handle the response body
-    //         const reader = response.body.getReader();
-    //         const stream = new ReadableStream({
-    //             async start(controller) {
-    //                 while (true) {
-    //                     const { done, value } = await reader.read();
-    //                     if (done) {
-    //                         controller.close();
-    //                         break;
-    //                     }
-    //                     // Enqueue each chunk to the stream
-    //                     controller.enqueue(value);
-    //                 }
-    //             }
-    //         });
-    //
-    //         // Create a new Response object based on the ReadableStream
-    //         const newResponse = new Response(stream);
-    //
-    //         // Create a URL for the stream
-    //         const blob = await newResponse.blob();
-    //         const link = document.createElement('a');
-    //         link.href = window.URL.createObjectURL(blob);
-    //         link.download = filename;
-    //
-    //         // Trigger the download
-    //         link.click();
-    //
-    //         // Clean up the object URL
-    //         window.URL.revokeObjectURL(link.href);
-    //         link.remove();
-    //
-    //         // Reset the button
-    //         if (downloadButton) {
-    //             downloadButton.textContent = 'Download Data';
-    //             downloadButton.disabled = false;
-    //         }
-    //
-    //     } catch (error) {
-    //         console.error('Error during download:', error);
-    //         alert('Failed to log download or start the download. Please try again.');
-    //
-    //         const downloadButton = document.getElementById('downloadButton');
-    //         if (downloadButton) {
-    //             downloadButton.textContent = 'Download Data';
-    //             downloadButton.disabled = false;
-    //         }
-    //     }
-    // };
-
-    const downloadData = async (tableName, serverName) => {
+    const downloadData = async (tableName, serverName, startDate, endDate) => {
         if (!tableName || !serverName) {
             alert('Table name and server name are required.');
             return;
         }
 
         try {
-            // Log the interactions
-            await logInteraction("consent_given", { tableName, serverName }, user);
-            await logInteraction("download_data", { tableName, serverName }, user);
+            // Log interactions
+            await logInteraction('consent_given', { tableName, serverName });
+            await logInteraction('download_data', { tableName, serverName, startDate, endDate });
 
-            // Initialize and format the dates
-            const { formattedStartDate, formattedEndDate } = initializeDates(serverName, tableName);
+            // Construct the download URL directly to the Nginx-served file
+            const fileName = `${tableName}_${serverName}.csv`; // Adjust the file naming convention as per your setup
+            const url = `/csv_exports/${encodeURIComponent(fileName)}`;
 
-            // Construct the download URL
-            const url = `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}&startDate=${encodeURIComponent(formattedStartDate)}&endDate=${encodeURIComponent(formattedEndDate)}`;
-
-            // Create a hidden anchor tag for the download
+            // Start the download using a hidden link
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `${tableName}_${serverName}.csv`);  // Set filename for download
-
-            // Append link to body to trigger download
+            link.download = fileName;
             document.body.appendChild(link);
             link.click();
-
-            // Clean up the DOM by removing the link element
             document.body.removeChild(link);
-
         } catch (error) {
-            console.error('Error during download:', error);
-            alert('Failed to log download or start the download. Please try again.');
+            console.error('Download failed:', error);
+            alert('Failed to download. Please try again later.');
         }
     };
+    // const downloadData = async (tableName, serverName, startDate, endDate) => {
+    //     if (!tableName || !serverName) {
+    //         alert('Table name and server name are required.');
+    //         return;
+    //     }
+    //
+    //     try {
+    //         // Log interactions
+    //         await logInteraction('consent_given', { tableName, serverName });
+    //         await logInteraction('download_data', { tableName, serverName });
+    //
+    //         // Construct the download URL
+    //         const url = `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+    //
+    //         // Start the download using a hidden link
+    //         const link = document.createElement('a');
+    //         link.href = url;
+    //         link.download = `${tableName}_${serverName}_data.csv`;
+    //         document.body.appendChild(link);
+    //         link.click();
+    //         document.body.removeChild(link);
+    //     } catch (error) {
+    //         console.error('Download failed:', error);
+    //         alert('Failed to download. Please try again later.');
+    //     }
+    // };
 
     useEffect(() => {
         if (currentTableName && activeServer) {
@@ -1034,10 +1018,9 @@ const Data = ({user}) => { // Receive user as a prop
 
 // Updated download button function
     const handleDownloadButtonClick = (tableName, serverName) => {
-        logInteraction("download_data", { tableName, serverName }, user); // Log when the download button is clicked
+        logInteraction("download_data", {tableName, serverName}, user); // Log when the download button is clicked
         openConsentModal(tableName, serverName); // Open the consent modal
     };
-
 
 
     const renderTableData = (data) => {
@@ -1231,8 +1214,6 @@ const Data = ({user}) => { // Receive user as a prop
     };
 
 
-
-
     const handleDropdownClick = () => {
         const isOpening = !dropdownOpen;
         setDropdownOpen(isOpening);
@@ -1415,8 +1396,6 @@ const Data = ({user}) => { // Receive user as a prop
     const [chartSize, setChartSize] = useState({width: 1200, height: 800}); // Default size
 
 
-
-
     const fetchAndSetMetadata = async (displayName, tableName) => {
         const metadata = await fetchMetadata(displayName);
         if (metadata && metadata.doi) {
@@ -1467,7 +1446,6 @@ const Data = ({user}) => { // Receive user as a prop
     };
 
 
-
 // Function to toggle consent checkbox
     const toggleConsent = () => {
         setConsentGiven(!consentGiven);
@@ -1475,7 +1453,7 @@ const Data = ({user}) => { // Receive user as a prop
 
     const handleViewMetadataClick = (doiUrl) => {
         // Log the interaction
-        logInteraction("view_metadata", { metadata_url: doiUrl }, user);
+        logInteraction("view_metadata", {metadata_url: doiUrl}, user);
 
         // Open the metadata link in a new tab
         window.open(doiUrl, "_blank", "noopener,noreferrer");
@@ -1483,7 +1461,7 @@ const Data = ({user}) => { // Receive user as a prop
 
     const handlesitevariableButtonClick = () => {
         // Log the interaction before opening the modal
-        logInteraction("site_variable_mappings_button", { button_name: "Site variable mappings" }, user);
+        logInteraction("site_variable_mappings_button", {button_name: "Site variable mappings"}, user);
 
         // Open the filter modal
         setFilterModalIsOpen(true);
@@ -1491,20 +1469,28 @@ const Data = ({user}) => { // Receive user as a prop
 
     const handleGenerateSankeyClick = () => {
         // Log the interaction with the selected site name
-        logInteraction("generate_sankey_data_tab", { selected_site: selectedServer }, user);
+        logInteraction("generate_sankey_data_tab", {selected_site: selectedServer}, user);
 
         // Proceed with generating the Sankey diagram
         generateSankey();
     };
-
+    const [isFieldNamesModalOpen, setIsFieldNamesModalOpen] = useState(false);
+    const [isFieldUnitsModalOpen, setIsFieldUnitsModalOpen] = useState(false);
     return (
         <div className="scrollable-table-container">
             <div className="date-controls-container">
                 <div className="controls-header">
                     <h2>Select date parameters for reporting</h2>
                     <p className="date-instructions">
-                        Choose a predefined (dropdown) or custom (date pickers) date range for site-specific or
-                        station-wide data availability reports using the data availability buttons.
+                        Select a predefined date range from the dropdown or use the custom date pickers to set your
+                        range.
+                        You can generate data availability reports for all sites using the "View daily data availability
+                        for all sites" button,
+                        or for individual sites by clicking on each site to expand its details.
+                        When expanded, you'll see when the site was last updated, preview the latest month's data,
+                        download the available data,
+                        or view the citation reference for that site. Once you've selected your date range, view the
+                        data report using the appropriate button.
                     </p>
                 </div>
                 <div className="controls-content">
@@ -1565,19 +1551,160 @@ const Data = ({user}) => { // Receive user as a prop
                                     dateFormat="dd-MM-yyyy"/>
                     </div>
                 </div>
+
+
+                <div className="expandable-container2">
+
+                    <div className="expandable-row2">
+                        <div className="tooltip2">
+                            <button
+                                className={`data-availability-button ${!isUserLoggedIn ? 'disabled-button' : ''}`}
+                                onClick={isUserLoggedIn ? handleDailyDataAvailabilityClick : null}
+                                disabled={!isUserLoggedIn}
+                            >
+                                View daily data availability for all sites
+                            </button>
+                            {!isUserLoggedIn && (
+                                <span className="tooltiptext2">Please log in to access daily data availability</span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="expandable-row2">
+                        <div className="tooltip2">
+                            <button
+                                className="data-availability-button"
+                                onClick={handlesitevariableButtonClick} // Log the interaction and open the modal
+                                onClick={() => setFilterModalIsOpen(true)} // Open the filter modal on button click
+                            >
+                                View site variable mappings
+                            </button>
+                            <span className="tooltiptext2">View and filter variable mappings for different sites</span>
+                        </div>
+                    </div>
+
+                    <div className="expandable-row2">
+                        <div className="tooltip2">
+                            <button
+                                className="data-availability-button"
+                                onClick={() => setIsFieldNamesModalOpen(true)}
+                            >
+                                View variable descriptions
+                            </button>
+                            <span className="tooltiptext2">See the descriptions of variables across all sites</span>
+                        </div>
+
+                        {/* Modal for Variable Descriptions */}
+                        <Modal
+                            isOpen={isFieldNamesModalOpen}
+                            onRequestClose={() => setIsFieldNamesModalOpen(false)}
+                            contentLabel="Variable descriptions"
+                            className="field-names-modal"
+                            overlayClassName="field-names-modal-overlay"
+                        >
+                            <div className="field-names-modal-header">
+                                <h3 className="field-names-modal-title">Variable descriptions</h3>
+                                <div className="macos-window-controls">
+                                    <div className="macos-button close"
+                                         onClick={() => setIsFieldNamesModalOpen(false)}></div>
+                                </div>
+                            </div>
+                            <div className="field-names-modal-body">
+                                <table className="metadata-table">
+                                    <thead>
+                                    <tr>
+                                        <th>Variable</th>
+                                        <th>Description</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {metadata.fieldNames.map((field, index) => (
+                                        <tr key={index}>
+                                            <td>{field.display_field_name}</td>
+                                            <td className={field.description ? '' : 'empty-description'}>
+                                                {field.description || 'No description available'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Modal>
+                    </div>
+
+                    <div className="expandable-row2">
+                        <div className="tooltip2">
+                            <button
+                                className="data-availability-button"
+                                onClick={() => setIsFieldUnitsModalOpen(true)}
+                            >
+                                View unit descriptions
+                            </button>
+                            <span className="tooltiptext2">See the descriptions of measurement units used across all sites</span>
+                        </div>
+
+                        {/* Modal for Unit Descriptions */}
+                        <Modal
+                            isOpen={isFieldUnitsModalOpen}
+                            onRequestClose={() => setIsFieldUnitsModalOpen(false)}
+                            contentLabel="Unit Descriptions"
+                            className="field-names-modal"
+                            overlayClassName="field-names-modal-overlay"
+                        >
+                            <div className="field-names-modal-header">
+                                <h3 className="field-names-modal-title">Unit descriptions</h3>
+                                <div className="macos-window-controls">
+                                    <div className="macos-button close"
+                                         onClick={() => setIsFieldUnitsModalOpen(false)}></div>
+                                </div>
+                            </div>
+                            <div className="field-names-modal-body">
+                                <table className="metadata-table">
+                                    <thead>
+                                    <tr>
+                                        <th>Unit</th>
+                                        <th>Description</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {metadata.fieldUnits.map((unit, index) => (
+                                        <tr key={index}>
+                                            <td>{unit.units}</td>
+                                            <td className={unit.units_description ? '' : 'empty-description'}>
+                                                {unit.units_description || 'No description available'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Modal>
+                    </div>
+                </div>
+
                 {/* Important Notice */}
                 <div className="important-notice">
                     <p>
-                        <strong>Important Notice:</strong> If you download and use the data, please note that a DOI linking to the SAEON data portal will be provided as a header in the CSV file. This DOI is applicable to all tables and variables associated with a specific monitoring site and must be cited when referencing the dataset. Proper citation ensures the data is traceable and credits are given appropriately for the resources used.
+                        <strong>Important Notice:</strong> If you download and use the data, please note that a DOI
+                        linking to the SAEON data portal will be provided as a header in the CSV file. This DOI is
+                        applicable to all tables and variables associated with a specific monitoring site and must be
+                        cited when referencing the dataset. Proper citation ensures the data is traceable and credits
+                        are given appropriately for the resources used.
                     </p>
                 </div>
             </div>
+
+
+            {/*<div>*/}
+            {/*    <progress id="progress-bar" value="0" max="0"></progress>*/}
+            {/*    <span id="progress-text">Downloading...</span>*/}
+            {/*</div>*/}
 
             {renderServerSelectionModal()}
             {loading && (
 
                 <div className="loading-overlay">
-                    <LoadingSpinner />
+                    <LoadingSpinner/>
                     <div className="loading-message">{loadingMessage}</div>
                 </div>
             )}
@@ -1586,32 +1713,7 @@ const Data = ({user}) => { // Receive user as a prop
                 <tr>
                     <td colSpan={1}>
                         <div className="button-row">
-                            <div className="tooltip">
-                                <button
-                                    className={`data-availability-button ${!isUserLoggedIn ? 'disabled-button' : ''}`}
-                                    onClick={isUserLoggedIn ? handleDailyDataAvailabilityClick : null}
-                                >
-                                    All sites daily data availability
-                                </button>
-                                {!isUserLoggedIn && (
-                                    <span className="tooltiptext">Please log in to access</span>
-                                )}
 
-                            </div>
-
-                            {/* New Button for Generating Sankey */}
-                            <div className="tooltip">
-                                <button
-                                    className="data-availability-button"
-                                    onClick={handlesitevariableButtonClick} // Log the interaction and open the modal
-                                    onClick={() => setFilterModalIsOpen(true)} // Open the filter modal on button click
-                                >
-                                    Site variable mappings
-                                </button>
-                                {/*{!isUserLoggedIn && (*/}
-                                {/*    <span className="tooltiptext">Please log in to access</span>*/}
-                                {/*)}*/}
-                            </div>
                             {/*// Filter Modal (updated to ensure selection and modal behavior)*/}
                             <Modal
                                 isOpen={filterModalIsOpen}
@@ -1722,7 +1824,7 @@ const Data = ({user}) => { // Receive user as a prop
                                     {server.display_server_name}
                                     <FontAwesomeIcon
                                         icon={activeServer === server.display_server_name ? farFolderOpen : farFolder}
-                                        className="icon-right" />
+                                        className="icon-right"/>
                                 </span>
                                 </button>
                             </td>
@@ -1731,55 +1833,33 @@ const Data = ({user}) => { // Receive user as a prop
                             <tr key={table.display_table_name}
                                 className={highlightedTable === table.display_table_name ? 'highlighted' : ''}>
                                 <td colSpan={6}>
-                                    {/* Info Icon for last 6 months explanation */}
-                                    {/*<FontAwesomeIcon*/}
-                                    {/*    icon={faInfoCircle}*/}
-                                    {/*    className="info-icon"*/}
-                                    {/*    // onClick={() => setInfoModalIsOpen(true)}*/}
-                                    {/*/>*/}
+
                                     <div className="tooltip">
-                                        {/*<button*/}
-                                        {/*    className={`table-name-button ${!isUserLoggedIn ? 'disabled-button' : ''}`}*/}
-                                        {/*    onClick={isUserLoggedIn ? () => openTableModal(table.display_table_name, server.display_server_name) : null}*/}
-                                        {/*>*/}
-                                        {/*    <FontAwesomeIcon icon={faTable} className="icon-left" />*/}
-                                        {/*    <span className="table-name">{table.display_table_name}</span>*/}
-                                        {/*    <span className="date-range-display">*/}
-                                        {/*    {dateRanges[`${server.display_server_name}-${table.display_table_name}`] ? (*/}
-                                        {/*        dateRanges[`${server.display_server_name}-${table.display_table_name}`].error ? (*/}
-                                        {/*            <span className="error-text">Error fetching dates</span>*/}
-                                        {/*        ) : (*/}
-                                        {/*            `${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].start_date).toLocaleDateString()} - ${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].end_date).toLocaleDateString()}`*/}
-                                        {/*        )*/}
-                                        {/*    ) : 'No dates available'}*/}
 
-                                        {/*</span>*/}
-                                        {/*</button>*/}
                                         <button
-                                            className={`table-name-button ${!isUserLoggedIn ? 'disabled-button' : ''}`}
-                                            onClick={isUserLoggedIn ? () => openTableModal(table.display_table_name, server.display_server_name) : null}
-                                        >
-                                            <FontAwesomeIcon icon={faTable} className="icon-left" />
+                                                className={`table-name-button ${!isUserLoggedIn ? 'disabled-button' : ''}`}
+                                                onClick={isUserLoggedIn ? () => openTableModal(table.display_table_name, server.display_server_name) : null}
+                                            >
+                                                <FontAwesomeIcon icon={faTable} className="icon-left"/>
 
-                                            {/* Display the table name with the preview text */}
-                                            <span className="table-name">
-        {table.display_table_name} <span className="preview-text">(View lastest month's data)</span>
-    </span>
+                                                {/* Display the table name with the preview text */}
+                                                <span className="table-name">
+                                            {table.display_table_name} <span className="preview-text">(View lastest month's data)</span>
+                                                </span>
 
-                                            <span className="date-range-display">
-        {dateRanges[`${server.display_server_name}-${table.display_table_name}`] ? (
-            dateRanges[`${server.display_server_name}-${table.display_table_name}`].error ? (
-                <span className="error-text">Error fetching dates</span>
-            ) : (
-                `${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].start_date).toLocaleDateString()} - ${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].end_date).toLocaleDateString()}`
-            )
-        ) : 'No dates available'}
-    </span>
-                                        </button>
+                                                                                        <span className="date-range-display">
+                                                    {dateRanges[`${server.display_server_name}-${table.display_table_name}`] ? (
+                                                        dateRanges[`${server.display_server_name}-${table.display_table_name}`].error ? (
+                                                            <span className="error-text">Error fetching dates</span>
+                                                        ) : (
+                                                            `${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].start_date).toLocaleDateString()} - ${new Date(dateRanges[`${server.display_server_name}-${table.display_table_name}`].end_date).toLocaleDateString()}`
+                                                        )
+                                                    ) : 'No dates available'}
+                                                </span>
+                                            </button>
 
                                         {dateRanges[`${server.display_server_name}-${table.display_table_name}`] && getStatusIndicator(dateRanges[`${server.display_server_name}-${table.display_table_name}`].end_date)}
                                     </div>
-
 
 
                                     <div className="tooltip">
@@ -1787,7 +1867,7 @@ const Data = ({user}) => { // Receive user as a prop
                                             className={`data-availability-button2 ${!isUserLoggedIn ? 'disabled-button' : ''}`}
                                             onClick={isUserLoggedIn ? () => fetchDataAvailability(server.display_server_name, table.display_table_name) : null}
                                         >
-                                            <FontAwesomeIcon icon={faInfoCircle} /> Data Availability
+                                            <FontAwesomeIcon icon={faInfoCircle}/> Data Availability
                                         </button>
                                         {!isUserLoggedIn && (
                                             <span className="tooltiptext">Please log in to access</span>
@@ -1798,14 +1878,14 @@ const Data = ({user}) => { // Receive user as a prop
                                             className={`download-button ${!isUserLoggedIn ? 'disabled-button' : ''}`}
                                             onClick={isUserLoggedIn ? () => openConsentModal(table.display_table_name, server.display_server_name) : null}
                                         >
-                                            <FontAwesomeIcon icon={faDownload} /> Download
+                                            <FontAwesomeIcon icon={faDownload}/> Download
                                         </button>
                                         {!isUserLoggedIn && (
                                             <span className="tooltiptext">
                                             Please log in to access
                                                 </span>
                                         )}
-                                            </div>
+                                    </div>
 
                                     <Modal
                                         isOpen={isConsentModalOpen}
@@ -1817,7 +1897,10 @@ const Data = ({user}) => { // Receive user as a prop
                                         <div className="consent-modal-content">
                                             <h3>Citation Requirement</h3>
                                             <p>
-                                                By downloading this data, you agree to cite the dataset using the DOI provided in the downloaded file. Proper citation ensures the data is traceable and credits are given appropriately for the resources used. The DOI refers to all tables and variables for this site.
+                                                By downloading this data, you agree to cite the dataset using the DOI
+                                                provided in the downloaded file. Proper citation ensures the data is
+                                                traceable and credits are given appropriately for the resources used.
+                                                The DOI refers to all tables and variables for this site.
                                             </p>
                                             <div className="consent-checkbox">
                                                 <input
@@ -1825,7 +1908,8 @@ const Data = ({user}) => { // Receive user as a prop
                                                     checked={consentGiven}
                                                     onChange={toggleConsent}
                                                 />
-                                                <label>I agree to cite this dataset according to the provided DOI.</label>
+                                                <label>I agree to cite this dataset according to the provided
+                                                    DOI.</label>
                                             </div>
                                             <div className="consent-modal-actions">
                                                 <button onClick={handleConsent}>Proceed to Download</button>
@@ -1844,7 +1928,7 @@ const Data = ({user}) => { // Receive user as a prop
                                                 }}
                                                 className="metadata-link"
                                             >
-                                                <FontAwesomeIcon icon={faInfoCircle} /> Citation details
+                                                <FontAwesomeIcon icon={faInfoCircle}/> Citation details
                                             </a>
                                         ) : (
                                             <span>Loading Metadata...</span>
@@ -1858,7 +1942,35 @@ const Data = ({user}) => { // Receive user as a prop
                 </tbody>
             </table>
 
-
+            {/* Progress Popup */}
+            {isDownloading && (
+                <div
+                    id="downloadProgressWidgetPopup"
+                    style={{
+                        display: 'block',
+                        position: 'fixed',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: '20px',
+                        borderRadius: '10px',
+                        color: 'white',
+                        textAlign: 'center',
+                        zIndex: 10000,
+                        width: '300px',
+                    }}
+                >
+                    <h3>{downloadTitle}</h3>
+                    <progress
+                        ref={progressRef}
+                        value={progressValue}
+                        max={progressMax}
+                        style={{width: '100%'}}
+                    ></progress>
+                    <p>{progressText}</p>
+                </div>
+            )}
             <Modal
                 isOpen={isModalOpen}
                 onRequestClose={closeModal}

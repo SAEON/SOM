@@ -84,18 +84,107 @@ const DataAvailabilityModalContent = ({ data, siteName, interval, startDate, end
         }
     };
 
+    // return (
+    //     <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
+    //         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '10px' }}>
+    //             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>
+    //                 {displaySiteName}
+    //             </span>
+    //             <button onClick={toggleSummaryModal} style={{ marginLeft: '10px', padding: '5px 10px', cursor: 'pointer' }}>
+    //                 Show text summary
+    //             </button>
+    //         </div>
+    //         {/* Scrollable container for heatmap */}
+    //         <div style={{ height: '600px', overflowY: 'auto', marginBottom: '20px' }}>
+    //             <MyHeatMap
+    //                 data={heatmapData}
+    //                 siteName={displaySiteName}
+    //                 interval={interval}
+    //                 dates={dates}
+    //                 variables={variables}
+    //             />
+    //         </div>
+    //
+    //         {isSummaryOpen && (
+    //             <div style={{
+    //                 position: 'fixed',
+    //                 top: '50%',
+    //                 left: '50%',
+    //                 transform: 'translate(-50%, -50%)',
+    //                 background: 'white',
+    //                 padding: '20px',
+    //                 boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+    //                 zIndex: 1000,
+    //                 width: '600px',
+    //                 maxHeight: '400px',
+    //                 overflowY: 'auto'
+    //             }}>
+    //                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+    //                     <div className="macos-window-controls">
+    //                         <div className="macos-button close" onClick={() => toggleSummaryModal()}></div>
+    //                     </div>
+    //
+    //                     <button
+    //                         onClick={handleCopyToClipboard}
+    //                         style={{ padding: '5px 10px', cursor: 'pointer' }}
+    //                     >
+    //                         Copy to Clipboard
+    //                     </button>
+    //                 </div>
+    //                 <h3>Summary</h3>
+    //                 <strong>Average Availability: {averageAvailability.toFixed(2)}%</strong>
+    //                 {variables.map((variable, index) => {
+    //                     const filteredData = data.filter(item => item.display_field_name === variable);
+    //                     const avg = filteredData.reduce((acc, item) => acc + (parseFloat(item.availability_percentage) || 0), 0) /
+    //                         (filteredData.length > 0 ? filteredData.length : 1); // Prevent division by zero
+    //                     return <p key={index}>{`${variable}: ${avg.toFixed(1)}% available`}</p>;
+    //                 })}
+    //             </div>
+    //         )}
+    //
+    //         {isSummaryOpen && (
+    //             <div style={{
+    //                 position: 'fixed',
+    //                 top: 0,
+    //                 left: 0,
+    //                 right: 0,
+    //                 bottom: 0,
+    //                 background: 'rgba(0, 0, 0, 0.5)',
+    //                 zIndex: 999
+    //             }} onClick={toggleSummaryModal}></div>
+    //         )}
+    //
+    //         {copyAlert && (
+    //             <div style={{
+    //                 position: 'fixed',
+    //                 top: '10%',
+    //                 left: '50%',
+    //                 transform: 'translateX(-50%)',
+    //                 background: '#4CAF50',
+    //                 color: 'white',
+    //                 padding: '10px 20px',
+    //                 borderRadius: '5px',
+    //                 zIndex: 1100,
+    //                 boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)',
+    //                 textAlign: 'center'
+    //             }}>
+    //                 Copied to clipboard!
+    //             </div>
+    //         )}
+    //     </div>
+    // );
     return (
-        <div style={{ height: '100%', width: '100%', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '10px' }}>
-                <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>
-                    {displaySiteName}
-                </span>
-                <button onClick={toggleSummaryModal} style={{ marginLeft: '10px', padding: '5px 10px', cursor: 'pointer' }}>
+        <div style={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '2%', padding: '1%' }}>
+            <span style={{ fontSize: '1vw', fontWeight: 'bold', color: '#333' }}>
+                {displaySiteName}
+            </span>
+                <button onClick={toggleSummaryModal} style={{ marginLeft: '1%', padding: '0.5% 1%', cursor: 'pointer' }}>
                     Show text summary
                 </button>
             </div>
             {/* Scrollable container for heatmap */}
-            <div style={{ height: '600px', overflowY: 'auto', marginBottom: '20px' }}>
+            <div style={{ height: '90vh', overflowY: 'hidden', marginBottom: '3%', padding: '0' }}>
                 <MyHeatMap
                     data={heatmapData}
                     siteName={displaySiteName}
@@ -112,21 +201,21 @@ const DataAvailabilityModalContent = ({ data, siteName, interval, startDate, end
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
                     background: 'white',
-                    padding: '20px',
+                    padding: '2%',
                     boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
                     zIndex: 1000,
-                    width: '600px',
-                    maxHeight: '400px',
+                    width: '50vw',
+                    maxHeight: '50vh',
                     overflowY: 'auto'
                 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2%' }}>
                         <div className="macos-window-controls">
                             <div className="macos-button close" onClick={() => toggleSummaryModal()}></div>
                         </div>
 
                         <button
                             onClick={handleCopyToClipboard}
-                            style={{ padding: '5px 10px', cursor: 'pointer' }}
+                            style={{ padding: '0.5% 1%', cursor: 'pointer' }}
                         >
                             Copy to Clipboard
                         </button>
@@ -162,7 +251,7 @@ const DataAvailabilityModalContent = ({ data, siteName, interval, startDate, end
                     transform: 'translateX(-50%)',
                     background: '#4CAF50',
                     color: 'white',
-                    padding: '10px 20px',
+                    padding: '1%',
                     borderRadius: '5px',
                     zIndex: 1100,
                     boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)',
