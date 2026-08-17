@@ -223,6 +223,10 @@ function parseDateOnly(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function queryDateOnly(req, primary, alias = null) {
+  return normalizeText(req.query[primary] || (alias ? req.query[alias] : null));
+}
+
 function formatDateOnlyValue(value) {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
@@ -1797,8 +1801,8 @@ app.get('/api/public/date-range', async (req, res) => {
 app.get('/api/public/download', async (req, res) => {
   const serverName = normalizeText(req.query.serverName || req.query.server);
   const tableName = normalizeText(req.query.tableName || req.query.table);
-  const startDate = normalizeText(req.query.startDate);
-  const endDate = normalizeText(req.query.endDate);
+  const startDate = queryDateOnly(req, 'startDate', 'start');
+  const endDate = queryDateOnly(req, 'endDate', 'end');
 
   if (!serverName || !tableName || !startDate || !endDate) {
     return res.status(400).json({
@@ -1960,8 +1964,8 @@ app.get('/api/v1/date-range', async (req, res) => {
 app.get('/api/v1/data', async (req, res) => {
   const serverName = normalizeText(req.query.serverName || req.query.site || req.query.server);
   const tableName = normalizeText(req.query.tableName || req.query.table);
-  const startDate = normalizeText(req.query.startDate);
-  const endDate = normalizeText(req.query.endDate);
+  const startDate = queryDateOnly(req, 'startDate', 'start');
+  const endDate = queryDateOnly(req, 'endDate', 'end');
   const requestedLimit = Number.parseInt(req.query.limit, 10);
   const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 1000, 1), 5000);
   const after = normalizeText(req.query.after);
@@ -2068,8 +2072,8 @@ app.get('/api/v1/data', async (req, res) => {
 app.get('/api/v1/download', async (req, res) => {
   const serverName = normalizeText(req.query.serverName || req.query.site || req.query.server);
   const tableName = normalizeText(req.query.tableName || req.query.table);
-  const startDate = normalizeText(req.query.startDate);
-  const endDate = normalizeText(req.query.endDate);
+  const startDate = queryDateOnly(req, 'startDate', 'start');
+  const endDate = queryDateOnly(req, 'endDate', 'end');
 
   if (!serverName || !tableName || !startDate || !endDate) {
     return res.status(400).json({
@@ -5118,7 +5122,10 @@ app.get("/api/summary_table/values", async (req, res) => {
 //const { pipeline } = require('stream');
 //const path = require('path');
 app.get('/api/summary_table/download', async (req, res) => {
-  const { tableName, serverName, startDate, endDate } = req.query;
+  const tableName = normalizeText(req.query.tableName);
+  const serverName = normalizeText(req.query.serverName);
+  const startDate = queryDateOnly(req, 'startDate', 'start');
+  const endDate = queryDateOnly(req, 'endDate', 'end');
 
   try {
     if (!tableName || !serverName) {
@@ -5126,6 +5133,16 @@ app.get('/api/summary_table/download', async (req, res) => {
     }
 
     const hasDateRange = Boolean(startDate && endDate);
+    if ((startDate || endDate) && !hasDateRange) {
+      return res.status(400).json({ error: 'Both startDate and endDate are required when filtering downloads by date.' });
+    }
+    if (hasDateRange) {
+      const parsedStart = parseDateOnly(startDate);
+      const parsedEnd = parseDateOnly(endDate);
+      if (!parsedStart || !parsedEnd || parsedEnd < parsedStart) {
+        return res.status(400).json({ error: 'Dates must use YYYY-MM-DD and endDate must be on or after startDate.' });
+      }
+    }
 
     // Define the path where the pre-generated CSV is stored
     const csvDir = path.join(__dirname, 'csv_exports');
@@ -5204,16 +5221,19 @@ app.get('/api/summary_table/download', async (req, res) => {
            WHERE server_name = $1 AND table_name = $2`,
           [serverName, tableName]
         );
-        formattedStartDate = rangeResult.rows[0]?.start_date;
-        formattedEndDate = rangeResult.rows[0]?.end_date;
+        formattedStartDate = formatDateOnlyValue(rangeResult.rows[0]?.start_date);
+        formattedEndDate = formatDateOnlyValue(rangeResult.rows[0]?.end_date);
       }
 
       if (!formattedStartDate || !formattedEndDate) {
         return res.status(400).json({ error: 'startDate and endDate are required for dynamic downloads' });
       }
 
-      const startTs = `${String(formattedStartDate).slice(0, 10)} 00:00:00`;
-      const endTs = `${String(formattedEndDate).slice(0, 10)} 00:00:00`;
+      const startDateOnly = formatDateOnlyValue(formattedStartDate);
+      const endDateOnly = formatDateOnlyValue(formattedEndDate);
+      if (!startDateOnly || !endDateOnly || parseDateOnly(endDateOnly) < parseDateOnly(startDateOnly)) {
+        return res.status(400).json({ error: 'No valid date range is available for this download.' });
+      }
 
       // Fetch the DOI for the site from the site_mapping table
       const doiResult = await pool.query(
@@ -5259,7 +5279,7 @@ app.get('/api/summary_table/download', async (req, res) => {
             AND upper(btrim(field_entry->>'field_value')) NOT IN ('NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY')
           ORDER BY display_field_name ASC
         `,
-        [tableName, serverName, startTs, endTs]
+        [tableName, serverName, startDateOnly, endDateOnly]
       );
 
       const fields = fieldsResult.rows.map((row) => row.display_field_name);
@@ -5301,7 +5321,7 @@ app.get('/api/summary_table/download', async (req, res) => {
               AND timestamp < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
             ORDER BY timestamp ASC
           `,
-          [tableName, serverName, startTs, endTs]
+          [tableName, serverName, startDateOnly, endDateOnly]
         );
 
         // Execute the query as a stream using pipeline
@@ -5358,6 +5378,10 @@ app.get('/api/summary_table/download', async (req, res) => {
     }
   } catch (err) {
     console.error('Error while handling download request:', err);
+    if (res.headersSent) {
+      res.destroy(err);
+      return;
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -6386,6 +6410,7 @@ const calculateDailyDataAvailability = async () => {
     await calculateDailyDataAvailabilityWindow(3);
   } catch (error) {
     console.error('Error calculating and storing daily data availability:', error);
+    throw error;
   }
 };
 
@@ -6395,6 +6420,7 @@ const calculateDailyDataAvailability25 = async () => {
     await calculateDailyDataAvailabilityWindow(60);
   } catch (error) {
     console.error('Error calculating and storing extended daily data availability:', error);
+    throw error;
   }
 };
 
@@ -8217,6 +8243,15 @@ async function runWriterTasksExtended() {
   ]);
 }
 
+async function runAvailabilityTasks() {
+  await runTaskList([
+    { label: 'Calculate daily data availability', run: calculateDailyDataAvailability },
+    { label: 'Daily data availability cleanup', run: cleanUpDailyDataAvailability },
+    { label: 'Update summary date ranges', run: updateSummaryDateRanges },
+    { label: 'Update field values summary', run: updateFieldValuesSummary },
+  ]);
+}
+
 // =================== Scheduled background jobs (SAST) ===================
 
 const BACKGROUND_CRON_OPTIONS = { timezone: AFRICA_JHB_TZ };
@@ -8361,6 +8396,50 @@ async function runScheduledWriterJob({ extended = false } = {}) {
   }
 }
 
+async function runManualAvailabilityJob() {
+  const start = Date.now();
+  if (writerRunning) {
+    console.log('[AVAILABILITY] Writer lane is already running; skipping manual availability refresh.');
+    return false;
+  }
+
+  writerRunning = true;
+  Object.assign(backgroundStatus.writer, {
+    running: true,
+    currentStep: 'Starting availability refresh',
+    currentStepIndex: 0,
+    totalSteps: 4,
+    lastCompletedStep: null,
+    lastStartedAt: new Date(start).toISOString(),
+    lastFinishedAt: null,
+    lastError: null,
+    lastDurationSeconds: null,
+  });
+
+  try {
+    console.log('[AVAILABILITY] === manual availability refresh start ===');
+    await withAdvisoryLock(WRITER_LOCK_A, WRITER_LOCK_B, async () => {
+      activeBackgroundLane = 'writer';
+      await runAvailabilityTasks();
+    });
+    console.log('[AVAILABILITY] === manual availability refresh end ===');
+  } catch (err) {
+    backgroundStatus.writer.lastError = err?.message || String(err);
+    console.error('[AVAILABILITY] manual refresh failed:', err);
+  } finally {
+    activeBackgroundLane = null;
+    writerRunning = false;
+    backgroundStatus.writer.running = false;
+    backgroundStatus.writer.currentStep = null;
+    backgroundStatus.writer.currentStepIndex = backgroundStatus.writer.lastError ? backgroundStatus.writer.currentStepIndex : backgroundStatus.writer.totalSteps;
+    backgroundStatus.writer.lastFinishedAt = new Date().toISOString();
+    backgroundStatus.writer.lastDurationSeconds = Number(((Date.now() - start) / 1000).toFixed(1));
+    refreshScheduledNextRuns();
+  }
+
+  return true;
+}
+
 app.post('/api/background/run-reader', async (req, res) => {
   if (!requireTechnician(req, res)) return;
   if (readerRunning) {
@@ -8390,6 +8469,22 @@ app.post('/api/background/run-writer', async (req, res) => {
 
   res.status(202).json({
     message: extended ? 'Extended data sync started.' : 'Daily data sync started.',
+    status: backgroundStatus.writer,
+  });
+});
+
+app.post('/api/background/run-availability', async (req, res) => {
+  if (!requireTechnician(req, res)) return;
+  if (writerRunning) {
+    return res.status(409).json({message: 'A writer or availability refresh is already running.', status: backgroundStatus.writer});
+  }
+
+  runManualAvailabilityJob().catch((error) => {
+    console.error('[AVAILABILITY] manual trigger failed:', error);
+  });
+
+  res.status(202).json({
+    message: 'Data availability refresh started.',
     status: backgroundStatus.writer,
   });
 });
