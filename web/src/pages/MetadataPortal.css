@@ -1,0 +1,66 @@
+.metadata-portal { padding: 1.25rem; }
+.mp-headerbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+.mp-titlegroup h1 { margin:0 0 .25rem 0; }
+.mp-info { border:none; background:transparent; font-size:1.25rem; cursor:pointer; }
+
+.mp-grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.mp-card {
+    border: 1px solid rgba(0,0,0,.1);
+    border-radius: 10px;
+    padding: 14px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    transition: transform .08s ease, box-shadow .08s ease;
+    cursor: pointer;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+.mp-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+
+.mp-card-disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    filter: grayscale(25%);
+}
+.mp-card-icon { width: 56px; height: 56px; object-fit: contain; }
+.mp-card-title { margin: 0; font-size: 1.05rem; }
+.mp-card-desc { margin: 0; color: #555; font-size: .92rem; min-height: 40px; }
+.mp-lock { font-size: .85rem; color: #a33; }
+
+.mp-tooltip {
+    position: fixed;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,.85);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: .85rem;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* Modal */
+.mp-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.35);
+    display:flex; align-items:center; justify-content:center;
+    z-index: 10000;
+}
+.mp-modal {
+    background: #fff; width: min(720px, 92vw);
+    border-radius: 12px; padding: 16px 16px 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.2);
+}
+.mp-header { display:flex; justify-content:space-between; align-items:center; }
+.mp-close { background:transparent; border:none; font-size:1.3rem; cursor:pointer; }
+.mp-body p { margin: .5rem 0; }
+.mp-btn { padding: 8px 12px; border-radius: 8px; border:1px solid #ddd; background:#f7f7f7; cursor:pointer; }
+.mp-actions { display:flex; justify-content:flex-end; margin-top: 8px; }
+
+.mp-modal-open { overflow: hidden; }

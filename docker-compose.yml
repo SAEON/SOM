@@ -1,0 +1,71 @@
+services:
+  db:
+    image: postgres:16
+    container_name: loggernet-db
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - max_wal_size=4GB
+      - -c
+      - checkpoint_timeout=30min
+    environment:
+      POSTGRES_DB: loggernet
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "${DB_HOST_PORT:-55432}:5432"
+    volumes:
+      - loggernet-db-data:/var/lib/postgresql/data
+      - ../backups/loggernet-live-2026-08-13/loggernet-2026-08-13.dump:/docker-entrypoint-initdb.d/loggernet.dump:ro
+      - ./docker/postgres/restore.sh:/docker-entrypoint-initdb.d/10-restore.sh:ro
+      - ./docker/postgres/20-optimize.sql:/docker-entrypoint-initdb.d/20-optimize.sql:ro
+      - ./docker/postgres/40-site-status.sql:/docker-entrypoint-initdb.d/40-site-status.sql:ro
+      - ./docker/postgres/41-backfill-jobs.sql:/docker-entrypoint-initdb.d/41-backfill-jobs.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d loggernet && psql -U postgres -d loggernet -tAc \"select 1 from public.docker_restore_status where restored_at is not null limit 1\" | grep -q 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 720
+
+  api:
+    build:
+      context: ./api
+    container_name: loggernet-api
+    restart: unless-stopped
+    env_file:
+      - ./api/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: loggernet
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      PORT: 3003
+      NODE_ENV: ${NODE_ENV:-development}
+      ENABLE_BACKGROUND_JOBS: "${ENABLE_BACKGROUND_JOBS:-true}"
+      OAUTH_CALLBACK_URL: ${OAUTH_CALLBACK_URL:-http://localhost:3080/api/logged_in}
+      LOGGERNET_REJECT_UNAUTHORIZED: "${LOGGERNET_REJECT_UNAUTHORIZED:-false}"
+    ports:
+      - "${API_HOST_PORT:-3081}:3003"
+    volumes:
+      - loggernet-api-exports:/app/csv_exports
+      - loggernet-api-images:/app/public/images
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+    container_name: loggernet-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_HOST_PORT:-3080}:80"
+    depends_on:
+      - api
+
+volumes:
+  loggernet-db-data:
+  loggernet-api-exports:
+  loggernet-api-images:

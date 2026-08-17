@@ -1,0 +1,57 @@
+# macOS and editor noise
+.DS_Store
+._*
+.idea/
+.vscode/
+
+# Obsolete root-level files from the pre-Docker site.
+index.html
+.github/workflows/deploy.yml
+
+# Legacy local scripts from the pre-Docker workflow.
+# These are kept off GitHub because several contain machine-specific paths or credentials.
+extra/
+python/
+
+# Node dependencies and builds
+node_modules/
+api/node_modules/
+web/node_modules/
+web/build/
+api/npm-debug.log*
+web/npm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+api/.env
+api/.env.*
+web/.env
+web/.env.*
+!api/.env.example
+!web/.env.example
+
+# Runtime outputs
+api/csv_exports/
+api/csv_table_exports/
+api/public/images/
+csv_exports/
+csv_table_exports/
+
+# Database dumps, physical volume archives, and transfer bundles
+*.dump
+*.sql.gz
+*.tgz
+*.tar
+*.tar.gz
+*.bak
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+.cache/

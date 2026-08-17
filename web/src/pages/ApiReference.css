@@ -1,0 +1,301 @@
+.api-reference-page {
+    width: min(1500px, calc(100% - 40px));
+    margin: 28px auto 56px;
+    color: #1f2933;
+}
+
+.api-reference-hero,
+.api-reference-panel,
+.api-endpoint-card {
+    border: 1px solid #d8e3ea;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 10px 28px rgba(18, 46, 72, 0.08);
+}
+
+.api-reference-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+    gap: 24px;
+    align-items: stretch;
+    padding: 30px 32px;
+    margin-bottom: 20px;
+    background:
+        linear-gradient(135deg, rgba(238, 245, 247, 0.95), rgba(255, 255, 255, 0.98)),
+        #ffffff;
+}
+
+.api-reference-kicker {
+    margin: 0 0 8px;
+    color: #2f6f96;
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.api-reference-hero h1,
+.api-reference-panel h2,
+.api-endpoint-card h2 {
+    margin: 0;
+    color: #163552;
+    letter-spacing: 0;
+}
+
+.api-reference-hero h1 {
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    line-height: 1.06;
+}
+
+.api-reference-hero p,
+.api-reference-panel li,
+.api-endpoint-card p {
+    color: #52667a;
+    line-height: 1.55;
+}
+
+.api-reference-hero p {
+    max-width: 850px;
+    margin: 12px 0 0;
+    font-size: 1.05rem;
+}
+
+.api-status-card {
+    display: grid;
+    align-content: center;
+    gap: 8px;
+    padding: 18px;
+    border: 1px solid #d8e3ea;
+    border-radius: 8px;
+    background: #fbfdfe;
+}
+
+.api-status-card span,
+.api-status-card small {
+    color: #63768a;
+    font-weight: 800;
+}
+
+.api-status-card strong {
+    color: #8a4b00;
+    font-size: 1.8rem;
+}
+
+.api-status-card--ok strong {
+    color: #136f43;
+}
+
+.api-reference-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.75fr);
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.api-reference-panel {
+    padding: 22px;
+    margin-bottom: 18px;
+}
+
+.api-reference-panel h2 {
+    font-size: 1.35rem;
+}
+
+.api-reference-panel ul {
+    margin: 14px 0 0;
+    padding-left: 20px;
+}
+
+.api-reference-note {
+    margin: 0;
+    color: #52667a;
+    line-height: 1.55;
+}
+
+.api-reference-note--compact {
+    margin-top: 12px;
+    font-size: 0.94rem;
+}
+
+.api-rate-list {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0 0;
+}
+
+.api-rate-list div {
+    padding: 12px;
+    border: 1px solid #d8e3ea;
+    border-radius: 8px;
+    background: #fbfdfe;
+}
+
+.api-rate-list dt {
+    color: #52667a;
+    font-weight: 900;
+}
+
+.api-rate-list dd {
+    margin: 4px 0 0;
+    color: #163552;
+    font-weight: 900;
+}
+
+.api-reference-section-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.api-base-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.api-base-grid code,
+.api-param-list code,
+.api-endpoint-header code,
+.api-reference-page pre code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.api-base-grid code {
+    display: block;
+    padding: 12px;
+    border: 1px solid #d8e3ea;
+    border-radius: 8px;
+    background: #f7fbfd;
+    color: #163552;
+    overflow-wrap: anywhere;
+}
+
+.api-endpoint-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.api-endpoint-card {
+    min-width: 0;
+    padding: 20px;
+}
+
+.api-endpoint-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.api-method {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #edf8f4;
+    color: #115b4d;
+    font-weight: 900;
+}
+
+.api-access-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 5px 10px;
+    border: 1px solid #d8e3ea;
+    border-radius: 999px;
+    background: #f7fbfd;
+    color: #52667a;
+    font-size: 0.88rem;
+    font-weight: 900;
+}
+
+.api-endpoint-header code {
+    color: #163552;
+    font-weight: 900;
+    overflow-wrap: anywhere;
+}
+
+.api-endpoint-card h2 {
+    font-size: 1.25rem;
+}
+
+.api-param-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 14px 0;
+}
+
+.api-param-list span {
+    color: #52667a;
+    font-weight: 900;
+}
+
+.api-param-list code {
+    padding: 5px 8px;
+    border: 1px solid #d8e3ea;
+    border-radius: 999px;
+    background: #f7fbfd;
+    color: #163552;
+}
+
+.api-reference-page pre {
+    margin: 16px 0 0;
+    padding: 15px;
+    border: 1px solid #254e6f;
+    border-radius: 8px;
+    background: #102f4b;
+    color: #eaf4f8;
+    overflow: auto;
+}
+
+.api-example-pair {
+    display: grid;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.api-example-pair > div {
+    min-width: 0;
+}
+
+.api-example-pair span {
+    color: #52667a;
+    font-size: 0.9rem;
+    font-weight: 900;
+}
+
+.api-example-pair pre {
+    margin-top: 6px;
+}
+
+.api-reference-page pre code {
+    color: inherit;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    white-space: pre;
+}
+
+@media (max-width: 980px) {
+    .api-reference-page {
+        width: min(100% - 24px, 1500px);
+    }
+
+    .api-reference-hero,
+    .api-reference-grid,
+    .api-base-grid,
+    .api-endpoint-list {
+        grid-template-columns: 1fr;
+    }
+
+    .api-reference-hero {
+        padding: 24px;
+    }
+}

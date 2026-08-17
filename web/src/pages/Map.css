@@ -1,0 +1,200 @@
+/* Add this to your CSS file */
+/*.leaflet-tile-container {*/
+/*    filter: grayscale(1);*/
+/*}*/
+
+.slider-control {
+    background-color: #fff;
+    padding: 10px;
+    border-radius: 4px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Add this for spacing */
+}
+
+.prev-button,
+.next-button {
+    background-color: #f5f5f5;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.slider {
+    flex-grow: 2; /* Allows the slider to grow and fill space */
+    margin: 0 10px; /* Add some margin around the slider */
+}
+
+.label {
+    margin-left: 5px;
+    white-space: nowrap;
+}
+
+
+.legend {
+    max-width: 150px; /* Adjust as needed */
+    overflow: hidden; /* Ensures the content fits within the max-width */
+    background-color: white;
+    padding: 10px;
+    border-radius: 5px;
+    position: absolute;
+    bottom: 30px;
+    right: 10px;
+    z-index: 1000;
+}
+
+.legend-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.legend-color {
+    width: 10px;
+    height: 10px;
+    margin-right: 5px;
+}
+
+.legend-text {
+    font-size: 10px;
+}
+
+.green-badge {
+    background-color: #28a745;
+}
+
+.blue-badge {
+    background-color: #007bff;
+}
+
+.dark-blue-badge {
+    background-color: #0061A4;
+}
+
+.yellow-badge {
+    background-color: #ffc107;
+}
+
+.orange-badge {
+    background-color: #fd7e14;
+}
+
+.red-badge {
+    background-color: #dc3545;
+}
+
+.dark-red-badge {
+    background-color: #8B0000;
+}
+
+.gray-badge {
+    background-color: #6c757d;
+}
+
+.legend-description {
+    font-size: 0.8em;
+    margin-top: 2px;
+    color: #666; /* Adjust based on your design */
+    word-wrap: break-word; /* Allows long words to be broken and wrapped */
+    hyphens: auto; /* Auto-hyphenates words at appropriate hyphenation points */
+}
+
+.map-controls {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000;
+    background-color: white;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.menu-item {
+    margin-bottom: 5px;
+}
+
+/* Add this CSS to your stylesheets or inline style tag */
+.custom-cluster {
+    background-color: rgba(0, 0, 0, 0.5); /* Customize the background color */
+    border-radius: 50%; /* Make the cluster icon circular */
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    color: white; /* Customize the text color */
+    width: 32px; /* Customize the width */
+    height: 32px; /* Customize the height */
+    line-height: 32px;
+}
+
+/* Add this CSS to your stylesheets or inline style tag */
+.custom-cluster {
+    background-color: transparent; /* Set background color to transparent */
+    border: none; /* Remove border */
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    color: white; /* Customize the text color */
+    width: 32px; /* Customize the width */
+    height: 32px; /* Customize the height */
+    line-height: 32px;
+    position: relative; /* Position relative for the inner content */
+}
+
+.custom-cluster-icon {
+    background-color: transparent; /* Set background color to transparent */
+    border: none; /* Remove border */
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    color: white; /* Customize the text color */
+    width: 32px; /* Customize the width */
+    height: 32px; /* Customize the height */
+    line-height: 32px;
+    position: relative; /* Position relative for the inner content */
+}
+
+.custom-cluster-inner {
+    position: absolute; /* Position absolute for the inner content */
+    top: 50%; /* Center vertically */
+    left: 50%; /* Center horizontally */
+    transform: translate(-50%, -50%); /* Center the content */
+}
+
+
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1050; /* Ensure it's above other content */
+}
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 90%;
+    max-height: 90%;
+    overflow: auto;
+}
+
+
+@media (max-width: 768px) {
+    .legend {
+        max-width: 100%; /* Allows the legend to be more fluid on smaller screens */
+    }
+}

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://observationsmonitor.saeon.ac.za/</loc>
+  </url>
+  <url>
+    <loc>https://observationsmonitor.saeon.ac.za/data</loc>
+  </url>
+  <url>
+    <loc>https://observationsmonitor.saeon.ac.za/api-reference</loc>
+  </url>
+  <url>
+    <loc>https://observationsmonitor.saeon.ac.za/metadata</loc>
+  </url>
+  <url>
+    <loc>https://observationsmonitor.saeon.ac.za/about</loc>
+  </url>
+</urlset>

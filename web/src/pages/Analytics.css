@@ -1,0 +1,1159 @@
+/* General Dashboard Styling */
+.dashboard-container {
+    padding: 30px;
+    background-color: #e8ebf0;
+    font-family: 'Arial', sans-serif;
+}
+
+.dashboard-title {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 2.5rem;
+    color: #3768af;
+    font-weight: bold;
+}
+
+/* Expandable Row Styling */
+.expandable-row {
+    margin: 10px 0;
+    /*border: 1px solid #ccc;*/
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.expandable-row button {
+    width: 100%;
+    padding: 5px;
+    text-align: left;
+    background-color: #aea9a3; /* Default grey background */
+    color: black;
+    border: 1px solid black;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s;
+}
+
+.expandable-row button:hover {
+    background-color: #3768af; /* Slightly darker grey on hover */
+    color: white;
+}
+
+.expandable-row button.expanded {
+    background-color: #3768af; /* Blue background when expanded */
+}
+
+.folder-icon {
+    font-size: 18px;
+    margin-right: 10px;
+    transition: transform 0.3s;
+}
+
+
+.expandable-content {
+    padding: 20px;
+    background-color: #fff;
+    border-top: 1px solid #ddd;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.expandable-content {
+    padding: 20px;
+    background-color: #fff;
+    border-top: 1px solid #ddd;
+}
+
+.expandable-content ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.expandable-content li {
+    margin-bottom: 10px;
+}
+
+.expandable-content strong {
+    font-weight: bold;
+}
+
+/* Overview Grid Styling */
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+    margin-bottom: 40px;
+}
+
+.overview-map, .overview-chart {
+    height: 400px;
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Analytics Page Styling */
+.analytics-dashboard {
+    padding: 30px;
+}
+
+.analytics-expandable-row {
+    width: 100%;
+    text-align: left;
+    padding: 12px;
+    background-color: #e6e9ee;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s ease;
+}
+
+.analytics-expandable-row:hover {
+    background-color: #d4d7dc;
+}
+
+.analytics-expandable-content {
+    padding: 15px 25px;
+    background-color: #ffffff;
+    border-left: 3px solid #ddd;
+    border-right: 3px solid #ddd;
+    border-bottom: 3px solid #ddd;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.map-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.leaflet-map-container, .country-map-container {
+    height: 400px;
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.country-map-container {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Styling for custom heatmap labels */
+.custom-heatmap-label {
+    pointer-events: none; /* Prevent labels from interfering with map interactions */
+}
+
+.heatmap-label {
+    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black background */
+    color: white;
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    white-space: nowrap; /* Prevent the text from wrapping */
+    transform: translate(-50%, -50%); /* Center the label */
+    position: absolute; /* Absolute positioning for better control */
+}
+
+/* Dropdowns Styling */
+.dropdowns-container {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.dropdowns-container select {
+    padding: 8px;
+    font-size: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+}
+
+/* Expandable Row Styling */
+/*.expandable-row {*/
+/*    margin: 15px 0;*/
+/*    border: 1px solid #ddd;*/
+/*    border-radius: 8px;*/
+/*    overflow: hidden;*/
+/*    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);*/
+/*}*/
+
+/*.expandable-row button {*/
+/*    width: 100%;*/
+/*    padding: 12px 15px;*/
+/*    text-align: left;*/
+/*    background-color: #3768af;*/
+/*    color: #fff;*/
+/*    border: none;*/
+/*    font-size: 1.1rem;*/
+/*    cursor: pointer;*/
+/*}*/
+
+/*.expandable-row button:hover {*/
+/*    background-color: #2c5480;*/
+/*}*/
+
+
+/* Overview Metrics Styling */
+.overview-metrics, .top-pages, .top-interactions, .user-activity-heatmap {
+    margin-bottom: 20px;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.overview-metrics h3, .top-pages h3, .top-interactions h3, .user-activity-heatmap h3 {
+    color: #3768af;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.top-pages ul, .top-interactions ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.top-pages li, .top-interactions li {
+    padding: 5px 0;
+}
+
+.chart-container {
+    margin-top: 10px;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.modal-analytics {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center; /* Horizontally centers the content */
+    align-items: center; /* Vertically centers the content */
+    z-index: 1000;
+}
+
+.modal-analytics-content {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    width: 80%;
+    max-width: 80%;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    margin: auto; /* Ensures it remains centered */
+    overflow-y: auto; /* Allows vertical scrolling if content is too tall */
+    max-height: 80%; /* Ensures the modal content does not exceed 80% of the viewport height */
+}
+
+
+.modal-analytics button {
+    margin: 10px;
+    padding: 10px 20px;
+    background-color: #3768af;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: background-color 0.3s ease;
+}
+
+.modal-analytics button:hover {
+    background-color: #2c5480;
+}
+
+/* Custom Report Button Styling */
+.custom-report-button {
+    background-color: #3768af; /* Blue shade background */
+    color: #ffffff; /* White text color */
+    border: 2px solid #0056b3; /* Slightly darker border */
+    border-radius: 8px; /* Rounded corners */
+    padding: 12px 24px; /* Padding for a larger button */
+    font-size: 1.1rem; /* Slightly larger font size */
+    font-weight: bold; /* Bold text */
+    cursor: pointer; /* Pointer cursor on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    transition: background-color 0.3s, transform 0.2s; /* Smooth transitions */
+}
+
+/* Hover Effect for Report Button */
+.custom-report-button:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+    transform: translateY(-2px); /* Slight lift effect on hover */
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15); /* Enhanced shadow on hover */
+}
+
+/* Active Effect for Report Button */
+.custom-report-button:active {
+    background-color: #004494; /* Even darker blue when active */
+    transform: translateY(1px); /* Slight push-down effect on click */
+}
+
+/* Container for aligning text and buttons in a row */
+.text-button-row-container {
+    display: flex; /* Align items horizontally */
+    align-items: center; /* Center align vertically */
+    gap: 15px; /* Space between the text and buttons */
+    margin-bottom: 10px; /* Space between each interaction row */
+    white-space: nowrap; /* Prevent text from wrapping */
+}
+
+/* Cluster Icon Styling */
+/*.custom-cluster-icon {*/
+/*    background-color: rgba(0, 123, 255, 0.8);*/
+/*    border-radius: 50%;*/
+/*    color: #fff;*/
+/*    text-align: center;*/
+/*    font-size: 14px;*/
+/*    font-weight: bold;*/
+/*    line-height: 40px;*/
+/*    width: 40px;*/
+/*    height: 40px;*/
+/*    border: 2px solid #fff;*/
+/*    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);*/
+/*}*/
+
+.custom-cluster-icon::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    bottom: -2px;
+    left: -2px;
+    border-radius: 50%;
+}
+
+/* Individual Marker Styling */
+/* Cluster Icon Styling */
+/* Cluster Icon Styling */
+/* Grey Cluster Icon Styling */
+.custom-cluster-icon .cluster-icon {
+    border-radius: 50%;
+    color: #fff;
+    background-color: #808080; /* Grey color for clusters */
+    text-align: center;
+    font-size: 10px; /* Smaller font size */
+    font-weight: bold;
+    line-height: 25px; /* Adjust to match the icon size */
+    width: 25px; /* Smaller width */
+    height: 25px; /* Smaller height */
+    border: 2px solid #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Individual Marker Label Styling */
+.custom-heatmap-label .heatmap-label {
+    border-radius: 50%;
+    color: #fff;
+    text-align: center;
+    font-size: 10px; /* Smaller font size */
+    font-weight: bold;
+    line-height: 20px; /* Adjust to match the icon size */
+    width: 20px; /* Smaller width */
+    height: 20px; /* Smaller height */
+    border: 2px solid #fff;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.custom-heatmap-label .heatmap-label::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    bottom: -2px;
+    left: -2px;
+    border-radius: 50%;
+}
+
+/* Cluster Icon Styling */
+/*.custom-cluster-icon {*/
+/*    background-color: rgba(255, 152, 0, 0.8);*/
+/*    border-radius: 50%;*/
+/*    color: white;*/
+/*    text-align: center;*/
+/*    font-size: 14px;*/
+/*    font-weight: bold;*/
+/*    line-height: 40px;*/
+/*    width: 40px;*/
+/*    height: 40px;*/
+/*}*/
+/* Cluster Icon Styling */
+/*.custom-cluster-icon {*/
+/*    background-color: rgba(0, 123, 255, 0.7);*/
+/*    border-radius: 50%;*/
+/*    color: white;*/
+/*    text-align: center;*/
+/*    font-size: 16px;*/
+/*    font-weight: bold;*/
+/*    line-height: 40px;*/
+/*    width: 40px;*/
+/*    height: 40px;*/
+/*    border: 2px solid white;*/
+/*}*/
+
+/*!* Individual Marker Styling *!*/
+/*.custom-heatmap-label .heatmap-label {*/
+/*    background-color: rgba(255, 0, 0, 0.7);*/
+/*    border-radius: 50%;*/
+/*    color: white;*/
+/*    text-align: center;*/
+/*    font-size: 14px;*/
+/*    font-weight: bold;*/
+/*    line-height: 28px;*/
+/*    width: 28px;*/
+/*    height: 28px;*/
+/*    border: 2px solid white;*/
+/*}*/
+/* Individual Marker Styling */
+/*.custom-heatmap-label {*/
+/*    background-color: rgba(76, 175, 80, 0.8);*/
+/*    border-radius: 50%;*/
+/*    color: white;*/
+/*    text-align: center;*/
+/*    font-size: 12px;*/
+/*    font-weight: bold;*/
+/*    line-height: 24px;*/
+/*    width: 24px;*/
+/*    height: 24px;*/
+/*}*/
+/* Style for the interaction text */
+.interaction-text {
+    font-weight: bold; /* Make the interaction text bold */
+    color: #333; /* Darker text color for readability */
+    flex-shrink: 0; /* Prevent text from shrinking */
+    font-size: 1rem; /* Set font size to match button text */
+}
+
+/* Button Row Container */
+.button-row-container {
+    display: flex; /* Flexbox to align items horizontally */
+    gap: 10px; /* Space between buttons */
+}
+
+/* Individual Button Row Item */
+.button-row-item {
+    background-color: #3768af; /* Button background color */
+    color: #fff; /* Button text color */
+    border: 1px solid #0056b3; /* Button border color */
+    border-radius: 4px; /* Rounded button corners */
+    padding: 6px 12px; /* Button padding */
+    cursor: pointer; /* Pointer cursor on hover */
+    transition: background-color 0.3s, transform 0.2s; /* Smooth transitions for hover effect */
+    font-size: 0.75rem; /* Match font size with interaction text */
+    white-space: nowrap; /* Prevent button text from wrapping */
+    /*height: 40px; !* Consistent button height *!*/
+    display: flex; /* Use Flexbox for vertical centering */
+    align-items: center; /* Vertically center the button text */
+}
+
+/* Hover Effect for Button */
+.button-row-item:hover {
+    background-color: #0056b3; /* Darker background on hover */
+    transform: translateY(-2px); /* Slight lift on hover */
+}
+
+.modal-analytics {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-analytics-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    width: 80%;
+    height: 80%;
+    /*max-width: 600px;*/
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: left;
+    overflow-y: auto; /* Allows scrolling for the content */
+    /*max-height: 80vh; !* Limits the height of the modal *!*/
+    position: relative;
+}
+
+.modal-analytics-content button {
+    margin: 10px;
+    padding: 8px 16px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.modal-analytics-content button:hover {
+    background-color: #0056b3;
+}
+
+.modal-analytics-details {
+    max-height: 60vh; /* Restricts the height to ensure scrolling */
+    overflow-y: auto; /* Adds vertical scrolling */
+    text-align: left; /* Align text to the left */
+    margin-top: 15px;
+}
+
+.bold-text {
+    font-weight: bold;
+}
+
+.adjust-text {
+    font-style: italic;
+    color: #3768af; /* Adjust this color to match your theme */
+    font-size: 0.9rem;
+}
+
+.expandable-content {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+}
+
+.expandable-content p {
+    margin: 10px 0;
+}
+
+.downloads-section {
+    margin-top: 20px;
+}
+
+.downloads-section p {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #2c3e50; /* Darker color for emphasis */
+}
+
+.downloads-section ul {
+    list-style-type: disc; /* Disc bullet points */
+    margin-left: 20px;
+}
+
+.downloads-section ul li {
+    margin: 5px 0;
+}
+
+.total-downloads {
+    color: #16a085; /* Highlight the total downloads in a distinct color */
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.copy-button {
+    position: absolute !important;
+    top: 10px !important;
+    left: 10px !important;
+    background-color: #4CAF50 !important;
+    color: white !important;
+    padding: 8px 16px !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+    width: auto !important;
+    white-space: nowrap !important;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.copy-button:hover {
+    background-color: #45a049 !important;
+}
+
+.extra-info-banner {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin: 10px 0 20px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    color: #6d4c41;
+    font-size: .95rem;
+}
+.extra-info-banner .extra-info-button {
+    margin-left: auto;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #ffa000;
+    background: #ffb300;
+    color: #111;
+    cursor: pointer;
+}
+.extra-info-banner .extra-info-button:hover { filter: brightness(0.95); }
+.extra-info-error { color: #b00020; margin-left: .5rem; }
+
+.extra-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+.extra-field { display: flex; flex-direction: column; gap: 6px; }
+.extra-label { font-weight: 600; }
+.extra-input input,
+.extra-input select,
+.extra-input textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: .95rem;
+}
+.extra-help { font-size: .85rem; color: #666; }
+.extra-error { margin-top: 10px; color: #b00020; }
+
+.extra-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+.extra-actions .primary {
+    background: #1976d2;
+    color: #fff;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.extra-actions .primary:disabled { opacity: .6; cursor: default; }
+
+.demog-summary-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 8px 0 16px;
+}
+
+.chip {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #f2f2f2;
+    font-size: 0.9rem;
+}
+.chip-ok { background: #e3f7ea; }
+.chip-warn { background: #fdecea; }
+.chip-muted { background: #f4f6f8; color: #556; }
+
+.demog-breakdowns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.demog-card {
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #fff;
+}
+
+.demog-table-wrap {
+    overflow-x: auto;
+}
+.demog-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+.demog-table th, .demog-table td {
+    border-bottom: 1px solid #eee;
+    padding: 8px 10px;
+    vertical-align: top;
+}
+.subtle { color: #667; font-size: 0.85em; }
+.badge {
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+}
+.badge-ok { background: #e3f7ea; }
+.badge-warn { background: #fdecea; }
+.error-text { color: #b00020; }
+
+/* People-focused analytics dashboard */
+.analytics-dashboard-v2 {
+    background: #f4f8fb;
+    color: #1f2d3d;
+    min-height: 100vh;
+    padding: 24px;
+}
+
+.analytics-hero {
+    align-items: flex-end;
+    background: #ffffff;
+    border: 1px solid #dce8f2;
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(22, 53, 82, 0.08);
+    display: flex;
+    gap: 24px;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    padding: 24px;
+}
+
+.analytics-kicker {
+    color: #2b78a0;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.analytics-hero h1 {
+    color: #163552;
+    font-size: 2rem;
+    margin: 4px 0;
+}
+
+.analytics-hero p,
+.analytics-panel-header p,
+.analytics-kpi-card p {
+    color: #64748b;
+    margin: 0;
+}
+
+.analytics-report-button,
+.analytics-controls select,
+.analytics-active-filter button,
+.analytics-row-actions button,
+.analytics-modal-header button {
+    border-radius: 8px;
+    font: inherit;
+}
+
+.analytics-report-button,
+.analytics-row-actions button,
+.analytics-modal-header button {
+    background: #163552;
+    border: 1px solid #163552;
+    color: #ffffff;
+    cursor: pointer;
+    font-weight: 800;
+    padding: 10px 14px;
+}
+
+.analytics-controls {
+    align-items: end;
+    background: #ffffff;
+    border: 1px solid #dce8f2;
+    border-radius: 8px;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(5, minmax(150px, 1fr));
+    margin-bottom: 14px;
+    padding: 16px;
+}
+
+.analytics-controls label {
+    color: #52677c;
+    display: grid;
+    font-size: 0.78rem;
+    font-weight: 800;
+    gap: 6px;
+}
+
+.analytics-controls select {
+    background: #ffffff;
+    border: 1px solid #cbdceb;
+    color: #1f2937;
+    padding: 10px 12px;
+}
+
+.analytics-active-filter {
+    align-items: center;
+    background: #edf6fb;
+    border: 1px solid #cde3f0;
+    border-radius: 8px;
+    color: #163552;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding: 12px 14px;
+}
+
+.analytics-active-filter button {
+    background: #ffffff;
+    border: 1px solid #b9d5e7;
+    color: #163552;
+    cursor: pointer;
+    font-weight: 800;
+    padding: 7px 10px;
+}
+
+.analytics-kpi-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 14px;
+}
+
+.analytics-kpi-card,
+.analytics-panel {
+    background: #ffffff;
+    border: 1px solid #dce8f2;
+    border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(22, 53, 82, 0.07);
+}
+
+.analytics-kpi-card {
+    padding: 18px;
+}
+
+.analytics-kpi-card span {
+    color: #52677c;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.analytics-kpi-card strong {
+    color: #163552;
+    display: block;
+    font-size: 2rem;
+    margin: 6px 0;
+}
+
+.analytics-grid-two {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.8fr);
+    margin-bottom: 14px;
+}
+
+.analytics-grid-balanced {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.analytics-panel {
+    overflow: hidden;
+}
+
+.analytics-panel-header {
+    align-items: flex-start;
+    border-bottom: 1px solid #e5edf5;
+    display: flex;
+    justify-content: space-between;
+    padding: 18px;
+}
+
+.analytics-panel-header h2 {
+    color: #163552;
+    font-size: 1.1rem;
+    margin: 0 0 4px;
+}
+
+.analytics-table-wrap {
+    overflow-x: auto;
+}
+
+.analytics-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.analytics-table th,
+.analytics-table td {
+    border-bottom: 1px solid #edf2f7;
+    padding: 12px 14px;
+    text-align: left;
+}
+
+.analytics-table th {
+    background: #f4f8fb;
+    color: #52677c;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+}
+
+.analytics-table td span {
+    color: #64748b;
+    display: block;
+    font-size: 0.82rem;
+    margin-top: 3px;
+}
+
+.analytics-ranked-list,
+.analytics-action-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 14px 18px 18px;
+}
+
+.analytics-ranked-list {
+    list-style: none;
+}
+
+.analytics-ranked-list li,
+.analytics-action-row,
+.analytics-referral-item {
+    align-items: center;
+    background: #f8fbfd;
+    border: 1px solid #e2edf5;
+    border-radius: 8px;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 10px 12px;
+}
+
+.analytics-ranked-list button {
+    background: transparent;
+    border: 0;
+    color: #163552;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+    padding: 0;
+    text-align: left;
+}
+
+.analytics-ranked-list strong,
+.analytics-referral-item strong {
+    color: #163552;
+}
+
+.analytics-ranked-list-paths span,
+.analytics-referral-item span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.analytics-action-row > div:first-child {
+    display: grid;
+    gap: 3px;
+}
+
+.analytics-action-row strong {
+    color: #163552;
+}
+
+.analytics-action-row span {
+    color: #64748b;
+    font-size: 0.86rem;
+}
+
+.analytics-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.analytics-row-actions button {
+    background: #edf6fb;
+    border-color: #cde3f0;
+    color: #163552;
+    padding: 7px 10px;
+}
+
+.analytics-map-card {
+    height: 320px;
+    margin: 0 18px 18px;
+    overflow: hidden;
+    border: 1px solid #dce8f2;
+    border-radius: 8px;
+}
+
+.analytics-referral-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    padding: 18px;
+}
+
+.analytics-modal-v2 {
+    height: 84vh;
+    max-width: 1100px;
+    padding: 0;
+    width: 86vw;
+}
+
+.analytics-modal-header {
+    align-items: center;
+    background: #ffffff;
+    border-bottom: 1px solid #dce8f2;
+    display: flex;
+    justify-content: space-between;
+    padding: 16px 18px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.analytics-modal-header h2 {
+    color: #163552;
+    margin: 0;
+}
+
+.analytics-modal-header div {
+    display: flex;
+    gap: 8px;
+}
+
+.analytics-modal-v2 > canvas,
+.analytics-modal-v2 > div:not(.analytics-modal-header) {
+    margin: 18px;
+}
+
+@media screen and (max-width: 1000px) {
+    .analytics-hero,
+    .analytics-active-filter {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .analytics-controls,
+    .analytics-kpi-grid,
+    .analytics-grid-two,
+    .analytics-grid-balanced {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    .analytics-dashboard-v2 {
+        padding: 14px;
+    }
+
+    .analytics-row-actions,
+    .analytics-action-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+
+
+/* Responsive Adjustments for General Dashboard Styling */
+@media screen and (max-width: 768px) {
+
+    /* Dashboard container padding adjustments for mobile */
+    .dashboard-container {
+        padding: 15px; /* Reduce padding on smaller screens */
+    }
+
+    /* Title font size adjustments for mobile */
+    .dashboard-title {
+        font-size: 1.8rem; /* Reduce title size */
+        margin-bottom: 20px; /* Reduce bottom margin */
+    }
+
+    /* Expandable row button adjustments for mobile */
+    .expandable-row button {
+        font-size: 0.9rem; /* Adjust font size for smaller screens */
+        padding: 10px; /* Adjust padding */
+    }
+
+    /* Content padding adjustments for mobile */
+    .expandable-content {
+        padding: 10px; /* Reduce padding inside the expandable content */
+    }
+
+    /* Overview grid column adjustment for smaller screens */
+    .overview-grid {
+        grid-template-columns: 1fr; /* Change to single column for mobile */
+        gap: 15px; /* Reduce grid gap */
+    }
+
+    /* Adjust map and chart heights on mobile */
+    .overview-map, .overview-chart {
+        height: 300px; /* Reduce height for mobile screens */
+    }
+
+    /* Dropdown container adjustments */
+    .dropdowns-container {
+        flex-direction: column; /* Stack dropdowns vertically */
+        gap: 10px; /* Reduce gap between dropdowns */
+    }
+
+    /* Analytics expandable row adjustments */
+    .analytics-expandable-row {
+        font-size: 1rem; /* Reduce font size */
+        padding: 10px; /* Adjust padding */
+    }
+
+    .analytics-expandable-content {
+        padding: 10px; /* Adjust padding for mobile */
+    }
+
+    /* Map grid adjustments */
+    .map-grid {
+        grid-template-columns: 1fr; /* Single column for mobile */
+        gap: 15px; /* Reduce grid gap */
+    }
+
+    .leaflet-map-container, .country-map-container {
+        height: 300px; /* Adjust height for smaller screens */
+    }
+
+    /* Heatmap label adjustments */
+    .custom-heatmap-label {
+        font-size: 10px; /* Smaller font size for mobile */
+        padding: 3px 5px; /* Reduce padding */
+    }
+
+    /* Modal adjustments for smaller screens */
+    .modal-analytics-content {
+        width: 95%; /* Full width for mobile */
+        max-height: 70%; /* Adjust max height */
+        padding: 15px; /* Adjust padding */
+    }
+
+    /* Button font size adjustments */
+    .modal-analytics button {
+        font-size: 0.9rem; /* Adjust font size for mobile */
+        padding: 8px 15px; /* Adjust padding */
+    }
+
+    /* Flex container adjustments */
+    .button-row-container {
+        flex-direction: column; /* Stack buttons vertically on mobile */
+        gap: 10px; /* Adjust gap */
+    }
+
+    /* Report button adjustments */
+    .custom-report-button {
+        font-size: 1rem; /* Adjust font size */
+        padding: 10px 20px; /* Adjust padding */
+    }
+
+    /* Pagination control adjustments */
+    .pagination-controls {
+        flex-direction: column; /* Stack pagination controls */
+        gap: 10px;
+    }
+
+    /* Dropdowns */
+    .dropdowns-container select {
+        font-size: 0.8rem; /* Adjust font size */
+        padding: 6px; /* Adjust padding */
+    }
+}

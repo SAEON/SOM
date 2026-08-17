@@ -1,0 +1,128 @@
+/* General modal styling for the login page */
+.login-register-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: 1000; /* Ensure modal is on top */
+}
+
+.login-register-modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white; /* Change to white background */
+    color: #163552; /* Change text color to match your theme */
+    border-radius: 8px;
+    width: auto; /* Set width to auto */
+    padding: 1.5rem; /* Adjust padding */
+    z-index: 1100; /* Ensure modal is on top */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, .5); /* Add some shadow for better visibility */
+    max-height: 90vh; /* Limit the height to 90% of the viewport */
+    overflow-y: auto; /* Enable vertical scrolling if content exceeds max-height */
+}
+
+.login-register-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #ddd;
+}
+
+.error-message {
+    color: darkred;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.login-register-close-button {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 50%;
+    font-size: 1rem;
+    cursor: pointer;
+    color: #475569;
+    width: 25px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+.login-register-title {
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    color: #163552; /* Ensure the header text is visible */
+}
+
+.login-register-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center the form elements */
+}
+
+.login-register-form > div {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    width: 100%; /* Make form divs full width */
+}
+
+.login-register-label {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: #163552; /* Change label color */
+}
+
+.login-register-input, .login-register-select {
+    padding: 0.5rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+    color: #163552;
+    width: 100%; /* Make input fields full width */
+}
+
+.login-register-button {
+    padding: 0.75rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #3768af;
+    color: white;
+    margin-top: 1rem;
+    width: 100%; /* Make button full width */
+}
+
+.login-register-button:hover {
+    background-color: #0056b3;
+}
+
+/* Mobile styling */
+@media (max-width: 600px) {
+    .login-register-modal-content {
+        width: 90%;
+        padding: 1rem;
+    }
+
+    .login-register-title {
+        font-size: 1.25rem;
+    }
+
+    .login-register-input, .login-register-select {
+        font-size: 0.875rem;
+    }
+
+    .login-register-button {
+        font-size: 0.875rem;
+    }
+}
