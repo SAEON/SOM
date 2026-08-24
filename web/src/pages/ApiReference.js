@@ -4,72 +4,77 @@ import './ApiReference.css';
 import {logInteraction} from "../utils/logInteraction";
 
 const BASE_URL = "https://observationsmonitor.saeon.ac.za";
-const LOCAL_URL = "http://localhost:3081";
+const CURL_UA = '-A "Mozilla/5.0"';
+const AUTH = '-u "$SAEON_API_USER:$SAEON_API_PASSWORD"';
 
-const authCurl = (baseUrl, path) => `curl -u "your-username:your-password" "${baseUrl}${path}"`;
-const publicCurl = (baseUrl, path) => `curl "${baseUrl}${path}"`;
-const downloadCurl = (baseUrl, path) => `curl -L -u "your-username:your-password" -o saeon-data.csv "${baseUrl}${path}"`;
+const curl = (path, {auth = false, output = null} = {}) => {
+    const parts = ['curl', CURL_UA, '-L'];
+    if (auth) parts.push(AUTH);
+    if (output) parts.push(`-o ${output}`);
+    parts.push(`"${BASE_URL}${path}"`);
+    return parts.join(' ');
+};
 
 const endpoints = [
     {
         method: "GET",
         path: "/api/v1/status",
         title: "API status",
-        description: "Lightweight health check used by the site and external monitors.",
+        description: "Lightweight health check for uptime checks and scripts.",
         params: [],
         access: "Public",
-        localExample: publicCurl(LOCAL_URL, "/api/v1/status"),
-        liveExample: publicCurl(BASE_URL, "/api/v1/status"),
+        href: "/api/v1/status",
+        example: curl("/api/v1/status"),
     },
     {
         method: "GET",
         path: "/api/v1/sites",
         title: "List public sites",
-        description: "Returns public site names that have mapped data in the Data tab, plus a next link for table lookup.",
+        description: "Returns public site names that have mapped data in the Data tab.",
         params: [],
         access: "Login required",
-        localExample: authCurl(LOCAL_URL, "/api/v1/sites"),
-        liveExample: authCurl(BASE_URL, "/api/v1/sites"),
+        href: "/api/v1/sites",
+        example: curl("/api/v1/sites", {auth: true}),
     },
     {
         method: "GET",
         path: "/api/v1/tables",
         title: "List tables for a site",
-        description: "Returns public tables and date-range metadata for one site, plus a next link for the first date-range lookup.",
+        description: "Returns public tables, archive dates, row counts, and the next date-range URL.",
         params: ["serverName"],
         access: "Login required",
-        localExample: authCurl(LOCAL_URL, "/api/v1/tables?serverName=Benfontein%20AWS"),
-        liveExample: authCurl(BASE_URL, "/api/v1/tables?serverName=Benfontein%20AWS"),
+        href: "/api/v1/tables?serverName=Benfontein%20AWS",
+        example: curl("/api/v1/tables?serverName=Benfontein%20AWS", {auth: true}),
     },
     {
         method: "GET",
         path: "/api/v1/date-range",
         title: "Get table date range",
-        description: "Returns the available date range and public row count for one site-table dataset, plus example JSON and CSV links.",
+        description: "Returns the available archive window for one site-table dataset.",
         params: ["serverName", "tableName"],
         access: "Login required",
-        localExample: authCurl(LOCAL_URL, "/api/v1/date-range?serverName=Benfontein%20AWS&tableName=5%20minute"),
-        liveExample: authCurl(BASE_URL, "/api/v1/date-range?serverName=Benfontein%20AWS&tableName=5%20minute"),
+        href: "/api/v1/date-range?serverName=Benfontein%20AWS&tableName=5%20minute",
+        example: curl("/api/v1/date-range?serverName=Benfontein%20AWS&tableName=5%20minute", {auth: true}),
     },
     {
         method: "GET",
         path: "/api/v1/data",
         title: "Read data as JSON",
-        description: "Returns paginated JSON rows for one site-table dataset and bounded date window. Use next for the following page.",
+        description: "Returns paginated JSON rows for a bounded date window. Follow next for later pages.",
         params: ["serverName", "tableName", "startDate", "endDate", "limit", "after"],
         access: "Login required",
-        localExample: authCurl(LOCAL_URL, "/api/v1/data?serverName=Benfontein%20AWS&tableName=5%20minute&startDate=2026-08-13&endDate=2026-08-13&limit=1000"),
-        liveExample: authCurl(BASE_URL, "/api/v1/data?serverName=Benfontein%20AWS&tableName=5%20minute&startDate=2026-08-13&endDate=2026-08-13&limit=1000"),
+        href: "/api/v1/data?serverName=Benfontein%20AWS&tableName=5%20minute&startDate=2026-08-13&endDate=2026-08-13&limit=1000",
+        example: curl("/api/v1/data?serverName=Benfontein%20AWS&tableName=5%20minute&startDate=2026-08-13&endDate=2026-08-13&limit=1000", {auth: true}),
     },
     {
         method: "GET",
         path: "/api/v1/download",
         title: "Download CSV",
-        description: "Streams CSV export data for one site-table dataset. Use this for files; use /api/v1/data for script-friendly JSON.",
+        description: "Downloads one bounded CSV file. Scripts should usually prefer /api/v1/data JSON.",
         params: ["serverName", "tableName", "startDate", "endDate"],
         access: "Login required",
-        localExample: downloadCurl(LOCAL_URL, "/api/v1/download?serverName=Benfontein%20AWS&tableName=5%20minute&startDate=2026-08-01&endDate=2026-08-13"),
-        liveExample: downloadCurl(BASE_URL, "/api/v1/download?serverName=Benfontein%20AWS&tableName=5%20minute&startDate=2026-08-01&endDate=2026-08-13"),
+        href: "/api/v1/download?serverName=Benfontein%20AWS&tableName=5%20minute&startDate=2026-08-01&endDate=2026-08-13",
+        example: curl("/api/v1/download?serverName=Benfontein%20AWS&tableName=5%20minute&startDate=2026-08-01&endDate=2026-08-13", {auth: true, output: "benfontein-2026-08.csv"}),
     },
     {
         method: "GET",
@@ -78,8 +83,8 @@ const endpoints = [
         description: "Aggregate public counts for archive size, live sites, dataset coverage, and sync timestamps.",
         params: [],
         access: "Public aggregate",
-        localExample: publicCurl(LOCAL_URL, "/api/public/monitoring/highlights"),
-        liveExample: publicCurl(BASE_URL, "/api/public/monitoring/highlights"),
+        href: "/api/public/monitoring/highlights",
+        example: curl("/api/public/monitoring/highlights"),
     },
     {
         method: "GET",
@@ -88,24 +93,36 @@ const endpoints = [
         description: "Aggregate usage counts for public display. No person-level analytics are returned.",
         params: ["year"],
         access: "Public aggregate",
-        localExample: publicCurl(LOCAL_URL, "/api/public/analytics/highlights?year=2026"),
-        liveExample: publicCurl(BASE_URL, "/api/public/analytics/highlights?year=2026"),
+        href: "/api/public/analytics/highlights?year=2026",
+        example: curl("/api/public/analytics/highlights?year=2026"),
     },
 ];
 
+const curlLoginExample = `BASE_URL="${BASE_URL}"
+SAEON_API_USER="your-username"
+SAEON_API_PASSWORD="your-password"
+
+# Option 1: log in once and reuse a cookie.
+curl ${CURL_UA} -c saeon-api.cookies \\
+  -H "Content-Type: application/json" \\
+  -d "{\\"username\\":\\"$SAEON_API_USER\\",\\"password\\":\\"$SAEON_API_PASSWORD\\"}" \\
+  "$BASE_URL/api/login"
+
+curl ${CURL_UA} -b saeon-api.cookies "$BASE_URL/api/v1/sites"
+
+# Option 2: use HTTP Basic Auth for one-off HTTPS calls.
+curl ${CURL_UA} -u "$SAEON_API_USER:$SAEON_API_PASSWORD" \\
+  "$BASE_URL/api/v1/sites"`;
+
 const pythonExample = `import requests
 
-BASE_URL = "https://observationsmonitor.saeon.ac.za"
+BASE_URL = "${BASE_URL}"
 USERNAME = "your-username"
 PASSWORD = "your-password"
 
 session = requests.Session()
-login = session.post(
-    f"{BASE_URL}/api/login",
-    json={"username": USERNAME, "password": PASSWORD},
-    timeout=30,
-)
-login.raise_for_status()
+session.auth = (USERNAME, PASSWORD)
+session.headers.update({"User-Agent": "Mozilla/5.0"})
 
 sites = session.get(f"{BASE_URL}/api/v1/sites", timeout=30).json()["items"]
 site = sites[0]["site_name"]
@@ -145,7 +162,7 @@ const pythonFullSeriesExample = `import requests
 from datetime import date, timedelta
 from calendar import monthrange
 
-BASE_URL = "https://observationsmonitor.saeon.ac.za"
+BASE_URL = "${BASE_URL}"
 USERNAME = "your-username"
 PASSWORD = "your-password"
 SITE = "Benfontein AWS"
@@ -163,6 +180,7 @@ def month_windows(start_day, end_day):
 
 session = requests.Session()
 session.auth = (USERNAME, PASSWORD)
+session.headers.update({"User-Agent": "Mozilla/5.0"})
 
 date_range = session.get(
     f"{BASE_URL}/api/v1/date-range",
@@ -174,6 +192,7 @@ start_day = parse_day(date_range["startDate"])
 end_day = parse_day(date_range["endDate"])
 
 for window_start, window_end in month_windows(start_day, end_day):
+    next_url = f"{BASE_URL}/api/v1/data"
     params = {
         "serverName": SITE,
         "tableName": TABLE,
@@ -181,43 +200,25 @@ for window_start, window_end in month_windows(start_day, end_day):
         "endDate": window_end.isoformat(),
         "limit": 5000,
     }
-    next_url = f"{BASE_URL}/api/v1/data"
-    page_number = 1
     while next_url:
         page = session.get(next_url, params=params, timeout=60).json()
-        print(window_start, window_end, "page", page_number, "rows", page["count"])
+        print(window_start, window_end, "rows", page["count"])
         for row in page["items"]:
             # Store/process row["timestampSast"] and row["values"] here.
             pass
         next_url = f"{BASE_URL}{page['next']}" if page.get("next") else None
         params = None
-        page_number += 1
 `;
-
-const curlLoginExample = `# Local cookie login
-curl -c saeon-api.local.cookies \\
-  -H "Content-Type: application/json" \\
-  -d '{"username":"your-username","password":"your-password"}' \\
-  "${LOCAL_URL}/api/login"
-
-curl -b saeon-api.local.cookies "${LOCAL_URL}/api/v1/sites"
-
-# Live cookie login
-curl -c saeon-api.live.cookies \\
-  -H "Content-Type: application/json" \\
-  -d '{"username":"your-username","password":"your-password"}' \\
-  "${BASE_URL}/api/login"
-
-curl -b saeon-api.live.cookies "${BASE_URL}/api/v1/sites"
-
-# Or, for one-off script calls over HTTPS:
-curl -u "your-username:your-password" "${BASE_URL}/api/v1/sites"`;
 
 const ApiReference = ({user}) => {
     const [status, setStatus] = useState(null);
     const [statusError, setStatusError] = useState(null);
 
-    const localBaseUrl = useMemo(() => window.location.origin, []);
+    const generatedAt = useMemo(() => new Intl.DateTimeFormat('en-ZA', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'Africa/Johannesburg',
+    }).format(new Date()), []);
 
     useEffect(() => {
         logInteraction('page_view', {viewport: {width: window.innerWidth, height: window.innerHeight}}, user);
@@ -242,9 +243,13 @@ const ApiReference = ({user}) => {
                     <p className="api-reference-kicker">Public API</p>
                     <h1>SAEON observations monitor API</h1>
                     <p>
-                        Programmatic access to public site lists, table metadata, date ranges, monitoring summaries,
-                        and paginated JSON data. CSV remains available for explicit export/download workflows.
+                        Script access for public site lists, table metadata, date ranges, paginated JSON data,
+                        bounded CSV downloads, and aggregate monitoring summaries.
                     </p>
+                    <div className="api-reference-pill-row">
+                        <span>Production API</span>
+                        <span>Generated {generatedAt} SAST</span>
+                    </div>
                 </div>
                 <div className={`api-status-card ${status?.active ? 'api-status-card--ok' : ''}`}>
                     <span>Current status</span>
@@ -255,37 +260,25 @@ const ApiReference = ({user}) => {
 
             <section className="api-reference-grid">
                 <article className="api-reference-panel">
-                    <h2>Access rules</h2>
+                    <h2>Access Rules</h2>
                     <ul>
-                        <li>Dataset API endpoints require login so usage can be linked to a known account.</li>
-                        <li>Status and aggregate homepage summary endpoints remain public because they do not expose dataset rows.</li>
-                        <li>List and metadata endpoints are cached for short periods to protect the server.</li>
-                        <li>JSON data pages and CSV exports are limited to 31 days per request.</li>
-                        <li>Full site-table time series should be read as monthly JSON windows using the date range endpoint.</li>
-                        <li>The website keeps CSV downloads for people who need spreadsheet files; scripts should usually use JSON.</li>
-                        <li>Usage is rate-limited and recorded with account, endpoint, status, and session metadata for reporting.</li>
+                        <li>Dataset discovery, JSON data, and CSV downloads require a username and password.</li>
+                        <li>Scripts can use either a session cookie from <code>/api/login</code> or HTTP Basic Auth.</li>
+                        <li>Status and aggregate monitoring endpoints remain public because they do not expose row-level data.</li>
+                        <li>JSON and CSV requests are limited to 31 days per request; loop over monthly windows for full histories.</li>
+                        <li>API usage is recorded for analytics and capacity planning.</li>
                     </ul>
                 </article>
 
                 <article className="api-reference-panel">
-                    <h2>Rate limits</h2>
+                    <h2>Rate Limits</h2>
                     <dl className="api-rate-list">
-                        <div>
-                            <dt>General public API</dt>
-                            <dd>240 requests per minute per account or IP</dd>
-                        </div>
-                        <div>
-                            <dt>JSON data pages</dt>
-                            <dd>60 requests per minute per account or IP</dd>
-                        </div>
-                        <div>
-                            <dt>CSV downloads</dt>
-                            <dd>3 download starts per 10 minutes per account or IP</dd>
-                        </div>
+                        <div><dt>General API</dt><dd>240 requests per minute</dd></div>
+                        <div><dt>JSON data</dt><dd>60 requests per minute</dd></div>
+                        <div><dt>CSV downloads</dt><dd>3 starts per 10 minutes</dd></div>
                     </dl>
                     <p className="api-reference-note api-reference-note--compact">
-                        The metadata limit allows several researchers behind one institutional gateway. Download starts
-                        are deliberately tight because some CSV exports are 80-200 MB.
+                        Admin, SU, and Collaborators accounts are exempt from these throttles. All API calls are still logged.
                     </p>
                 </article>
             </section>
@@ -293,26 +286,13 @@ const ApiReference = ({user}) => {
             <section className="api-reference-panel">
                 <div className="api-reference-section-heading">
                     <div>
-                        <p className="api-reference-kicker">Base URLs</p>
-                        <h2>Use production or local development</h2>
-                    </div>
-                </div>
-                <div className="api-base-grid">
-                    <code>{BASE_URL}</code>
-                    <code>{localBaseUrl}</code>
-                </div>
-            </section>
-
-            <section className="api-reference-panel">
-                <div className="api-reference-section-heading">
-                    <div>
                         <p className="api-reference-kicker">Login</p>
-                        <h2>Authenticate once, then reuse the session cookie</h2>
+                        <h2>Use your website account from scripts</h2>
                     </div>
                 </div>
                 <p className="api-reference-note">
-                    Browser links work when you are already logged in. Scripts should log in first and send the saved
-                    session cookie on later API requests.
+                    Use placeholders below, not a shared password in saved scripts. The <code>Mozilla/5.0</code> user agent keeps
+                    command-line calls compatible with the public web firewall.
                 </p>
                 <pre><code>{curlLoginExample}</code></pre>
             </section>
@@ -333,44 +313,32 @@ const ApiReference = ({user}) => {
                                 {endpoint.params.map((param) => <code key={param}>{param}</code>)}
                             </div>
                         )}
-                        <div className="api-example-pair">
-                            <div>
-                                <span>Local test</span>
-                                <pre><code>{endpoint.localExample}</code></pre>
-                            </div>
-                            <div>
-                                <span>Live test</span>
-                                <pre><code>{endpoint.liveExample}</code></pre>
-                            </div>
-                        </div>
+                        <a className="api-example-link" href={endpoint.href} target="_blank" rel="noreferrer">
+                            Open example
+                        </a>
+                        <pre><code>{endpoint.example}</code></pre>
                     </article>
                 ))}
             </section>
 
             <section className="api-reference-panel">
                 <div className="api-reference-section-heading">
-                    <div>
-                        <p className="api-reference-kicker">Python</p>
-                        <h2>Read data as JSON</h2>
-                    </div>
+                    <div><p className="api-reference-kicker">Python</p><h2>Read data as JSON</h2></div>
                 </div>
                 <p className="api-reference-note">
-                    This reads one site-table dataset for one date window. The API returns JSON rows with SAST
-                    timestamps, field values, and a next link for pagination.
+                    This reads one site-table dataset for one date window. Responses use SAST display timestamps,
+                    UTC cursor timestamps for pagination, and a field-value object for each row.
                 </p>
                 <pre><code>{pythonExample}</code></pre>
             </section>
 
             <section className="api-reference-panel">
                 <div className="api-reference-section-heading">
-                    <div>
-                        <p className="api-reference-kicker">Full Time Series</p>
-                        <h2>Read a complete site-table history in monthly JSON chunks</h2>
-                    </div>
+                    <div><p className="api-reference-kicker">Full Time Series</p><h2>Read a complete site-table history in monthly chunks</h2></div>
                 </div>
                 <p className="api-reference-note">
-                    Use the date range endpoint to discover the full archive window, then loop through month-sized
-                    JSON requests. This avoids a single very large response while still giving users the complete time series.
+                    Discover the full archive window from the date-range endpoint, then loop through bounded JSON
+                    requests. This gives the full time series without one huge response.
                 </p>
                 <pre><code>{pythonFullSeriesExample}</code></pre>
             </section>

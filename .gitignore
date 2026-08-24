@@ -6,7 +6,6 @@
 
 # Obsolete root-level files from the pre-Docker site.
 index.html
-.github/workflows/deploy.yml
 
 # Legacy local scripts from the pre-Docker workflow.
 # These are kept off GitHub because several contain machine-specific paths or credentials.

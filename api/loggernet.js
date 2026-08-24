@@ -20,8 +20,22 @@ const JSONStream = require('JSONStream');
 const {Readable} = require('stream');
 const multer = require('multer');
 const {spawn} = require('child_process');
+const loggernetHostOverride = (process.env.LOGGERNET_HOST_OVERRIDE || '').trim();
 const agent = new https.Agent({
   rejectUnauthorized: process.env.LOGGERNET_REJECT_UNAUTHORIZED === 'true',
+  lookup: loggernetHostOverride
+    ? (hostname, options, callback) => {
+      if (hostname === 'lognet.saeon.ac.za') {
+        if (options && options.all) {
+          callback(null, [{ address: loggernetHostOverride, family: 4 }]);
+          return;
+        }
+        callback(null, loggernetHostOverride, 4);
+        return;
+      }
+      require('dns').lookup(hostname, options, callback);
+    }
+    : undefined,
 });
 const compression = require('compression'); // Import compression middleware
 
@@ -43,6 +57,12 @@ const emptyBackgroundLane = () => ({
   lastError: null,
   lastDurationSeconds: null,
   nextRunAt: null,
+  tablesCheckedThisRun: 0,
+  tablesWithDataThisRun: 0,
+  tablesFailedThisRun: 0,
+  rowsTouchedThisRun: 0,
+  lastSuccessfulTable: null,
+  lastFailedTable: null,
 });
 const backgroundStatus = {
   enabled: backgroundJobsEnabled,
@@ -75,10 +95,24 @@ function getSastDateParts(date = new Date()) {
   };
 }
 
-function createRateLimiter({windowMs, max, message}) {
+function isPrivilegedApiRole(role) {
+  return ['admin', 'su', 'collaborator', 'collaborators'].includes(String(role || '').trim().toLowerCase());
+}
+
+function isRateLimitExempt(req) {
+  return isPrivilegedApiRole(req.apiUser?.role || req.session?.user?.role || req.user?.role);
+}
+
+function createRateLimiter({windowMs, max, message, skip}) {
   const buckets = new Map();
 
   return (req, res, next) => {
+    if (typeof skip === 'function' && skip(req)) {
+      res.set('X-RateLimit-Limit', 'unlimited');
+      res.set('X-RateLimit-Remaining', 'unlimited');
+      return next();
+    }
+
     const now = Date.now();
     const actor =
       req.session?.user?.id ? `user:${req.session.user.id}` :
@@ -200,6 +234,7 @@ async function authenticateBasicApiUser(req) {
 
 async function requireLoggedInPublicApi(req, res, next) {
   if (req.session?.user?.id) return next();
+  if (req.apiUser?.id) return next();
 
   try {
     const apiUser = await authenticateBasicApiUser(req);
@@ -215,6 +250,19 @@ async function requireLoggedInPublicApi(req, res, next) {
   return res.status(401).json({
     message: 'Login required for data API access. Use a session cookie or HTTP Basic Auth over HTTPS.',
   });
+}
+
+async function identifyOptionalPublicApiUser(req, res, next) {
+  if (req.session?.user?.id || req.apiUser?.id) return next();
+
+  try {
+    const apiUser = await authenticateBasicApiUser(req);
+    if (apiUser) req.apiUser = apiUser;
+  } catch (error) {
+    console.error('Optional Basic API authentication failed:', error.message);
+  }
+
+  next();
 }
 
 function parseDateOnly(value) {
@@ -1527,23 +1575,27 @@ const publicApiLimiter = createRateLimiter({
   windowMs: 60 * 1000,
   max: 240,
   message: 'Public API rate limit exceeded. Please wait a minute before retrying.',
+  skip: isRateLimitExempt,
 });
 
 const publicDataLimiter = createRateLimiter({
   windowMs: 60 * 1000,
   max: 60,
   message: 'Data API rate limit exceeded. JSON data pages are limited to 60 requests per minute. Please wait before retrying.',
+  skip: isRateLimitExempt,
 });
 
 const publicDownloadLimiter = createRateLimiter({
   windowMs: 10 * 60 * 1000,
   max: 3,
   message: 'CSV download rate limit exceeded. Exports can be large, so downloads are limited to 3 starts per 10 minutes. Please wait before starting more downloads.',
+  skip: isRateLimitExempt,
 });
 
+app.use('/api/summary_table/download', requireLoggedInPublicApi);
+app.use(['/api/public', '/api/v1'], identifyOptionalPublicApiUser);
 app.use('/api/public/download', publicDownloadLimiter);
 app.use('/api/summary_table/download', publicDownloadLimiter);
-app.use('/api/summary_table/download', requireLoggedInPublicApi);
 app.use('/api/public', publicApiLimiter, publicApiAnalyticsMiddleware);
 app.use(
   [
@@ -1591,6 +1643,19 @@ async function ensureSiteStatusSchema() {
     INSERT INTO public.site_status (id, status, is_active, message, details, updated_by, updated_at)
     VALUES (1, 'online', false, 'SAEON observations monitor API is online.', null, 'system', now())
     ON CONFLICT (id) DO NOTHING
+  `);
+}
+
+async function ensureApiRoles() {
+  await pool.query(`
+    INSERT INTO roles (name)
+    SELECT role_name
+    FROM (VALUES ('User'), ('Admin'), ('SU'), ('Collaborators')) AS required(role_name)
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM roles
+      WHERE lower(name) = lower(required.role_name)
+    )
   `);
 }
 
@@ -2298,15 +2363,48 @@ app.get('/api/public/monitoring/highlights', async (req, res) => {
       pool.query(`
         SELECT
           MIN(start_date)::date AS archive_start,
-          MAX(end_date)::date AS archive_end,
+          MAX(CASE
+            WHEN latest_available_date IS NULL THEN end_date
+            WHEN end_date IS NULL THEN latest_available_date
+            ELSE GREATEST(end_date, latest_available_date)
+          END)::date AS archive_end,
           SUM(COALESCE(total_count, 0))::bigint AS public_table_rows
-        FROM summary_data_date_ranges
+        FROM summary_data_date_ranges sdr
+        LEFT JOIN (
+          SELECT display_server_name AS server_name,
+                 display_table_name AS table_name,
+                 MAX(date)::timestamptz AS latest_available_date
+          FROM daily_data_availability
+          WHERE available_records > 0
+          GROUP BY display_server_name, display_table_name
+        ) la
+          ON la.server_name = sdr.server_name
+         AND la.table_name = sdr.table_name
       `),
       pool.query(`
-        SELECT server_name, table_name, end_date::date AS latest_date, total_count
-        FROM summary_data_date_ranges
-        WHERE end_date IS NOT NULL
-        ORDER BY end_date DESC, total_count DESC NULLS LAST
+        SELECT
+          sdr.server_name,
+          sdr.table_name,
+          CASE
+            WHEN la.latest_available_date IS NULL THEN sdr.end_date
+            WHEN sdr.end_date IS NULL THEN la.latest_available_date
+            ELSE GREATEST(sdr.end_date, la.latest_available_date)
+          END::date AS latest_date,
+          sdr.total_count
+        FROM summary_data_date_ranges sdr
+        LEFT JOIN (
+          SELECT display_server_name AS server_name,
+                 display_table_name AS table_name,
+                 MAX(date)::timestamptz AS latest_available_date
+          FROM daily_data_availability
+          WHERE available_records > 0
+          GROUP BY display_server_name, display_table_name
+        ) la
+          ON la.server_name = sdr.server_name
+         AND la.table_name = sdr.table_name
+        WHERE sdr.end_date IS NOT NULL
+           OR la.latest_available_date IS NOT NULL
+        ORDER BY latest_date DESC, total_count DESC NULLS LAST
         LIMIT 4
       `),
     ]);
@@ -2889,8 +2987,9 @@ app.post('/api/register', async (req, res) => {
 // Get all roles
 app.get('/api/roles', async (req, res) => {
     try {
+        await ensureApiRoles();
         const result = await pool.query('SELECT id, name FROM roles');
-        await await res.json(result.rows);
+        res.json(result.rows);
     } catch (error) {
         console.error('Error fetching roles:', error);
         res.status(500).json({error: 'Internal server error'});
@@ -3000,18 +3099,28 @@ function isStatisticsUri(u) {
 async function updateFieldValuesSummary() {
     try {
         const query = `
-      UPDATE field_values_summary
-      SET total_field_values_count = (
-          SELECT COUNT(*) FROM field_values
+      WITH partition_estimates AS (
+        SELECT GREATEST(c.reltuples, 0)::bigint AS estimated_rows
+        FROM pg_inherits i
+        JOIN pg_class c ON c.oid = i.inhrelid
+        WHERE i.inhparent = 'public.field_values'::regclass
       ),
-      summary_data_count = (
-          SELECT COUNT(*) FROM field_values WHERE field_id IN (SELECT field_id FROM summary_table)
-      );
+      totals AS (
+        SELECT
+          COALESCE((SELECT SUM(estimated_rows) FROM partition_estimates), 0)::bigint AS total_field_values_count,
+          COALESCE((SELECT SUM(total_count)::bigint FROM summary_data_date_ranges), 0)::bigint AS summary_data_count
+      )
+      UPDATE field_values_summary fvs
+      SET
+        total_field_values_count = totals.total_field_values_count,
+        summary_data_count = totals.summary_data_count
+      FROM totals
+      WHERE fvs.id = 1;
     `;
 
         // Run the query
         await pool.query(query);
-        console.log('Field values summary updated successfully!');
+        console.log('Field values summary updated successfully using fast estimates.');
     } catch (error) {
         console.error('Error updating field values summary:', error);
     }
@@ -3861,16 +3970,22 @@ app.post('/api/summary_table/date-ranges', async (req, res) => {
 
   try {
     const query = `
+      WITH wanted AS (
+        SELECT *
+        FROM unnest($1::text[], $2::text[]) AS wanted(server_name, table_name)
+      )
       SELECT
-        sdr.server_name,
-        sdr.table_name,
+        wanted.server_name,
+        wanted.table_name,
         sdr.start_date,
         sdr.end_date
-      FROM summary_data_date_ranges sdr
-      JOIN unnest($1::text[], $2::text[]) AS wanted(server_name, table_name)
+      FROM wanted
+      LEFT JOIN summary_data_date_ranges sdr
         ON wanted.server_name = sdr.server_name
        AND wanted.table_name = sdr.table_name
-      ORDER BY sdr.server_name, sdr.table_name;
+      WHERE sdr.start_date IS NOT NULL
+         OR sdr.end_date IS NOT NULL
+      ORDER BY wanted.server_name, wanted.table_name;
     `;
     const result = await pool.query(query, [
       pairs.map(([serverName]) => serverName),
@@ -6281,6 +6396,53 @@ async function generateCSVForTable(client, tableId, tableName, serverName, start
 
 
 
+const advanceSummaryDateRangesFromAvailability = async () => {
+  const lane = activeBackgroundLane && backgroundStatus[activeBackgroundLane]
+    ? backgroundStatus[activeBackgroundLane]
+    : null;
+
+  if (lane) {
+    lane.detail = 'Advancing public table date ranges from availability cache';
+  }
+
+  const {rows} = await pool.query(`
+    WITH latest AS (
+      SELECT
+        display_server_name AS server_name,
+        display_table_name AS table_name,
+        MAX(date)::timestamptz AS latest_available_date
+      FROM daily_data_availability
+      WHERE available_records > 0
+        AND display_server_name IS NOT NULL
+        AND btrim(display_server_name) <> ''
+        AND display_table_name IS NOT NULL
+        AND btrim(display_table_name) <> ''
+      GROUP BY display_server_name, display_table_name
+    ),
+    updated AS (
+      UPDATE summary_data_date_ranges sdr
+      SET
+        start_date = COALESCE(sdr.start_date, latest.latest_available_date),
+        end_date = GREATEST(COALESCE(sdr.end_date, latest.latest_available_date), latest.latest_available_date),
+        updated_at = NOW()
+      FROM latest
+      WHERE sdr.server_name = latest.server_name
+        AND sdr.table_name = latest.table_name
+        AND latest.latest_available_date > COALESCE(sdr.end_date, '-infinity'::timestamptz)
+      RETURNING 1
+    )
+    SELECT COUNT(*)::int AS count
+    FROM updated;
+  `);
+
+  const advancedCount = rows[0]?.count || 0;
+  if (lane) {
+    lane.detail = `Advanced ${advancedCount} public table date ranges from availability cache`;
+  }
+  console.log(`[AVAILABILITY] Advanced ${advancedCount} summary date ranges from availability cache.`);
+  return advancedCount;
+};
+
 const calculateDailyDataAvailabilityWindow = async (monthsBack = 3) => {
   const endDate = new Date();
   const startDate = new Date(endDate);
@@ -6380,12 +6542,23 @@ const calculateDailyDataAvailabilityWindow = async (monthsBack = 3) => {
   `;
 
   const client = await pool.connect();
+  let committed = false;
   try {
+    const lane = activeBackgroundLane && backgroundStatus[activeBackgroundLane]
+      ? backgroundStatus[activeBackgroundLane]
+      : null;
+    if (lane) {
+      lane.detail = `Refreshing availability from ${startDateString} to ${endDateString}`;
+    }
+
     await client.query('BEGIN');
     await client.query('SET LOCAL jit = off');
     await client.query("SET LOCAL work_mem = '128MB'");
 
     const result = await client.query(query, [startDateString, endDateString]);
+    if (lane) {
+      lane.detail = `Availability rows touched: ${result.rowCount} (${startDateString} to ${endDateString})`;
+    }
 
     await client.query(`
       INSERT INTO last_synced (id, last_data_availability_sync_time)
@@ -6396,9 +6569,13 @@ const calculateDailyDataAvailabilityWindow = async (monthsBack = 3) => {
     `);
 
     await client.query('COMMIT');
+    committed = true;
     console.log(`Daily data availability updated for ${startDateString} to ${endDateString}. Rows touched: ${result.rowCount}.`);
+    await advanceSummaryDateRangesFromAvailability();
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (!committed) {
+      await client.query('ROLLBACK');
+    }
     throw error;
   } finally {
     client.release();
@@ -6407,7 +6584,8 @@ const calculateDailyDataAvailabilityWindow = async (monthsBack = 3) => {
 
 const calculateDailyDataAvailability = async () => {
   try {
-    await calculateDailyDataAvailabilityWindow(3);
+    const monthsBack = Math.max(1, Number(process.env.DAILY_AVAILABILITY_MONTHS || 1));
+    await calculateDailyDataAvailabilityWindow(monthsBack);
   } catch (error) {
     console.error('Error calculating and storing daily data availability:', error);
     throw error;
@@ -6677,32 +6855,9 @@ const runCleanupAndSummaryUpdate = async () => {
     await pool.query(cleanupQuery);
     console.log("Old and future records deleted.");
 
-    // Step 2: Update summary data
-    const summaryUpdateQuery = `
-      INSERT INTO summary_data_date_ranges (server_name, table_name, start_date, end_date, total_count, updated_at)
-      SELECT
-        st.display_server_name AS server_name,
-        st.display_table_name AS table_name,
-        MIN(fv.timestamp) AS start_date,
-        MAX(fv.timestamp) AS end_date,
-        COUNT(*) AS total_count,
-        NOW() AS updated_at
-      FROM field_values fv
-      JOIN summary_table st ON fv.field_id = st.field_id
-      GROUP BY st.display_server_name, st.display_table_name
-      ON CONFLICT (server_name, table_name)
-      DO UPDATE SET
-        start_date = EXCLUDED.start_date,
-        end_date = EXCLUDED.end_date,
-        total_count = EXCLUDED.total_count,
-        updated_at = EXCLUDED.updated_at;
-    `;
-    await pool.query(summaryUpdateQuery);
-    console.log("Summary data updated.");
-
     // Commit the transaction
     await pool.query('COMMIT');
-    console.log("Transaction committed successfully.");
+    console.log("Cleanup transaction committed successfully.");
 
   } catch (error) {
     // If there is an error, rollback the transaction
@@ -6720,15 +6875,18 @@ const updateSummaryDateRanges = async () => {
         const query = `
       INSERT INTO summary_data_date_ranges (server_name, table_name, start_date, end_date, total_count, updated_at)
       SELECT
-          st.display_server_name AS server_name,
-          st.display_table_name AS table_name,
+          btrim(st.display_server_name) AS server_name,
+          btrim(st.display_table_name) AS table_name,
           MIN(fv.timestamp) AS start_date,
           MAX(fv.timestamp) AS end_date,
           COUNT(*) AS total_count,  -- Calculate total count of records
           NOW() AS updated_at
       FROM field_values fv
       JOIN summary_table st ON fv.field_id = st.field_id
-      GROUP BY st.display_server_name, st.display_table_name
+      WHERE st.include_in_summary IS TRUE
+        AND NULLIF(btrim(st.display_server_name), '') IS NOT NULL
+        AND NULLIF(btrim(st.display_table_name), '') IS NOT NULL
+      GROUP BY btrim(st.display_server_name), btrim(st.display_table_name)
       ON CONFLICT (server_name, table_name)
       DO UPDATE SET
           start_date = EXCLUDED.start_date,
@@ -7629,6 +7787,7 @@ async function fetchValuesForTable(tableUri, p1) {
   } catch (err) {
     const status = err && err.response ? err.response.status : null;
     const code = err && err.code ? err.code : null;
+    const message = err && err.message ? err.message : String(err);
     console.error(
       'Failed to fetch values for table:',
       tableUri,
@@ -7636,14 +7795,24 @@ async function fetchValuesForTable(tableUri, p1) {
       'code=', code,
       'timeoutMs=', TABLE_VALUE_REQUEST_TIMEOUT_MS
     );
-    return {fields: [], data: []};
+    const fetchError = new Error(
+      'LoggerNet table fetch failed for ' + tableUri +
+      ' status=' + status +
+      ' code=' + code +
+      ' timeoutMs=' + TABLE_VALUE_REQUEST_TIMEOUT_MS +
+      ' message=' + message
+    );
+    fetchError.status = status;
+    fetchError.code = code;
+    fetchError.tableUri = tableUri;
+    throw fetchError;
   }
 }
 
 // Tune these:
 var BATCH_SIZE = 5000;          // try 5k–20k depending on memory/WAL
 var REQUEST_TIMEOUT_MS = 300000;
-var TABLE_VALUE_REQUEST_TIMEOUT_MS = Number(process.env.TABLE_VALUE_REQUEST_TIMEOUT_MS || 45000);
+var TABLE_VALUE_REQUEST_TIMEOUT_MS = Number(process.env.TABLE_VALUE_REQUEST_TIMEOUT_MS || 90000);
 var BAD_FIELD_VALUE_STRINGS = new Set(['', 'NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY']);
 
 // Unique index needed for ON CONFLICT below (run once, outside app):
@@ -7886,6 +8055,7 @@ async function syncActiveTableValues(p1) {
   const run = limitConcurrency(Number(process.env.DAILY_TABLE_SYNC_CONCURRENCY || 3));
   let totalRowsTouched = 0;
   let tablesWithData = 0;
+  let failedTables = 0;
   let completedTables = 0;
   const lane = activeBackgroundLane && backgroundStatus[activeBackgroundLane]
     ? backgroundStatus[activeBackgroundLane]
@@ -7894,6 +8064,12 @@ async function syncActiveTableValues(p1) {
     lane.subStepIndex = 0;
     lane.subStepTotal = tables.length;
     lane.detail = 'Checking table 0 of ' + tables.length;
+    lane.tablesCheckedThisRun = 0;
+    lane.tablesWithDataThisRun = 0;
+    lane.tablesFailedThisRun = 0;
+    lane.rowsTouchedThisRun = 0;
+    lane.lastSuccessfulTable = null;
+    lane.lastFailedTable = null;
   }
 
   const results = await Promise.allSettled(tables.map((table) => run(async () => {
@@ -7920,28 +8096,62 @@ async function syncActiveTableValues(p1) {
       if (!rows.length) return {table: table.table_name, rowsTouched: 0};
 
       const rowsTouched = await bulkUpsertFieldValueRows(rows);
+      totalRowsTouched += rowsTouched;
+      if (rowsTouched > 0) {
+        tablesWithData += 1;
+        if (lane) lane.lastSuccessfulTable = table.server_name + ' / ' + table.table_name;
+      }
+      if (lane) {
+        lane.rowsTouchedThisRun = totalRowsTouched;
+        lane.tablesWithDataThisRun = tablesWithData;
+      }
       return {table: table.table_name, rowsTouched};
+    } catch (error) {
+      failedTables += 1;
+      if (lane) {
+        lane.tablesFailedThisRun = failedTables;
+        lane.lastFailedTable = table.server_name + ' / ' + table.table_name;
+      }
+      throw error;
     } finally {
       completedTables += 1;
       if (lane) {
         lane.subStepIndex = completedTables;
         lane.subStepTotal = tables.length;
-        lane.detail = 'Checked table ' + completedTables + ' of ' + tables.length;
+        lane.tablesCheckedThisRun = completedTables;
+        lane.detail = 'Checked table ' + completedTables + ' of ' + tables.length +
+          '; rows touched ' + totalRowsTouched +
+          '; with data ' + tablesWithData +
+          '; failed ' + failedTables;
       }
       if (completedTables % 25 === 0 || completedTables === tables.length) {
-        console.log('[SYNC] Checked table ' + completedTables + ' of ' + tables.length + '.');
+        console.log('[SYNC] Checked table ' + completedTables + ' of ' + tables.length +
+          '. Rows touched: ' + totalRowsTouched +
+          ', tables with data: ' + tablesWithData +
+          ', failed: ' + failedTables + '.');
       }
     }
   })));
 
   for (const result of results) {
-    if (result.status === 'fulfilled') {
-      const rowsTouched = result.value?.rowsTouched || 0;
-      totalRowsTouched += rowsTouched;
-      if (rowsTouched > 0) tablesWithData += 1;
-    } else {
+    if (result.status === 'rejected') {
       console.error('[SYNC] Table-level value sync task failed:', result.reason?.message || result.reason);
     }
+  }
+
+  const ok = results.filter((result) => result.status === 'fulfilled').length;
+  const fail = results.length - ok;
+  const maxFailureRate = Math.min(1, Math.max(0, Number(process.env.DAILY_TABLE_SYNC_MAX_FAILURE_RATE || 0.5)));
+  const failureRate = results.length ? fail / results.length : 0;
+
+  if (!results.length || ok === 0 || failureRate > maxFailureRate) {
+    throw new Error(
+      '[SYNC] Table-level incremental value sync aborted before marking last_synced. ' +
+      'Successful tables: ' + ok + '/' + results.length +
+      ', failed tables: ' + fail +
+      ', rows touched: ' + totalRowsTouched +
+      ', failure rate: ' + Math.round(failureRate * 100) + '%'
+    );
   }
 
   await pool.query(`
@@ -7951,7 +8161,8 @@ async function syncActiveTableValues(p1) {
   `);
 
   console.log('[SYNC] Table-level incremental value sync complete. Tables with data: ' +
-    tablesWithData + '/' + tables.length + ', rows touched: ' + totalRowsTouched + '.');
+    tablesWithData + '/' + tables.length + ', rows touched: ' + totalRowsTouched +
+    ', failed tables: ' + fail + '/' + results.length + '.');
 }
 
 //// Helper once at top (keeps logs tidy and ensures each task awaits)
@@ -8211,7 +8422,7 @@ async function runWriterTasksDaily() {
     { label: 'Update units mapping', run: updateUnitsMapping },
     { label: 'Update site mapping', run: updateSiteMapping },
     { label: 'Populate summary table', run: populateSummaryTable },
-    { label: 'Cleanup + summary update', run: runCleanupAndSummaryUpdate },
+    { label: 'Cleanup invalid timestamps', run: runCleanupAndSummaryUpdate },
     { label: 'Calculate daily data availability', run: calculateDailyDataAvailability },
     { label: 'Daily data availability cleanup', run: cleanUpDailyDataAvailability },
     { label: 'Refresh live table MV', run: refreshTableMaterializedView },
@@ -8232,7 +8443,7 @@ async function runWriterTasksExtended() {
     { label: 'Update site mapping', run: updateSiteMapping },
     { label: 'Sync field metadata', run: syncFieldMetadata },
     { label: 'Populate summary table', run: populateSummaryTable },
-    { label: 'Cleanup + summary update', run: runCleanupAndSummaryUpdate },
+    { label: 'Cleanup invalid timestamps', run: runCleanupAndSummaryUpdate },
     { label: 'Calculate daily data availability', run: calculateDailyDataAvailability },
     { label: 'Daily data availability cleanup', run: cleanUpDailyDataAvailability },
     { label: 'Refresh live table MV', run: refreshTableMaterializedView },
@@ -8490,6 +8701,10 @@ app.post('/api/background/run-availability', async (req, res) => {
 });
 
 // Schedule background work. Keep ENABLE_BACKGROUND_JOBS=false for restores/maintenance only.
+ensureApiRoles().catch((error) => {
+  console.error('Error ensuring API roles:', error.message);
+});
+
 refreshScheduledNextRuns();
 if (backgroundJobsEnabled) {
   cron.schedule('15 0 * * *', runScheduledReaderJob, BACKGROUND_CRON_OPTIONS);

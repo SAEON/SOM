@@ -111,7 +111,18 @@ function BackgroundSyncStatus({ user }) {
         title = `${laneName} pipeline running`;
         const stepLabel = progressTotal > 0 ? `Step ${progressIndex} of ${progressTotal}` : 'Working';
         const stepDetail = activeLane?.detail ? ` (${activeLane.detail})` : '';
-        detail = `${stepLabel}: ${activeLane?.currentStep || activeLane?.lastCompletedStep || 'Working through scheduled tasks'}${stepDetail}`;
+        const liveSyncStats = [];
+        if (Number.isFinite(Number(activeLane?.rowsTouchedThisRun)) && Number(activeLane?.rowsTouchedThisRun) > 0) {
+            liveSyncStats.push(`${Number(activeLane.rowsTouchedThisRun).toLocaleString()} raw rows touched`);
+        }
+        if (Number.isFinite(Number(activeLane?.tablesWithDataThisRun)) && Number(activeLane?.tablesWithDataThisRun) > 0) {
+            liveSyncStats.push(`${Number(activeLane.tablesWithDataThisRun).toLocaleString()} tables with new data`);
+        }
+        if (Number.isFinite(Number(activeLane?.tablesFailedThisRun)) && Number(activeLane?.tablesFailedThisRun) > 0) {
+            liveSyncStats.push(`${Number(activeLane.tablesFailedThisRun).toLocaleString()} failed`);
+        }
+        const liveSyncDetail = liveSyncStats.length ? ` | ${liveSyncStats.join(' | ')}` : '';
+        detail = `${stepLabel}: ${activeLane?.currentStep || activeLane?.lastCompletedStep || 'Working through scheduled tasks'}${stepDetail}${liveSyncDetail}`;
     } else if (status) {
         tone = hasJobError ? 'warning' : 'idle';
         title = hasJobError ? 'Last sync job needs attention' : 'Background sync jobs enabled';

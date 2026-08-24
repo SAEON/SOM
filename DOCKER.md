@@ -38,6 +38,14 @@ docker compose build api web
 docker compose up -d api web
 ```
 
+The preferred production path is now:
+
+```sh
+./scripts/deploy-server.sh
+```
+
+This keeps the live database volume in place, rebuilds only the application containers, and runs a short local smoke test.
+
 Set `ENABLE_BACKGROUND_JOBS=true` when the API container should run the scheduled reader/writer sync loops.
 
 The public warning banner is database-controlled through `public.site_status`. Status values `testing`, `maintenance`, `warning`, `degraded`, and `offline` show the banner. Status values `done`, `online`, and `normal` hide it.

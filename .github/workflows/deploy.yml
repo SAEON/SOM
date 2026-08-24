@@ -1,0 +1,17 @@
+name: Deploy Observations Monitor
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on:
+      - self-hosted
+      - linux
+      - som-production
+    steps:
+      - name: Deploy from server checkout
+        run: |
+          APP_DIR=/opt/saeon-observations-monitor-v2 \
+          BRANCH="${GITHUB_REF_NAME:-main}" \
+          /opt/saeon-observations-monitor-v2/scripts/deploy-server.sh
