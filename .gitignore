@@ -4,8 +4,8 @@
 .idea/
 .vscode/
 
-# Obsolete root-level files from the pre-Docker site.
-index.html
+# Obsolete root-level file from the pre-Docker site.
+/index.html
 
 # Legacy local scripts from the pre-Docker workflow.
 # These are kept off GitHub because several contain machine-specific paths or credentials.
