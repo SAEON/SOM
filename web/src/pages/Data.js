@@ -47,6 +47,8 @@ const Data = ({user}) => { // Receive user as a prop
     const [servers, setServers] = useState([]);
     const [activeServer, setActiveServer] = useState(null);
     const [tables, setTables] = useState({});
+    const [tableLoading, setTableLoading] = useState({});
+    const [tableErrors, setTableErrors] = useState({});
     const [dateRanges, setDateRanges] = useState({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState(null);
@@ -281,10 +283,16 @@ const Data = ({user}) => { // Receive user as a prop
         try {
             setLoading(true);
             setLoadingMessage('Loading tables...');
+            setTableLoading(prev => ({...prev, [serverName]: true}));
+            setTableErrors(prev => {
+                const next = {...prev};
+                delete next[serverName];
+                return next;
+            });
             const response = await fetch(`/api/summary_table/tables?serverName=${encodeURIComponent(serverName)}`);
             const data = await response.json();
             if (response.ok) {
-                const uniqueTables = data.reduce((acc, row) => {
+                const uniqueTables = (Array.isArray(data) ? data : []).reduce((acc, row) => {
                     if (!acc.some(table => table.display_table_name === row.display_table_name)) {
                         acc.push(row);
                     }
@@ -313,11 +321,21 @@ const Data = ({user}) => { // Receive user as a prop
                     setHighlightedTable(tableName);
                 }
             } else {
-                throw new Error("Failed to fetch tables");
+                throw new Error(data?.error || "Failed to fetch tables");
             }
         } catch (error) {
             console.error("Error fetching tables:", error);
+            setTables(prevTables => ({
+                ...prevTables,
+                [serverName]: []
+            }));
+            setTableErrors(prev => ({
+                ...prev,
+                [serverName]: error.message || 'Could not load tables for this site.'
+            }));
             setLoading(false);
+        } finally {
+            setTableLoading(prev => ({...prev, [serverName]: false}));
         }
     };
 
@@ -2353,14 +2371,28 @@ const Data = ({user}) => { // Receive user as a prop
                                 </button>
                             </td>
                         </tr>
-                        {activeServer === server.display_server_name && tables[server.display_server_name] && getVisibleTables(server.display_server_name).length === 0 && (
+                        {activeServer === server.display_server_name && tableLoading[server.display_server_name] && (
+                            <tr>
+                                <td colSpan={6}>
+                                    <div className="data-empty-row">Loading tables for {server.display_server_name}...</div>
+                                </td>
+                            </tr>
+                        )}
+                        {activeServer === server.display_server_name && !tableLoading[server.display_server_name] && tableErrors[server.display_server_name] && (
+                            <tr>
+                                <td colSpan={6}>
+                                    <div className="data-empty-row data-empty-row--error">{tableErrors[server.display_server_name]}</div>
+                                </td>
+                            </tr>
+                        )}
+                        {activeServer === server.display_server_name && !tableLoading[server.display_server_name] && !tableErrors[server.display_server_name] && tables[server.display_server_name] && getVisibleTables(server.display_server_name).length === 0 && (
                             <tr>
                                 <td colSpan={6}>
                                     <div className="data-empty-row">No tables match the current filter.</div>
                                 </td>
                             </tr>
                         )}
-                        {activeServer === server.display_server_name && tables[server.display_server_name] && getVisibleTables(server.display_server_name).map((table) => (
+                        {activeServer === server.display_server_name && !tableLoading[server.display_server_name] && !tableErrors[server.display_server_name] && tables[server.display_server_name] && getVisibleTables(server.display_server_name).map((table) => (
                             <tr key={table.display_table_name}
                                 className={highlightedTable === table.display_table_name ? 'highlighted' : ''}>
                                 <td colSpan={6}>

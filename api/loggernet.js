@@ -1789,6 +1789,7 @@ app.get('/api/public/servers', async (req, res) => {
       FROM summary_table
       WHERE display_server_name IS NOT NULL
         AND TRIM(display_server_name) <> ''
+        AND include_in_summary IS TRUE
       ORDER BY TRIM(display_server_name)
     `);
     setPublicCache(res, 300);
@@ -1812,14 +1813,15 @@ app.get('/api/public/tables', async (req, res) => {
           sdr.end_date,
           sdr.total_count
         FROM (
-          SELECT DISTINCT display_table_name
+          SELECT DISTINCT btrim(display_table_name) AS display_table_name
           FROM summary_table
-          WHERE display_server_name = $1
+          WHERE btrim(display_server_name) = btrim($1)
+            AND include_in_summary IS TRUE
             AND display_table_name IS NOT NULL
             AND btrim(display_table_name) <> ''
         ) tn
         LEFT JOIN summary_data_date_ranges sdr
-          ON sdr.server_name = $1
+          ON btrim(sdr.server_name) = btrim($1)
          AND sdr.table_name = tn.display_table_name
         ORDER BY tn.display_table_name
       `,
@@ -1937,6 +1939,7 @@ app.get('/api/v1/sites', async (req, res) => {
       FROM summary_table
       WHERE display_server_name IS NOT NULL
         AND TRIM(display_server_name) <> ''
+        AND include_in_summary IS TRUE
       ORDER BY TRIM(display_server_name)
     `);
     setPublicCache(res, 300);
@@ -1964,14 +1967,15 @@ app.get('/api/v1/tables', async (req, res) => {
           sdr.end_date,
           sdr.total_count
         FROM (
-          SELECT DISTINCT display_table_name
+          SELECT DISTINCT btrim(display_table_name) AS display_table_name
           FROM summary_table
-          WHERE display_server_name = $1
+          WHERE btrim(display_server_name) = btrim($1)
+            AND include_in_summary IS TRUE
             AND display_table_name IS NOT NULL
             AND btrim(display_table_name) <> ''
         ) tn
         LEFT JOIN summary_data_date_ranges sdr
-          ON sdr.server_name = $1
+          ON btrim(sdr.server_name) = btrim($1)
          AND sdr.table_name = tn.display_table_name
         ORDER BY tn.display_table_name
       `,
@@ -5115,6 +5119,7 @@ app.get("/api/summary_table/servers", async (req, res) => {
       FROM summary_table
       WHERE display_server_name IS NOT NULL
         AND TRIM(display_server_name) <> ''
+        AND include_in_summary IS TRUE
       ORDER BY TRIM(display_server_name)
     `);
 
@@ -5137,9 +5142,10 @@ app.get("/api/summary_table/tables", async (req, res) => {
     const result = await pool.query(
       `
         WITH table_names AS (
-          SELECT DISTINCT display_table_name
+          SELECT DISTINCT btrim(display_table_name) AS display_table_name
           FROM summary_table
-          WHERE display_server_name = $1
+          WHERE btrim(display_server_name) = btrim($1)
+            AND include_in_summary IS TRUE
             AND display_table_name IS NOT NULL
             AND btrim(display_table_name) <> ''
         )
@@ -5149,7 +5155,7 @@ app.get("/api/summary_table/tables", async (req, res) => {
           sdr.end_date
         FROM table_names tn
         LEFT JOIN summary_data_date_ranges sdr
-          ON sdr.server_name = $1
+          ON btrim(sdr.server_name) = btrim($1)
          AND sdr.table_name = tn.display_table_name
         ORDER BY tn.display_table_name
       `,

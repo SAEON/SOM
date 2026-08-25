@@ -33,6 +33,8 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState("");
     const [tableLoading, setTableLoading] = useState({});
+    const [serverTableLoading, setServerTableLoading] = useState({});
+    const [serverTableErrors, setServerTableErrors] = useState({});
 
     useEffect(() => {// Log the interaction whether the user is logged in or not
         logInteraction('page_view', {viewport: {width: window.innerWidth, height: window.innerHeight}}, user);
@@ -61,10 +63,10 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
 
 
     const toggleServer = async (serverId) => {
-        setLoading(true); // Set loading to true when toggle starts
-        setActiveServer((prev) => (prev === serverId ? null : serverId));
+        const isClosing = activeServer === serverId;
+        setActiveServer(isClosing ? null : serverId);
 
-        if (!tables[serverId]) {
+        if (!isClosing && !tables[serverId]) {
             await fetchTablesAndDateRanges(serverId);
         }
 
@@ -75,8 +77,6 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
         // Log the interaction with the server name
         logInteraction('toggle_server', {serverName}, user);
 
-        // Set loading to false only after everything is done
-        setLoading(false);
     };
 
     const fetchFieldsWithUnits = async (tableId) => {
@@ -112,16 +112,22 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
 
     const fetchTablesAndDateRanges = async (serverId) => {
         try {
-            setLoading(true);
-            setLoadingMessage("Loading tables...");
+            setServerTableLoading((prev) => ({...prev, [serverId]: true}));
+            setServerTableErrors((prev) => {
+                const next = {...prev};
+                delete next[serverId];
+                return next;
+            });
 
             // Fetch tables for the selected server
             const response = await fetch(`/api/servers/${serverId}/tables`);
-            if (!response.ok) throw new Error("Failed to fetch tables");
+            const tableRows = await response.json().catch(() => []);
+            if (!response.ok) {
+                throw new Error(tableRows?.message || tableRows?.error || "Failed to fetch tables");
+            }
 
-            const tables = await response.json();
-
-            const tableIds = tables.map((table) => table.table_id);
+            const safeTableRows = Array.isArray(tableRows) ? tableRows : [];
+            const tableIds = safeTableRows.map((table) => table.table_id);
             let dateRangesByTableId = {};
             if (tableIds.length > 0) {
                 const dateRangeResponse = await fetch('/api/tables/date-ranges', {
@@ -138,7 +144,7 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
                 }
             }
 
-            const tablesWithDateInfo = tables.map((table) => ({
+            const tablesWithDateInfo = safeTableRows.map((table) => ({
                 ...table,
                 dateRange: dateRangesByTableId[table.table_id] || null,
             }));
@@ -148,11 +154,18 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
                 ...prevTables,
                 [serverId]: tablesWithDateInfo.sort((a, b) => a.table_name.localeCompare(b.table_name)),
             }));
-
-            setLoading(false);
         } catch (error) {
             console.error("Error fetching tables and date ranges:", error);
-            setLoading(false);
+            setTables((prevTables) => ({
+                ...prevTables,
+                [serverId]: [],
+            }));
+            setServerTableErrors((prev) => ({
+                ...prev,
+                [serverId]: error.message || "Could not load tables for this server.",
+            }));
+        } finally {
+            setServerTableLoading((prev) => ({...prev, [serverId]: false}));
         }
     };
 
@@ -583,6 +596,35 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
                                 </button>
                             </td>
                         </tr>
+                        {activeServer === server.server_id && serverTableLoading[server.server_id] && (
+                            <tr className="raw-data-message-row">
+                                <td colSpan={6}>
+                                    <div className="raw-data-inline-message">Loading tables for {server.name}...</div>
+                                </td>
+                            </tr>
+                        )}
+                        {activeServer === server.server_id && serverTableErrors[server.server_id] && (
+                            <tr className="raw-data-message-row">
+                                <td colSpan={6}>
+                                    <div className="raw-data-inline-message raw-data-inline-message--error">
+                                        {serverTableErrors[server.server_id]}
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
+                        {activeServer === server.server_id &&
+                        !serverTableLoading[server.server_id] &&
+                        !serverTableErrors[server.server_id] &&
+                        tables[server.server_id] &&
+                        tables[server.server_id].length === 0 && (
+                            <tr className="raw-data-message-row">
+                                <td colSpan={6}>
+                                    <div className="raw-data-inline-message">
+                                        No raw tables are registered for this server.
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
                         {activeServer === server.server_id &&
                         tables[server.server_id] &&
                         tables[server.server_id].map((table) => (
@@ -594,7 +636,7 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
                                         {table.table_name}
                                         <span className={`status-indicator ${table.status}`}>{table.status}</span>
                                         <span className="table-name">
-        {table.display_table_name} <span className="preview-text">(View lastest month's data)</span>
+        {table.display_table_name || table.table_name} <span className="preview-text">(View latest month's data)</span>
     </span>
                                         {/* Display date range if available */}
                                         <span

@@ -130,6 +130,25 @@ th {
     border: 1px solid black;
 }
 
+.raw-data-message-row td {
+    padding: 0 12px 14px;
+}
+
+.raw-data-inline-message {
+    border: 1px solid #cfe1ef;
+    background: #f6fbff;
+    border-radius: 8px;
+    color: #173b59;
+    font-weight: 700;
+    padding: 14px 18px;
+}
+
+.raw-data-inline-message--error {
+    border-color: #f0b35d;
+    background: #fff7ed;
+    color: #7c2d12;
+}
+
 /* Hover Effects for All Buttons */
 .button:hover, .view-data-button:hover, .download-csv-button:hover,
 .special-action-button:hover, .styled-button:hover,

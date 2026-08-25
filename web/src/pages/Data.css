@@ -539,6 +539,12 @@
     font-weight: 650;
 }
 
+.data-empty-row--error {
+    color: #7c2d12;
+    background: #fff7ed;
+    border-color: #f0b35d;
+}
+
 .data-table-action-row .tooltip {
     display: flex;
     min-width: 0;
