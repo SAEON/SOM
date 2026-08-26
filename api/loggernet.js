@@ -5298,6 +5298,8 @@ app.get('/api/summary_table/download', async (req, res) => {
             res.setHeader('Content-Disposition', `attachment; filename="${tableName}_${serverName}_${startDate}_${endDate}.csv"`);
             res.setHeader('Content-Length', fs.statSync(resolvedFile).size);
             res.setHeader('X-CSV-Cache', 'hit');
+            res.setHeader('X-CSV-Source', 'cached-monthly');
+            res.setHeader('X-CSV-Date-Range', `${startDate} to ${endDate} (SAST)`);
             return pipeline(fs.createReadStream(resolvedFile, { highWaterMark: 64 * 1024 }), res, (err) => {
               if (err) console.error('Error streaming cached monthly CSV:', err);
             });
@@ -5318,6 +5320,7 @@ app.get('/api/summary_table/download', async (req, res) => {
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="${tableName}_${serverName}_data.csv"`);
       res.setHeader('Content-Length', fileSize);  // Send the total file size
+      res.setHeader('X-CSV-Source', 'prepared-full-archive');
       console.log('Content-Length', fileSize);
       // Stream the file in chunks (e.g., 64KB)
       const readStream = fs.createReadStream(csvFilePath, { highWaterMark: 64 * 1024 });
@@ -5370,6 +5373,8 @@ app.get('/api/summary_table/download', async (req, res) => {
         'Content-Disposition',
         `attachment; filename="${tableName}_${serverName}_data.csv"`
       );
+      res.setHeader('X-CSV-Source', 'dynamic-canonical-range');
+      res.setHeader('X-CSV-Date-Range', `${startDateOnly} to ${endDateOnly} (SAST)`);
 
       // Send the DOI first
       res.write(`# Citation link: ${doi}\n`);
@@ -5381,23 +5386,23 @@ app.get('/api/summary_table/download', async (req, res) => {
         return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
       };
 
-      // Fetch unique field names and units from the compact pre-aggregated table.
+      // Date-range downloads must read the canonical partitions; the fast MV only stores a short recent window.
       const fieldsResult = await pool.query(
         `
           SELECT DISTINCT
-            field_entry->>'display_field_name' AS display_field_name,
-            field_entry->>'units' AS units
-          FROM pre_aggregated_field_values pafv
-          CROSS JOIN LATERAL json_array_elements(pafv.field_values) AS field_entry
-          WHERE pafv.display_table_name = $1
-            AND pafv.display_server_name = $2
-            AND pafv.timestamp >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
-            AND pafv.timestamp < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
-            AND field_entry->>'display_field_name' IS NOT NULL
-            AND btrim(field_entry->>'display_field_name') <> ''
-            AND field_entry->>'field_value' IS NOT NULL
-            AND btrim(field_entry->>'field_value') <> ''
-            AND upper(btrim(field_entry->>'field_value')) NOT IN ('NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY')
+            st.display_field_name,
+            st.units
+          FROM summary_table st
+          JOIN field_values fv ON fv.field_id = st.field_id
+          WHERE st.display_table_name = $1
+            AND st.display_server_name = $2
+            AND fv."timestamp" >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
+            AND fv."timestamp" < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
+            AND st.display_field_name IS NOT NULL
+            AND btrim(st.display_field_name) <> ''
+            AND fv.value IS NOT NULL
+            AND btrim(fv.value) <> ''
+            AND upper(btrim(fv.value)) NOT IN ('NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY')
           ORDER BY display_field_name ASC
         `,
         [tableName, serverName, startDateOnly, endDateOnly]
@@ -5431,16 +5436,36 @@ app.get('/api/summary_table/download', async (req, res) => {
         const queryStream = new QueryStream(
           `
             SELECT
-              TO_CHAR(timestamp AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS timestamp,
-              field_values,
-              latitude,
-              longitude
-            FROM pre_aggregated_field_values
-            WHERE display_table_name = $1
-              AND display_server_name = $2
-              AND timestamp >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
-              AND timestamp < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
-            ORDER BY timestamp ASC
+              TO_CHAR(fv."timestamp" AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS timestamp,
+              json_agg(
+                json_build_object(
+                  'display_field_name', st.display_field_name,
+                  'field_value',
+                    CASE
+                      WHEN fv.value ~ '^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$'
+                        AND st.multiplier IS NOT NULL
+                        THEN (fv.value::numeric * st.multiplier::numeric)::text
+                      ELSE fv.value
+                    END,
+                  'units', st.units
+                )
+                ORDER BY st.display_field_name
+              ) AS field_values,
+              max(st.latitude) AS latitude,
+              max(st.longitude) AS longitude
+            FROM summary_table st
+            JOIN field_values fv ON fv.field_id = st.field_id
+            WHERE st.display_table_name = $1
+              AND st.display_server_name = $2
+              AND fv."timestamp" >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
+              AND fv."timestamp" < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
+              AND st.display_field_name IS NOT NULL
+              AND btrim(st.display_field_name) <> ''
+              AND fv.value IS NOT NULL
+              AND btrim(fv.value) <> ''
+              AND upper(btrim(fv.value)) NOT IN ('NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY')
+            GROUP BY fv."timestamp"
+            ORDER BY fv."timestamp" ASC
           `,
           [tableName, serverName, startDateOnly, endDateOnly]
         );

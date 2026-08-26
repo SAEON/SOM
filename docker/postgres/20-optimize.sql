@@ -8,6 +8,20 @@ CREATE INDEX IF NOT EXISTS idx_summary_table_locations
 CREATE INDEX IF NOT EXISTS idx_summary_table_field_lookup
   ON public.summary_table (field_id, display_server_name, display_table_name, display_field_name);
 
+CREATE INDEX IF NOT EXISTS idx_summary_table_public_download_fields
+  ON public.summary_table (
+    display_server_name,
+    display_table_name,
+    field_id,
+    display_field_name
+  )
+  WHERE display_server_name IS NOT NULL
+    AND btrim(display_server_name) <> ''
+    AND display_table_name IS NOT NULL
+    AND btrim(display_table_name) <> ''
+    AND display_field_name IS NOT NULL
+    AND btrim(display_field_name) <> '';
+
 CREATE INDEX IF NOT EXISTS idx_summary_table_lower_table_field
   ON public.summary_table (lower(display_table_name), lower(display_field_name), field_id);
 
