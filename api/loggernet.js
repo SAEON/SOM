@@ -78,6 +78,13 @@ function setPublicCache(res, seconds = 60) {
   res.set('Cache-Control', `public, max-age=${seconds}, stale-while-revalidate=${seconds * 4}`);
 }
 
+function setNoStore(res) {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('Surrogate-Control', 'no-store');
+}
+
 function getSastDateParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Africa/Johannesburg',
@@ -369,6 +376,36 @@ function normalizeText(value) {
 function normalizeOptionalText(value) {
   const cleaned = normalizeText(value);
   return cleaned || null;
+}
+
+function parseBooleanFlag(value) {
+  if (value === true || value === false) return value;
+  if (typeof value === 'number') return value === 1;
+  const normalized = normalizeText(value).toLowerCase();
+  return ['true', '1', 'yes', 'on'].includes(normalized);
+}
+
+let summaryIncludeColumnExists = null;
+
+async function hasSummaryIncludeColumn() {
+  if (summaryIncludeColumnExists !== null) return summaryIncludeColumnExists;
+
+  const {rows} = await pool.query(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'summary_table'
+        AND column_name = 'include_in_summary'
+    ) AS exists
+  `);
+  summaryIncludeColumnExists = parseBooleanFlag(rows[0]?.exists);
+  return summaryIncludeColumnExists;
+}
+
+async function getSummaryVisibilityCondition(alias = '') {
+  const prefix = alias ? `${alias}.` : '';
+  return (await hasSummaryIncludeColumn()) ? ` AND ${prefix}include_in_summary IS DISTINCT FROM FALSE` : '';
 }
 
 function parseNullableNumber(value) {
@@ -1671,14 +1708,14 @@ app.get('/api/public/site-status', async (req, res) => {
 
     const row = rows[0] || {};
     const status = String(row.status || 'online').trim().toLowerCase();
-    const isActive = row.is_active === true;
+    const isActive = parseBooleanFlag(row.is_active);
     const severity = ['offline', 'degraded'].includes(status)
       ? 'danger'
       : ['warning', 'maintenance', 'testing'].includes(status)
         ? 'warning'
         : 'info';
 
-    setPublicCache(res, 30);
+    setNoStore(res);
     res.json({
       active: isActive,
       showBanner: isActive,
@@ -1693,7 +1730,7 @@ app.get('/api/public/site-status', async (req, res) => {
     });
   } catch (error) {
     console.error('GET /api/public/site-status failed:', error);
-    setPublicCache(res, 15);
+    setNoStore(res);
     res.json({
       active: true,
       showBanner: true,
@@ -1719,7 +1756,7 @@ app.get('/api/site-status', async (req, res) => {
     `);
     const row = rows[0] || {};
     res.json({
-      active: row.is_active === true,
+      active: parseBooleanFlag(row.is_active),
       status: row.status || 'online',
       type: row.status || 'online',
       message: row.message || '',
@@ -1736,7 +1773,7 @@ app.get('/api/site-status', async (req, res) => {
 app.put('/api/site-status', async (req, res) => {
   if (!requireSuperUser(req, res)) return;
 
-  const active = req.body.active === true;
+  const active = parseBooleanFlag(req.body.active);
   const status = normalizeText(req.body.status || req.body.type || 'online').toLowerCase();
   const message = normalizeText(req.body.message);
   const details = normalizeOptionalText(req.body.details);
@@ -1768,7 +1805,7 @@ app.put('/api/site-status', async (req, res) => {
     );
     const row = rows[0];
     res.json({
-      active: row.is_active === true,
+      active: parseBooleanFlag(row.is_active),
       status: row.status,
       type: row.status,
       message: row.message,
@@ -1784,15 +1821,25 @@ app.put('/api/site-status', async (req, res) => {
 
 app.get('/api/public/servers', async (req, res) => {
   try {
-    const {rows} = await pool.query(`
+    const visibilityCondition = await getSummaryVisibilityCondition();
+    let {rows} = await pool.query(`
       SELECT DISTINCT TRIM(display_server_name) AS site_name
       FROM summary_table
       WHERE display_server_name IS NOT NULL
         AND TRIM(display_server_name) <> ''
-        AND include_in_summary IS TRUE
+        ${visibilityCondition}
       ORDER BY TRIM(display_server_name)
     `);
-    setPublicCache(res, 300);
+    if (rows.length === 0 && visibilityCondition) {
+      ({rows} = await pool.query(`
+        SELECT DISTINCT TRIM(display_server_name) AS site_name
+        FROM summary_table
+        WHERE display_server_name IS NOT NULL
+          AND TRIM(display_server_name) <> ''
+        ORDER BY TRIM(display_server_name)
+      `));
+    }
+    setNoStore(res);
     res.json({items: rows, count: rows.length});
   } catch (error) {
     console.error('GET /api/public/servers failed:', error);
@@ -1805,7 +1852,8 @@ app.get('/api/public/tables', async (req, res) => {
   if (!serverName) return res.status(400).json({message: 'serverName is required'});
 
   try {
-    const {rows} = await pool.query(
+    const visibilityCondition = await getSummaryVisibilityCondition();
+    const fetchRows = (whereVisibilityCondition) => pool.query(
       `
         SELECT
           tn.display_table_name AS table_name,
@@ -1816,7 +1864,7 @@ app.get('/api/public/tables', async (req, res) => {
           SELECT DISTINCT btrim(display_table_name) AS display_table_name
           FROM summary_table
           WHERE btrim(display_server_name) = btrim($1)
-            AND include_in_summary IS TRUE
+            ${whereVisibilityCondition}
             AND display_table_name IS NOT NULL
             AND btrim(display_table_name) <> ''
         ) tn
@@ -1827,7 +1875,11 @@ app.get('/api/public/tables', async (req, res) => {
       `,
       [serverName],
     );
-    setPublicCache(res, 300);
+    let {rows} = await fetchRows(visibilityCondition);
+    if (rows.length === 0 && visibilityCondition) {
+      ({rows} = await fetchRows(''));
+    }
+    setNoStore(res);
     res.json({serverName, items: rows, count: rows.length});
   } catch (error) {
     console.error('GET /api/public/tables failed:', error);
@@ -1851,7 +1903,7 @@ app.get('/api/public/date-range', async (req, res) => {
       `,
       [serverName, tableName],
     );
-    setPublicCache(res, 300);
+    setNoStore(res);
     res.json({
       serverName,
       tableName,
@@ -1934,15 +1986,25 @@ app.get('/api/v1/status', async (req, res) => {
 
 app.get('/api/v1/sites', async (req, res) => {
   try {
-    const {rows} = await pool.query(`
+    const visibilityCondition = await getSummaryVisibilityCondition();
+    let {rows} = await pool.query(`
       SELECT DISTINCT TRIM(display_server_name) AS site_name
       FROM summary_table
       WHERE display_server_name IS NOT NULL
         AND TRIM(display_server_name) <> ''
-        AND include_in_summary IS TRUE
+        ${visibilityCondition}
       ORDER BY TRIM(display_server_name)
     `);
-    setPublicCache(res, 300);
+    if (rows.length === 0 && visibilityCondition) {
+      ({rows} = await pool.query(`
+        SELECT DISTINCT TRIM(display_server_name) AS site_name
+        FROM summary_table
+        WHERE display_server_name IS NOT NULL
+          AND TRIM(display_server_name) <> ''
+        ORDER BY TRIM(display_server_name)
+      `));
+    }
+    setNoStore(res);
     res.json({
       count: rows.length,
       items: rows,
@@ -1959,7 +2021,8 @@ app.get('/api/v1/tables', async (req, res) => {
   if (!serverName) return res.status(400).json({message: 'serverName is required'});
 
   try {
-    const {rows} = await pool.query(
+    const visibilityCondition = await getSummaryVisibilityCondition();
+    const fetchRows = (whereVisibilityCondition) => pool.query(
       `
         SELECT
           tn.display_table_name AS table_name,
@@ -1970,7 +2033,7 @@ app.get('/api/v1/tables', async (req, res) => {
           SELECT DISTINCT btrim(display_table_name) AS display_table_name
           FROM summary_table
           WHERE btrim(display_server_name) = btrim($1)
-            AND include_in_summary IS TRUE
+            ${whereVisibilityCondition}
             AND display_table_name IS NOT NULL
             AND btrim(display_table_name) <> ''
         ) tn
@@ -1981,7 +2044,11 @@ app.get('/api/v1/tables', async (req, res) => {
       `,
       [serverName],
     );
-    setPublicCache(res, 300);
+    let {rows} = await fetchRows(visibilityCondition);
+    if (rows.length === 0 && visibilityCondition) {
+      ({rows} = await fetchRows(''));
+    }
+    setNoStore(res);
     res.json({
       serverName,
       count: rows.length,
@@ -2014,7 +2081,7 @@ app.get('/api/v1/date-range', async (req, res) => {
     const startDateOnly = formatDateOnlyValue(row.start_date);
     const endDateOnly = formatDateOnlyValue(row.end_date);
     const exampleStartDate = endDateOnly ? `${endDateOnly.slice(0, 8)}01` : null;
-    setPublicCache(res, 300);
+    setNoStore(res);
     res.json({
       serverName,
       tableName,
@@ -2188,7 +2255,7 @@ app.get('/api/public/analytics/years', async (req, res) => {
       years.unshift(currentYear);
     }
 
-    setPublicCache(res, 300);
+    setNoStore(res);
     res.json({ years, currentYear });
   } catch (error) {
     console.error('Error fetching public analytics years:', error);
@@ -2317,7 +2384,7 @@ app.get('/api/public/analytics/highlights', async (req, res) => {
       ),
     ]);
 
-    setPublicCache(res, 300);
+    setNoStore(res);
     res.json({
       year: safeYear,
       startDate,
@@ -5114,17 +5181,27 @@ app.get("/api/summary_table/servers", async (req, res) => {
     // If you gate this by auth, uncomment:
     // if (!req.user) return res.status(401).json({ error: "Unauthorized" });
 
-    const { rows } = await pool.query(`
+    const visibilityCondition = await getSummaryVisibilityCondition();
+    let { rows } = await pool.query(`
       SELECT DISTINCT TRIM(display_server_name) AS display_server_name
       FROM summary_table
       WHERE display_server_name IS NOT NULL
         AND TRIM(display_server_name) <> ''
-        AND include_in_summary IS TRUE
+        ${visibilityCondition}
       ORDER BY TRIM(display_server_name)
     `);
+    if (rows.length === 0 && visibilityCondition) {
+      ({ rows } = await pool.query(`
+        SELECT DISTINCT TRIM(display_server_name) AS display_server_name
+        FROM summary_table
+        WHERE display_server_name IS NOT NULL
+          AND TRIM(display_server_name) <> ''
+        ORDER BY TRIM(display_server_name)
+      `));
+    }
 
     // return as objects to match your current frontend reduce() logic
-    setPublicCache(res, 300);
+    setNoStore(res);
     res.json(rows);
   } catch (err) {
     console.error("GET /api/summary_table/servers failed:", err);
@@ -5139,13 +5216,14 @@ app.get("/api/summary_table/tables", async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
+    const visibilityCondition = await getSummaryVisibilityCondition();
+    const fetchRows = (whereVisibilityCondition) => pool.query(
       `
         WITH table_names AS (
           SELECT DISTINCT btrim(display_table_name) AS display_table_name
           FROM summary_table
           WHERE btrim(display_server_name) = btrim($1)
-            AND include_in_summary IS TRUE
+            ${whereVisibilityCondition}
             AND display_table_name IS NOT NULL
             AND btrim(display_table_name) <> ''
         )
@@ -5161,8 +5239,12 @@ app.get("/api/summary_table/tables", async (req, res) => {
       `,
       [serverName],
     );
+    let result = await fetchRows(visibilityCondition);
+    if (result.rows.length === 0 && visibilityCondition) {
+      result = await fetchRows('');
+    }
     //  console.log(`Tables fetched for ${serverName}:`, result.rows);
-    setPublicCache(res, 300);
+    setNoStore(res);
     await res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -6901,6 +6983,7 @@ const updateSummaryDateRanges = async () => {
     const client = await pool.connect();
     try {
         console.log('Starting to update summary data date ranges...');
+        const visibilityCondition = await getSummaryVisibilityCondition('st');
 
         // SQL query to insert or update date ranges with total count
         const query = `
@@ -6914,7 +6997,8 @@ const updateSummaryDateRanges = async () => {
           NOW() AS updated_at
       FROM field_values fv
       JOIN summary_table st ON fv.field_id = st.field_id
-      WHERE st.include_in_summary IS TRUE
+      WHERE 1 = 1
+        ${visibilityCondition}
         AND NULLIF(btrim(st.display_server_name), '') IS NOT NULL
         AND NULLIF(btrim(st.display_table_name), '') IS NOT NULL
       GROUP BY btrim(st.display_server_name), btrim(st.display_table_name)
