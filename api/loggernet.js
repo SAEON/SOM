@@ -5308,8 +5308,9 @@ app.get('/api/summary_table/download', async (req, res) => {
       }
     }
 
-    // Pre-generated CSVs are only safe when no explicit date window is requested.
-    if (!hasDateRange && fs.existsSync(csvFilePath)) {
+    // Legacy full-archive CSVs can become stale; keep them opt-in and stream canonical data by default.
+    const usePreparedFullArchive = process.env.ENABLE_PREPARED_FULL_ARCHIVE_CSV === 'true';
+    if (usePreparedFullArchive && !hasDateRange && fs.existsSync(csvFilePath)) {
       console.log(`Serving pre-generated CSV: ${csvFilePath}`);
 
       // Get the file stats to retrieve the size
@@ -5373,7 +5374,7 @@ app.get('/api/summary_table/download', async (req, res) => {
         'Content-Disposition',
         `attachment; filename="${tableName}_${serverName}_data.csv"`
       );
-      res.setHeader('X-CSV-Source', 'dynamic-canonical-range');
+      res.setHeader('X-CSV-Source', hasDateRange ? 'dynamic-canonical-range' : 'dynamic-canonical-full-archive');
       res.setHeader('X-CSV-Date-Range', `${startDateOnly} to ${endDateOnly} (SAST)`);
 
       // Send the DOI first

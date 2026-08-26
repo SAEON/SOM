@@ -2609,7 +2609,7 @@ const Data = ({user}) => { // Receive user as a prop
                                 >
                                     <strong>Full available archive</strong>
                                     <span>
-                                        Uses the prepared CSV for the full site-table history{range?.start_date && range?.end_date ? ` (${getDateRangeLabel(range)})` : ''}.
+                                        Streams the full site-table history from the database{range?.start_date && range?.end_date ? ` (${getDateRangeLabel(range)})` : ''}.
                                     </span>
                                 </button>
                             </div>
