@@ -153,6 +153,14 @@ const Data = ({user}) => { // Receive user as a prop
         return 'selected date window';
     };
 
+    const getDownloadScopeSizeLabel = (scope) => {
+        if (scope?.type === 'latest_month') return 'Small download. Usually the fastest option.';
+        if (scope?.type === 'recent_3_months') return 'Medium download. Good for recent checks.';
+        if (scope?.type === 'recent_12_months') return 'Large download. Useful for annual analysis.';
+        if (scope?.type === 'full') return 'Very large download. Can be hundreds of MB and may take several minutes.';
+        return 'Custom download. Size depends on the selected date range.';
+    };
+
     // Disclaimer modal state
     const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(false);
     const [disclaimer, setDisclaimer] = useState(null); // { message, requireAck, contactEmail, siteName }
@@ -970,16 +978,17 @@ const Data = ({user}) => { // Receive user as a prop
         setIsDownloading(false); // Hide the progress widget
     };
 
-    const updateDownloadProgressWidget = (receivedBytes, totalBytes) => {
+    const updateDownloadProgressWidget = (receivedBytes, totalBytes, sizeLabel = '') => {
         const percentComplete = totalBytes > 0 ? ((receivedBytes / totalBytes) * 100) : 0;
+        const prefix = sizeLabel ? `${sizeLabel} ` : '';
 
         setProgressValue(receivedBytes);
         setProgressMax(totalBytes);
 
         setProgressText(
             totalBytes > 0
-                ? `${formatBytes(receivedBytes)} of ${formatBytes(totalBytes)} (${Math.min(percentComplete, 100).toFixed(0)}%)`
-                : `${formatBytes(receivedBytes)} downloaded`
+                ? `${prefix}${formatBytes(receivedBytes)} of ${formatBytes(totalBytes)} (${Math.min(percentComplete, 100).toFixed(0)}%)`
+                : `${prefix}${formatBytes(receivedBytes)} downloaded`
         );
 
         setDownloadTitle(totalBytes > 0 ? `Downloading CSV (${Math.min(percentComplete, 100).toFixed(0)}%)` : 'Downloading CSV');
@@ -1068,10 +1077,11 @@ const Data = ({user}) => { // Receive user as a prop
                 ? `${tableName}_${serverName}_full_archive.csv`
                 : `${tableName}_${serverName}_${formattedStartDate}_${formattedEndDate}.csv`;
             const requestLabel = isFullArchive ? 'full available archive' : `${formattedStartDate} to ${formattedEndDate}`;
+            const sizeLabel = getDownloadScopeSizeLabel(scope);
 
             showDownloadProgressWidget();
-            setDownloadTitle('Preparing CSV download');
-            setProgressText(`Requesting ${serverName} ${tableName} data for ${requestLabel}...`);
+            setDownloadTitle(isFullArchive ? 'Preparing large CSV archive' : 'Preparing CSV download');
+            setProgressText(`${sizeLabel} Requesting ${serverName} ${tableName} data for ${requestLabel}...`);
             setProgressValue(0);
             setProgressMax(0);
 
@@ -1088,7 +1098,9 @@ const Data = ({user}) => { // Receive user as a prop
             const url = isFullArchive
                 ? `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}`
                 : `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}&startDate=${encodeURIComponent(formattedStartDate)}&endDate=${encodeURIComponent(formattedEndDate)}`;
-            setProgressText('Waiting for the server to start the CSV stream...');
+            setProgressText(isFullArchive
+                ? 'Large archive selected. Waiting for the server to start streaming the full CSV...'
+                : 'Waiting for the server to start the CSV stream...');
             const response = await fetch(url, {credentials: 'include'});
             const contentType = response.headers.get('content-type') || '';
 
@@ -1099,9 +1111,13 @@ const Data = ({user}) => { // Receive user as a prop
 
             const totalBytes = Number(response.headers.get('content-length')) || 0;
             const cacheStatus = response.headers.get('x-csv-cache');
-            setDownloadTitle(cacheStatus === 'hit' ? 'Downloading cached CSV' : 'Streaming CSV export');
+            setDownloadTitle(cacheStatus === 'hit'
+                ? 'Downloading cached CSV'
+                : (isFullArchive ? 'Streaming large CSV archive' : 'Streaming CSV export'));
             setProgressMax(totalBytes);
-            setProgressText(totalBytes ? `0 of ${formatBytes(totalBytes)} received` : 'Downloading CSV. Size is unknown until the stream finishes...');
+            setProgressText(totalBytes
+                ? `${sizeLabel} 0 of ${formatBytes(totalBytes)} received`
+                : `${sizeLabel} Size is unknown until the stream finishes.`);
 
             if (!response.body || !window.streamSaver) {
                 setProgressText('Browser stream download is unavailable. Saving with the fallback download method...');
@@ -1134,7 +1150,7 @@ const Data = ({user}) => { // Receive user as a prop
                     if (done) break;
                     receivedBytes += value.length;
                     await writer.write(value);
-                    updateDownloadProgressWidget(receivedBytes, totalBytes);
+                    updateDownloadProgressWidget(receivedBytes, totalBytes, sizeLabel);
                 }
             } finally {
                 await writer.close();
@@ -2583,6 +2599,7 @@ const Data = ({user}) => { // Receive user as a prop
                                 >
                                     <strong>Latest month</strong>
                                     <span>{getDownloadScopeLabel(latestMonthScope)}</span>
+                                    <small>{getDownloadScopeSizeLabel(latestMonthScope)}</small>
                                 </button>
                                 <button
                                     type="button"
@@ -2592,6 +2609,7 @@ const Data = ({user}) => { // Receive user as a prop
                                 >
                                     <strong>Latest 3 months</strong>
                                     <span>{getDownloadScopeLabel(threeMonthScope)}</span>
+                                    <small>{getDownloadScopeSizeLabel(threeMonthScope)}</small>
                                 </button>
                                 <button
                                     type="button"
@@ -2601,6 +2619,7 @@ const Data = ({user}) => { // Receive user as a prop
                                 >
                                     <strong>Latest 12 months</strong>
                                     <span>{getDownloadScopeLabel(twelveMonthScope)}</span>
+                                    <small>{getDownloadScopeSizeLabel(twelveMonthScope)}</small>
                                 </button>
                                 <button
                                     type="button"
@@ -2611,6 +2630,7 @@ const Data = ({user}) => { // Receive user as a prop
                                     <span>
                                         Streams the full site-table history from the database{range?.start_date && range?.end_date ? ` (${getDateRangeLabel(range)})` : ''}.
                                     </span>
+                                    <small>{getDownloadScopeSizeLabel({type: 'full'})}</small>
                                 </button>
                             </div>
 

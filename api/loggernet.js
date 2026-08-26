@@ -5387,26 +5387,22 @@ app.get('/api/summary_table/download', async (req, res) => {
         return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
       };
 
-      // Date-range downloads must read the canonical partitions; the fast MV only stores a short recent window.
+      // Build the CSV schema from the public mapping. Full archive downloads can span years, so
+      // pre-scanning field_values for distinct fields makes the browser wait before headers arrive.
       const fieldsResult = await pool.query(
         `
-          SELECT DISTINCT
-            st.display_field_name,
-            st.units
-          FROM summary_table st
-          JOIN field_values fv ON fv.field_id = st.field_id
-          WHERE st.display_table_name = $1
-            AND st.display_server_name = $2
-            AND fv."timestamp" >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
-            AND fv."timestamp" < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
-            AND st.display_field_name IS NOT NULL
-            AND btrim(st.display_field_name) <> ''
-            AND fv.value IS NOT NULL
-            AND btrim(fv.value) <> ''
-            AND upper(btrim(fv.value)) NOT IN ('NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY')
+          SELECT
+            display_field_name,
+            MIN(units) AS units
+          FROM summary_table
+          WHERE display_table_name = $1
+            AND display_server_name = $2
+            AND display_field_name IS NOT NULL
+            AND btrim(display_field_name) <> ''
+          GROUP BY display_field_name
           ORDER BY display_field_name ASC
         `,
-        [tableName, serverName, startDateOnly, endDateOnly]
+        [tableName, serverName]
       );
 
       const fields = fieldsResult.rows.map((row) => row.display_field_name);
@@ -5422,6 +5418,9 @@ app.get('/api/summary_table/download', async (req, res) => {
       // Write units
       const unitsRow = ['', ...fields.map((field) => unitsMap[field]), '', ''];
       res.write(`${unitsRow.join(',')}\n`);
+      if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+      }
 
       // Start a query stream over one pre-aggregated row per timestamp.
       const client = await pool.connect(); // Get a client from the pool

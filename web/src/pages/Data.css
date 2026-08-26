@@ -486,9 +486,20 @@
     line-height: 1.4;
 }
 
+.download-choice-option small {
+    color: #315a78;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
 .download-choice-option--large {
     background: #fffaf0;
     border-color: #f0c36d;
+}
+
+.download-choice-option--large small {
+    color: #8a5600;
 }
 
 .download-choice-option--large:hover {
