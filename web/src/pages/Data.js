@@ -82,6 +82,7 @@ const Data = ({user}) => { // Receive user as a prop
 
     const getDateRangeKey = (serverName, tableName) => `${serverName}-${tableName}`;
     const defaultCsvDownloadDays = 7;
+    const monthlyCsvDownloadDays = 31;
     const annualCsvDownloadDays = 366;
 
     const formatDateForApi = (date) => {
@@ -102,9 +103,9 @@ const Data = ({user}) => { // Receive user as a prop
 
     const getCsvDownloadLimitDays = (tableName) => {
         const normalizedTable = String(tableName || '').toLowerCase();
-        return /\b(hourly|hour|daily|day)\b/.test(normalizedTable)
-            ? annualCsvDownloadDays
-            : defaultCsvDownloadDays;
+        if (/\b(daily|day)\b/.test(normalizedTable)) return annualCsvDownloadDays;
+        if (/\b(hourly|hour)\b/.test(normalizedTable)) return monthlyCsvDownloadDays;
+        return defaultCsvDownloadDays;
     };
 
     const parseApiDate = (value) => {
@@ -173,8 +174,8 @@ const Data = ({user}) => { // Receive user as a prop
 
     const getDownloadScopeSizeLabel = (scope) => {
         if (scope?.type === 'latest_month') return 'Small download. Usually the fastest option.';
-        if (scope?.type === 'recent_3_months') return 'High-frequency tables are split into weekly CSV batches.';
-        if (scope?.type === 'recent_12_months') return 'Annual download for hourly/daily tables.';
+        if (scope?.type === 'recent_3_months') return 'Hourly tables are split monthly; high-frequency tables weekly.';
+        if (scope?.type === 'recent_12_months') return 'Long ranges are split into manageable CSV batches.';
         if (scope?.type === 'full') return 'Full archives are split into sequential CSV batches.';
         return 'Custom download. Size depends on the selected date range.';
     };

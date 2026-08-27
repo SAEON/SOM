@@ -294,18 +294,19 @@ function daySpan(startDate, endDate) {
 }
 
 const defaultCsvDownloadDays = 7;
+const monthlyCsvDownloadDays = 31;
 const annualCsvDownloadDays = 366;
 
 function getCsvDownloadLimitDays(tableName) {
   const normalizedTable = normalizeText(tableName).toLowerCase();
-  return /\b(hourly|hour|daily|day)\b/.test(normalizedTable)
-    ? annualCsvDownloadDays
-    : defaultCsvDownloadDays;
+  if (/\b(daily|day)\b/.test(normalizedTable)) return annualCsvDownloadDays;
+  if (/\b(hourly|hour)\b/.test(normalizedTable)) return monthlyCsvDownloadDays;
+  return defaultCsvDownloadDays;
 }
 
 function csvDownloadLimitMessage(tableName) {
   const limitDays = getCsvDownloadLimitDays(tableName);
-  return `CSV downloads for this table are limited to ${limitDays} days per request. Hourly and daily tables support annual downloads; higher-frequency tables are split into smaller batches so the live API and database remain responsive.`;
+  return `CSV downloads for this table are limited to ${limitDays} days per request. Daily tables support annual downloads; hourly tables are split into monthly batches; higher-frequency tables are split into weekly batches so the live API and database remain responsive.`;
 }
 
 function isUsableDataValue(value) {
@@ -5517,22 +5518,15 @@ app.get('/api/summary_table/download', async (req, res) => {
           `
             SELECT
               TO_CHAR(fv."timestamp" AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS timestamp,
-              json_agg(
-                json_build_object(
-                  'display_field_name', st.display_field_name,
-                  'field_value',
-                    CASE
-                      WHEN fv.value ~ '^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$'
-                        AND st.multiplier IS NOT NULL
-                        THEN (fv.value::numeric * st.multiplier::numeric)::text
-                      ELSE fv.value
-                    END,
-                  'units', st.units
-                )
-                ORDER BY st.display_field_name
-              ) AS field_values,
-              max(st.latitude) AS latitude,
-              max(st.longitude) AS longitude
+              st.display_field_name,
+              CASE
+                WHEN fv.value ~ '^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$'
+                  AND st.multiplier IS NOT NULL
+                  THEN (fv.value::numeric * st.multiplier::numeric)::text
+                ELSE fv.value
+              END AS field_value,
+              st.latitude,
+              st.longitude
             FROM summary_table st
             JOIN field_values fv ON fv.field_id = st.field_id
             WHERE st.display_table_name = $1
@@ -5544,8 +5538,7 @@ app.get('/api/summary_table/download', async (req, res) => {
               AND fv.value IS NOT NULL
               AND btrim(fv.value) <> ''
               AND upper(btrim(fv.value)) NOT IN ('NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY')
-            GROUP BY fv."timestamp"
-            ORDER BY fv."timestamp" ASC
+            ORDER BY fv."timestamp" ASC, st.display_field_name ASC
           `,
           [tableName, serverName, startDateOnly, endDateOnly]
         );
@@ -5553,30 +5546,49 @@ app.get('/api/summary_table/download', async (req, res) => {
         // Execute the query as a stream using pipeline
         const stream = client.query(queryStream);
 
+        let currentTimestamp = null;
+        let currentValuesByField = {};
+        let currentLatitude = '';
+        let currentLongitude = '';
+
+        const serializeCurrentTimestamp = () => {
+          if (!currentTimestamp) return '';
+          const csvRow = [
+            currentTimestamp,
+            ...fields.map((field) => currentValuesByField[field] ?? ''),
+            currentLatitude,
+            currentLongitude,
+          ];
+          return `${csvRow.map(escapeCsv).join(',')}\n`;
+        };
+
         const csvTransform = new Transform({
           objectMode: true,
           transform(row, encoding, callback) {
-            const valuesByField = {};
-            const fieldEntries = Array.isArray(row.field_values)
-              ? row.field_values
-              : JSON.parse(row.field_values || '[]');
+            let output = '';
 
-            for (const entry of fieldEntries) {
-              const fieldName = entry?.display_field_name;
-              const fieldValue = entry?.field_value;
-              if (fieldName && isUsableDataValue(fieldValue)) {
-                valuesByField[fieldName] = fieldValue;
-              }
+            if (currentTimestamp && row.timestamp !== currentTimestamp) {
+              output = serializeCurrentTimestamp();
+              currentValuesByField = {};
+              currentLatitude = '';
+              currentLongitude = '';
             }
 
-            const csvRow = [
-              row.timestamp,
-              ...fields.map((field) => valuesByField[field] ?? ''),
-              row.latitude ?? '',
-              row.longitude ?? '',
-            ];
+            currentTimestamp = row.timestamp;
+            if (row.display_field_name && isUsableDataValue(row.field_value)) {
+              currentValuesByField[row.display_field_name] = row.field_value;
+            }
+            if (currentLatitude === '' && row.latitude !== null && row.latitude !== undefined) {
+              currentLatitude = row.latitude;
+            }
+            if (currentLongitude === '' && row.longitude !== null && row.longitude !== undefined) {
+              currentLongitude = row.longitude;
+            }
 
-            callback(null, `${csvRow.map(escapeCsv).join(',')}\n`);
+            callback(null, output);
+          },
+          flush(callback) {
+            callback(null, serializeCurrentTimestamp());
           }
         });
 
