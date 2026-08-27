@@ -3947,6 +3947,18 @@ app.get('/api/filtered-aggregated-data-availability', async (req, res) => {
 
   try {
     const serverList = servers.split(',');
+    const parsedStart = parseDateOnly(startDate);
+    const parsedEnd = parseDateOnly(endDate);
+
+    if (!parsedStart || !parsedEnd || parsedEnd < parsedStart) {
+      return res.status(400).json({ error: 'Dates must use YYYY-MM-DD and endDate must be on or after startDate.' });
+    }
+
+    if (daySpan(parsedStart, parsedEnd) > 31) {
+      return res.status(400).json({
+        error: 'All-site daily availability reports are limited to 31 days. Please select a shorter date range for this overview.',
+      });
+    }
 
     const query = `
             SELECT display_server_name,
@@ -3967,7 +3979,14 @@ app.get('/api/filtered-aggregated-data-availability', async (req, res) => {
         `;
     const values = [startDate, endDate, serverList];
 
-    const result = await pool.query(query, values);
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query("SET LOCAL statement_timeout = '20000ms'");
+      result = await client.query(query, values);
+    } finally {
+      client.release();
+    }
     setPublicCache(res, 300);
     await res.json(result.rows);
   } catch (error) {

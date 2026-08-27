@@ -753,6 +753,16 @@ const Data = ({user}) => { // Receive user as a prop
 
         const formattedStartDate = formatDateForApi(startDate);
         const formattedEndDate = formatDateForApi(endDate);
+        const requestedDays = getScopeDayCount({startDate: formattedStartDate, endDate: formattedEndDate});
+
+        if (requestedDays > 31) {
+            setDataNotice({
+                type: 'info',
+                message: 'All-site daily availability reports are limited to 31 days. Please select a shorter date range for this overview.'
+            });
+            setLoading(false);
+            return;
+        }
         // const formattedStartDate = modalStartDate.toISOString();
         // const formattedEndDate = modalEndDate.toISOString();
 
