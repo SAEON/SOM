@@ -869,7 +869,7 @@ const Data = ({user}) => { // Receive user as a prop
     const openTableModal = (tableName, serverName) => {
         setCurrentTableName(tableName);
         setCurrentPage(1);
-        fetchTableData(tableName, serverName, 1, {startDate, endDate});
+        fetchTableData(tableName, serverName, 1);
     };
 
     // const openTableModal = (tableName, serverName) => {
@@ -2608,6 +2608,11 @@ const Data = ({user}) => { // Receive user as a prop
                     const latestMonthScope = tableName && serverName ? buildRecentMonthsScope(serverName, tableName, 1) : null;
                     const threeMonthScope = tableName && serverName ? buildRecentMonthsScope(serverName, tableName, 3) : null;
                     const twelveMonthScope = tableName && serverName ? buildRecentMonthsScope(serverName, tableName, 12) : null;
+                    const selectedRangeScope = startDate && endDate ? {
+                        type: 'selected_range',
+                        startDate: formatDateForApi(startDate),
+                        endDate: formatDateForApi(endDate)
+                    } : null;
                     const range = tableName && serverName ? getTableDateRange(serverName, tableName) : null;
 
                     return (
@@ -2627,6 +2632,16 @@ const Data = ({user}) => { // Receive user as a prop
                             <p className="download-choice-table">{tableName}</p>
 
                             <div className="download-choice-options">
+                                <button
+                                    type="button"
+                                    className="download-choice-option"
+                                    onClick={() => startDownloadWithScope(selectedRangeScope)}
+                                    disabled={!selectedRangeScope?.startDate || !selectedRangeScope?.endDate}
+                                >
+                                    <strong>Selected date range</strong>
+                                    <span>{getDownloadScopeLabel(selectedRangeScope)}</span>
+                                    <small>Uses the date range selected at the top of the Data tab.</small>
+                                </button>
                                 <button
                                     type="button"
                                     className="download-choice-option"
