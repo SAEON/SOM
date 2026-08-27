@@ -133,7 +133,7 @@ const DataAvailabilityModalContent = ({ data, onClose }) => {
                     <span style={titleStyle}>{title}</span>
                     <div style={metaRowStyle}>
                         <span style={chipStyle}>{variables.length} rows</span>
-                        <span style={chipStyle}>{dates.length} days</span>
+                        <span style={chipStyle}>{dates.length} periods</span>
                         <span style={chipStyle}>{dateLabel}</span>
                     </div>
                 </div>

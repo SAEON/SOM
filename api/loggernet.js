@@ -3939,6 +3939,7 @@ app.get('/api/servers-with-tables', async (req, res) => {
 
 app.get('/api/filtered-aggregated-data-availability', async (req, res) => {
   const { startDate, endDate, servers } = req.query;
+  const requestedGranularity = normalizeText(req.query.granularity).toLowerCase();
 
   // Ensure the necessary parameters are provided
   if (!startDate || !endDate || !servers) {
@@ -3954,30 +3955,63 @@ app.get('/api/filtered-aggregated-data-availability', async (req, res) => {
       return res.status(400).json({ error: 'Dates must use YYYY-MM-DD and endDate must be on or after startDate.' });
     }
 
-    if (daySpan(parsedStart, parsedEnd) > 31) {
-      return res.status(400).json({
-        error: 'All-site daily availability reports are limited to 31 days. Please select a shorter date range for this overview.',
-      });
-    }
+    const rangeDays = daySpan(parsedStart, parsedEnd);
+    const sources = {
+      daily: {
+        table: 'daily_data_availability',
+        dateColumn: 'date',
+        granularity: 'daily',
+        trunc: 'day',
+      },
+      weekly: {
+        table: 'weekly_data_availability',
+        dateColumn: 'week_start_date',
+        granularity: 'weekly',
+        trunc: 'week',
+      },
+      monthly: {
+        table: 'monthly_data_availability',
+        dateColumn: 'month_start_date',
+        granularity: 'monthly',
+        trunc: 'month',
+      },
+      yearly: {
+        table: 'yearly_data_availability',
+        dateColumn: 'year_start_date',
+        granularity: 'yearly',
+        trunc: 'year',
+      },
+    };
+    const autoSource = rangeDays > 730
+      ? sources.yearly
+      : rangeDays > 120
+        ? sources.monthly
+        : rangeDays > 31
+          ? sources.weekly
+          : sources.daily;
+    const availabilitySource = requestedGranularity === 'auto'
+      ? autoSource
+      : sources[requestedGranularity] || sources.daily;
 
     const query = `
             SELECT display_server_name,
                     display_table_name,
-                    to_char(date, 'YYYY-MM-DD') AS aggregated_timestamp,
-                    AVG(availability_percentage) AS average_availability_percentage
-            FROM daily_data_availability
-            WHERE date >= $1::date
-              AND date <= $2::date
+                    to_char(${availabilitySource.dateColumn}, 'YYYY-MM-DD') AS aggregated_timestamp,
+                    AVG(availability_percentage) AS average_availability_percentage,
+                    $4::text AS availability_granularity
+            FROM ${availabilitySource.table}
+            WHERE ${availabilitySource.dateColumn} >= date_trunc('${availabilitySource.trunc}', $1::date)::date
+              AND ${availabilitySource.dateColumn} <= $2::date
               AND display_server_name = ANY($3::text[])
               AND display_table_name IS NOT NULL
               AND btrim(display_table_name) <> ''
               AND display_field_name IS NOT NULL
               AND btrim(display_field_name) <> ''
               AND availability_percentage BETWEEN 0 AND 100
-            GROUP BY display_server_name, display_table_name, date
-            ORDER BY date ASC;
+            GROUP BY display_server_name, display_table_name, ${availabilitySource.dateColumn}
+            ORDER BY ${availabilitySource.dateColumn} ASC;
         `;
-    const values = [startDate, endDate, serverList];
+    const values = [startDate, endDate, serverList, availabilitySource.granularity];
 
     const client = await pool.connect();
     let result;

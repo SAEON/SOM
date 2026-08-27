@@ -572,6 +572,7 @@ const Data = ({user}) => { // Receive user as a prop
 
     const [isServerSelectionOpen, setIsServerSelectionOpen] = useState(false);
     const [selectedServers, setSelectedServers] = useState([]);
+    const [availabilityRequestMode, setAvailabilityRequestMode] = useState('daily');
 
 // Handle the toggle for server selection modal
     const toggleServerSelectionModal = () => {
@@ -589,13 +590,19 @@ const Data = ({user}) => { // Receive user as a prop
 
 // Function to open the modal and fetch data after servers are selected
     const handleDailyDataAvailabilityClick = () => {
+        setAvailabilityRequestMode('daily');
+        toggleServerSelectionModal(); // Open the modal to select servers
+    };
+
+    const handleQuickAvailabilityClick = () => {
+        setAvailabilityRequestMode('auto');
         toggleServerSelectionModal(); // Open the modal to select servers
     };
 
 // Function to fetch data after server selection is done
     const fetchFilteredDataAvailability = () => {
         toggleServerSelectionModal(); // Close the modal
-        fetchAggregatedDataAvailability('Daily');
+        fetchAggregatedDataAvailability(availabilityRequestMode === 'auto' ? 'Quick overview' : 'Daily');
     };
 
     const [isAllSelected, setIsAllSelected] = useState(true); // State to track whether all servers are selected
@@ -753,23 +760,13 @@ const Data = ({user}) => { // Receive user as a prop
 
         const formattedStartDate = formatDateForApi(startDate);
         const formattedEndDate = formatDateForApi(endDate);
-        const requestedDays = getScopeDayCount({startDate: formattedStartDate, endDate: formattedEndDate});
-
-        if (requestedDays > 31) {
-            setDataNotice({
-                type: 'info',
-                message: 'All-site daily availability reports are limited to 31 days. Please select a shorter date range for this overview.'
-            });
-            setLoading(false);
-            return;
-        }
         // const formattedStartDate = modalStartDate.toISOString();
         // const formattedEndDate = modalEndDate.toISOString();
 
         const serverParam = selectedServers.map(encodeURIComponent).join(','); // Include only selected servers
         // console.log(selectedServers);
 
-        const url = `/api/filtered-aggregated-data-availability?startDate=${formattedStartDate}&endDate=${formattedEndDate}&servers=${serverParam}`;
+        const url = `/api/filtered-aggregated-data-availability?startDate=${formattedStartDate}&endDate=${formattedEndDate}&servers=${serverParam}&granularity=${availabilityRequestMode}`;
 
         try {
             const response = await fetch(url);
@@ -785,7 +782,29 @@ const Data = ({user}) => { // Receive user as a prop
                     return; // Stop further processing
                 }
 
-                // Process and generate the full date range
+                const availabilityGranularity = data[0]?.availability_granularity || 'daily';
+                const variables = [...new Set(data.map(item => `${item.display_server_name}|${item.display_table_name}`))];
+
+                if (availabilityGranularity !== 'daily') {
+                    setDataNotice({
+                        type: 'info',
+                        message: `Showing a ${availabilityGranularity} all-site availability overview for the selected range. Use the daily report for day-by-day outage detail.`
+                    });
+                    setModalData(data.map(item => ({
+                        aggregated_timestamp: item.aggregated_timestamp,
+                        display_server_name: "all sites",
+                        display_table_name: "all tables",
+                        availability_percentage: item.average_availability_percentage,
+                        available_records: null,
+                        total_records: null,
+                        display_field_name: `${item.display_server_name} - ${item.display_table_name}`
+                    })));
+                    setIsCustomModalOpen(true);
+                    setLoading(false);
+                    return;
+                }
+
+                // Process and generate the full date range for short daily reports.
                 const allDates = [];
                 let currentDate = new Date(startDate);
                 const end = new Date(endDate);
@@ -795,7 +814,6 @@ const Data = ({user}) => { // Receive user as a prop
                     currentDate.setDate(currentDate.getDate() + 1);
                 }
 
-                const variables = [...new Set(data.map(item => `${item.display_server_name}|${item.display_table_name}`))];
                 const entriesByDateServerAndTable = new Map(
                     data.map(item => [
                         `${item.aggregated_timestamp.split('T')[0]}|${item.display_server_name}|${item.display_table_name}`,
@@ -2156,6 +2174,21 @@ const Data = ({user}) => { // Receive user as a prop
                             </button>
                             {!isUserLoggedIn && (
                                 <span className="tooltiptext2">Please log in to access daily data availability</span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="expandable-row2">
+                        <div className="tooltip2">
+                            <button
+                                className={`data-availability-button ${!isUserLoggedIn ? 'disabled-button' : ''}`}
+                                onClick={isUserLoggedIn ? handleQuickAvailabilityClick : null}
+                                disabled={!isUserLoggedIn}
+                            >
+                                View quick availability overview for all sites
+                            </button>
+                            {!isUserLoggedIn && (
+                                <span className="tooltiptext2">Please log in to access availability overview</span>
                             )}
                         </div>
                     </div>
