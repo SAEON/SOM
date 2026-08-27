@@ -81,7 +81,7 @@ const Data = ({user}) => { // Receive user as a prop
     const [isFieldUnitsExpanded, setIsFieldUnitsExpanded] = useState(false);
 
     const getDateRangeKey = (serverName, tableName) => `${serverName}-${tableName}`;
-    const defaultCsvDownloadDays = 31;
+    const defaultCsvDownloadDays = 7;
     const annualCsvDownloadDays = 366;
 
     const formatDateForApi = (date) => {
@@ -173,9 +173,9 @@ const Data = ({user}) => { // Receive user as a prop
 
     const getDownloadScopeSizeLabel = (scope) => {
         if (scope?.type === 'latest_month') return 'Small download. Usually the fastest option.';
-        if (scope?.type === 'recent_3_months') return 'Available for hourly/daily tables; use monthly windows for high-frequency data.';
+        if (scope?.type === 'recent_3_months') return 'High-frequency tables are split into weekly CSV batches.';
         if (scope?.type === 'recent_12_months') return 'Annual download for hourly/daily tables.';
-        if (scope?.type === 'full') return 'Full archives should be downloaded month by month.';
+        if (scope?.type === 'full') return 'Full archives are split into sequential CSV batches.';
         return 'Custom download. Size depends on the selected date range.';
     };
 

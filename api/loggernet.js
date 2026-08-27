@@ -293,7 +293,7 @@ function daySpan(startDate, endDate) {
   return Math.floor((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
 }
 
-const defaultCsvDownloadDays = 31;
+const defaultCsvDownloadDays = 7;
 const annualCsvDownloadDays = 366;
 
 function getCsvDownloadLimitDays(tableName) {
@@ -305,7 +305,7 @@ function getCsvDownloadLimitDays(tableName) {
 
 function csvDownloadLimitMessage(tableName) {
   const limitDays = getCsvDownloadLimitDays(tableName);
-  return `CSV downloads for this table are limited to ${limitDays} days per request. Hourly and daily tables support annual downloads; higher-frequency tables should be downloaded month by month so the live API and database remain responsive.`;
+  return `CSV downloads for this table are limited to ${limitDays} days per request. Hourly and daily tables support annual downloads; higher-frequency tables are split into smaller batches so the live API and database remain responsive.`;
 }
 
 function isUsableDataValue(value) {
