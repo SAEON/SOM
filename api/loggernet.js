@@ -293,6 +293,21 @@ function daySpan(startDate, endDate) {
   return Math.floor((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
 }
 
+const defaultCsvDownloadDays = 31;
+const annualCsvDownloadDays = 366;
+
+function getCsvDownloadLimitDays(tableName) {
+  const normalizedTable = normalizeText(tableName).toLowerCase();
+  return /\b(hourly|hour|daily|day)\b/.test(normalizedTable)
+    ? annualCsvDownloadDays
+    : defaultCsvDownloadDays;
+}
+
+function csvDownloadLimitMessage(tableName) {
+  const limitDays = getCsvDownloadLimitDays(tableName);
+  return `CSV downloads for this table are limited to ${limitDays} days per request. Hourly and daily tables support annual downloads; higher-frequency tables should be downloaded month by month so the live API and database remain responsive.`;
+}
+
 function isUsableDataValue(value) {
   if (value === null || value === undefined) return false;
   const text = String(value).trim();
@@ -2431,51 +2446,22 @@ app.get('/api/public/monitoring/highlights', async (req, res) => {
 	          AND display_table_name IS NOT NULL
 	          AND btrim(display_table_name) <> ''
 	      `),
+	      pool.query(`
+	        SELECT
+	          MIN(start_date)::date AS archive_start,
+	          MAX(end_date)::date AS archive_end,
+	          SUM(COALESCE(total_count, 0))::bigint AS public_table_rows
+	        FROM summary_data_date_ranges
+	      `),
       pool.query(`
         SELECT
-          MIN(start_date)::date AS archive_start,
-          MAX(CASE
-            WHEN latest_available_date IS NULL THEN end_date
-            WHEN end_date IS NULL THEN latest_available_date
-            ELSE GREATEST(end_date, latest_available_date)
-          END)::date AS archive_end,
-          SUM(COALESCE(total_count, 0))::bigint AS public_table_rows
-        FROM summary_data_date_ranges sdr
-        LEFT JOIN (
-          SELECT display_server_name AS server_name,
-                 display_table_name AS table_name,
-                 MAX(date)::timestamptz AS latest_available_date
-          FROM daily_data_availability
-          WHERE available_records > 0
-          GROUP BY display_server_name, display_table_name
-        ) la
-          ON la.server_name = sdr.server_name
-         AND la.table_name = sdr.table_name
-      `),
-      pool.query(`
-        SELECT
-          sdr.server_name,
-          sdr.table_name,
-          CASE
-            WHEN la.latest_available_date IS NULL THEN sdr.end_date
-            WHEN sdr.end_date IS NULL THEN la.latest_available_date
-            ELSE GREATEST(sdr.end_date, la.latest_available_date)
-          END::date AS latest_date,
-          sdr.total_count
-        FROM summary_data_date_ranges sdr
-        LEFT JOIN (
-          SELECT display_server_name AS server_name,
-                 display_table_name AS table_name,
-                 MAX(date)::timestamptz AS latest_available_date
-          FROM daily_data_availability
-          WHERE available_records > 0
-          GROUP BY display_server_name, display_table_name
-        ) la
-          ON la.server_name = sdr.server_name
-         AND la.table_name = sdr.table_name
-        WHERE sdr.end_date IS NOT NULL
-           OR la.latest_available_date IS NOT NULL
-        ORDER BY latest_date DESC, total_count DESC NULLS LAST
+          server_name,
+          table_name,
+          end_date::date AS latest_date,
+          total_count
+        FROM summary_data_date_ranges
+        WHERE end_date IS NOT NULL
+        ORDER BY end_date DESC, total_count DESC NULLS LAST
         LIMIT 4
       `),
     ]);
@@ -5345,6 +5331,11 @@ app.get('/api/summary_table/download', async (req, res) => {
       if (!parsedStart || !parsedEnd || parsedEnd < parsedStart) {
         return res.status(400).json({ error: 'Dates must use YYYY-MM-DD and endDate must be on or after startDate.' });
       }
+      if (daySpan(parsedStart, parsedEnd) > getCsvDownloadLimitDays(tableName)) {
+        return res.status(400).json({
+          error: csvDownloadLimitMessage(tableName),
+        });
+      }
     }
 
     // Define the path where the pre-generated CSV is stored
@@ -5438,8 +5429,15 @@ app.get('/api/summary_table/download', async (req, res) => {
 
       const startDateOnly = formatDateOnlyValue(formattedStartDate);
       const endDateOnly = formatDateOnlyValue(formattedEndDate);
-      if (!startDateOnly || !endDateOnly || parseDateOnly(endDateOnly) < parseDateOnly(startDateOnly)) {
+      const parsedStartDateOnly = parseDateOnly(startDateOnly);
+      const parsedEndDateOnly = parseDateOnly(endDateOnly);
+      if (!startDateOnly || !endDateOnly || !parsedStartDateOnly || !parsedEndDateOnly || parsedEndDateOnly < parsedStartDateOnly) {
         return res.status(400).json({ error: 'No valid date range is available for this download.' });
+      }
+      if (daySpan(parsedStartDateOnly, parsedEndDateOnly) > getCsvDownloadLimitDays(tableName)) {
+        return res.status(400).json({
+          error: csvDownloadLimitMessage(tableName),
+        });
       }
 
       // Fetch the DOI for the site from the site_mapping table

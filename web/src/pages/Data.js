@@ -68,9 +68,6 @@ const Data = ({user}) => { // Receive user as a prop
     const [highlightedTable, setHighlightedTable] = useState(null);
     const [metadataLinks, setMetadataLinks] = useState({});
     const metadataServerCacheRef = useRef(new Set());
-    const [siteSearch, setSiteSearch] = useState('');
-    const [selectedSiteOption, setSelectedSiteOption] = useState('');
-    const [selectedTableOption, setSelectedTableOption] = useState('');
     const [dataNotice, setDataNotice] = useState(null);
     const [isDownloadChoiceOpen, setIsDownloadChoiceOpen] = useState(false);
     const [downloadChoiceContext, setDownloadChoiceContext] = useState(null);
@@ -84,6 +81,8 @@ const Data = ({user}) => { // Receive user as a prop
     const [isFieldUnitsExpanded, setIsFieldUnitsExpanded] = useState(false);
 
     const getDateRangeKey = (serverName, tableName) => `${serverName}-${tableName}`;
+    const defaultCsvDownloadDays = 31;
+    const annualCsvDownloadDays = 366;
 
     const formatDateForApi = (date) => {
         if (!(date instanceof Date) || isNaN(date.getTime())) return '';
@@ -91,6 +90,56 @@ const Data = ({user}) => { // Receive user as a prop
         const month = `${date.getMonth() + 1}`.padStart(2, '0');
         const day = `${date.getDate()}`.padStart(2, '0');
         return `${year}-${month}-${day}`;
+    };
+
+    const getScopeDayCount = (scope) => {
+        if (!scope?.startDate || !scope?.endDate) return 0;
+        const start = new Date(`${scope.startDate}T00:00:00`);
+        const end = new Date(`${scope.endDate}T00:00:00`);
+        if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return 0;
+        return Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    };
+
+    const getCsvDownloadLimitDays = (tableName) => {
+        const normalizedTable = String(tableName || '').toLowerCase();
+        return /\b(hourly|hour|daily|day)\b/.test(normalizedTable)
+            ? annualCsvDownloadDays
+            : defaultCsvDownloadDays;
+    };
+
+    const parseApiDate = (value) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return null;
+        const [year, month, day] = value.split('-').map(Number);
+        return new Date(year, month - 1, day);
+    };
+
+    const addDays = (date, days) => {
+        const next = new Date(date);
+        next.setDate(next.getDate() + days);
+        return next;
+    };
+
+    const splitDateRangeIntoBatches = (startDateValue, endDateValue, maxDays) => {
+        const batches = [];
+        let cursor = parseApiDate(startDateValue);
+        const finalDate = parseApiDate(endDateValue);
+
+        if (!cursor || !finalDate || finalDate < cursor || maxDays < 1) return batches;
+
+        while (cursor <= finalDate) {
+            const batchStart = new Date(cursor);
+            const batchEnd = addDays(batchStart, maxDays - 1);
+            if (batchEnd > finalDate) batchEnd.setTime(finalDate.getTime());
+
+            batches.push({
+                startDate: formatDateForApi(batchStart),
+                endDate: formatDateForApi(batchEnd)
+            });
+
+            cursor = addDays(batchEnd, 1);
+        }
+
+        return batches;
     };
 
     const getLatestMonthWindow = (range) => {
@@ -107,41 +156,10 @@ const Data = ({user}) => { // Receive user as a prop
         return `${new Date(range.start_date).toLocaleDateString()} - ${new Date(range.end_date).toLocaleDateString()}`;
     };
 
-    const siteSearchTerm = siteSearch.trim().toLowerCase();
-
-    const visibleServers = useMemo(
-        () => servers.filter((server) =>
-            !siteSearchTerm ||
-            server.display_server_name.toLowerCase().includes(siteSearchTerm)
-        ),
-        [servers, siteSearchTerm]
-    );
+    const visibleServers = useMemo(() => servers, [servers]);
 
     const getVisibleTables = (serverName) => {
         return tables[serverName] || [];
-    };
-
-    const selectedSiteTables = selectedSiteOption ? (tables[selectedSiteOption] || []) : [];
-
-    const handleSiteSelect = (serverName) => {
-        setSelectedSiteOption(serverName);
-        setSelectedTableOption('');
-        setSiteSearch('');
-        if (!serverName) {
-            setActiveServer(null);
-            return;
-        }
-        setActiveServer(serverName);
-        if (!tables[serverName]) {
-            fetchTables(serverName);
-        }
-    };
-
-    const handleTableSelect = (tableName) => {
-        setSelectedTableOption(tableName);
-        if (tableName && selectedSiteOption) {
-            openTableModal(tableName, selectedSiteOption);
-        }
     };
 
     const getTableDateRange = (serverName, tableName) =>
@@ -155,9 +173,9 @@ const Data = ({user}) => { // Receive user as a prop
 
     const getDownloadScopeSizeLabel = (scope) => {
         if (scope?.type === 'latest_month') return 'Small download. Usually the fastest option.';
-        if (scope?.type === 'recent_3_months') return 'Medium download. Good for recent checks.';
-        if (scope?.type === 'recent_12_months') return 'Large download. Useful for annual analysis.';
-        if (scope?.type === 'full') return 'Very large download. Can be hundreds of MB and may take several minutes.';
+        if (scope?.type === 'recent_3_months') return 'Available for hourly/daily tables; use monthly windows for high-frequency data.';
+        if (scope?.type === 'recent_12_months') return 'Annual download for hourly/daily tables.';
+        if (scope?.type === 'full') return 'Full archives should be downloaded month by month.';
         return 'Custom download. Size depends on the selected date range.';
     };
 
@@ -278,8 +296,6 @@ const Data = ({user}) => { // Receive user as a prop
 
         setActiveServer(prev => {
             const next = prev === serverName ? null : serverName;
-            setSelectedSiteOption(next || '');
-            setSelectedTableOption('');
             return next;
         });
         if (!tables[serverName]) {
@@ -404,7 +420,7 @@ const Data = ({user}) => { // Receive user as a prop
     };
 
 
-    const fetchTableData = async (tableName, serverName, page = 1) => {
+    const fetchTableData = async (tableName, serverName, page = 1, dateOverride = null) => {
         if (!tableName || !serverName) return;
 
         const dateRangeKey = getDateRangeKey(serverName, tableName);
@@ -428,7 +444,16 @@ const Data = ({user}) => { // Receive user as a prop
                     [dateRangeKey]: dateRangeData
                 }));
 
-                const {start: defaultStartDate, end: defaultEndDate} = getLatestMonthWindow(dateRangeData);
+                const selectedStartDate = dateOverride?.startDate || modalStartDate;
+                const selectedEndDate = dateOverride?.endDate || modalEndDate;
+                const hasSelectedWindow = selectedStartDate instanceof Date
+                    && selectedEndDate instanceof Date
+                    && !isNaN(selectedStartDate.getTime())
+                    && !isNaN(selectedEndDate.getTime())
+                    && selectedEndDate >= selectedStartDate;
+                const {start: latestStartDate, end: latestEndDate} = getLatestMonthWindow(dateRangeData);
+                const defaultStartDate = hasSelectedWindow ? selectedStartDate : latestStartDate;
+                const defaultEndDate = hasSelectedWindow ? selectedEndDate : latestEndDate;
 
                 // Set the modal dates
                 setModalStartDate(defaultStartDate);
@@ -844,7 +869,7 @@ const Data = ({user}) => { // Receive user as a prop
     const openTableModal = (tableName, serverName) => {
         setCurrentTableName(tableName);
         setCurrentPage(1);
-        fetchTableData(tableName, serverName, 1);
+        fetchTableData(tableName, serverName, 1, {startDate, endDate});
     };
 
     // const openTableModal = (tableName, serverName) => {
@@ -1071,95 +1096,137 @@ const Data = ({user}) => { // Receive user as a prop
 
         try {
             const isFullArchive = scope?.type === 'full';
-            const formattedStartDate = scope?.startDate || formatDateForApi(modalStartDate);
-            const formattedEndDate = scope?.endDate || formatDateForApi(modalEndDate);
-            const fileName = isFullArchive
-                ? `${tableName}_${serverName}_full_archive.csv`
-                : `${tableName}_${serverName}_${formattedStartDate}_${formattedEndDate}.csv`;
-            const requestLabel = isFullArchive ? 'full available archive' : `${formattedStartDate} to ${formattedEndDate}`;
+            const archiveRange = isFullArchive ? getTableDateRange(serverName, tableName) : null;
+            const formattedStartDate = isFullArchive
+                ? (archiveRange?.start_date ? formatDateForApi(new Date(archiveRange.start_date)) : '')
+                : (scope?.startDate || formatDateForApi(modalStartDate));
+            const formattedEndDate = isFullArchive
+                ? (archiveRange?.end_date ? formatDateForApi(new Date(archiveRange.end_date)) : '')
+                : (scope?.endDate || formatDateForApi(modalEndDate));
+            const requestedDays = getScopeDayCount({startDate: formattedStartDate, endDate: formattedEndDate});
+            const maxDownloadDays = getCsvDownloadLimitDays(tableName);
+            const batches = splitDateRangeIntoBatches(formattedStartDate, formattedEndDate, maxDownloadDays);
+            const isBatched = batches.length > 1;
+
+            if (!requestedDays || batches.length === 0) {
+                alert('No valid date range is available for this download.');
+                return;
+            }
+
+            if (isBatched) {
+                const confirmed = window.confirm(
+                    `This ${requestedDays}-day CSV export will be downloaded as ${batches.length} separate files, one after another, so the live database stays responsive. Continue?`
+                );
+                if (!confirmed) return;
+            }
+
+            const requestLabel = isFullArchive
+                ? `full available archive (${formattedStartDate} to ${formattedEndDate})`
+                : `${formattedStartDate} to ${formattedEndDate}`;
             const sizeLabel = getDownloadScopeSizeLabel(scope);
 
             showDownloadProgressWidget();
-            setDownloadTitle(isFullArchive ? 'Preparing large CSV archive' : 'Preparing CSV download');
+            setDownloadTitle(isBatched ? 'Preparing batched CSV export' : 'Preparing CSV download');
             setProgressText(`${sizeLabel} Requesting ${serverName} ${tableName} data for ${requestLabel}...`);
             setProgressValue(0);
-            setProgressMax(0);
+            setProgressMax(isBatched ? batches.length : 0);
 
             // Log interactions
             await logInteraction('consent_given', {tableName, serverName});
             await logInteraction('download_data', {
                 tableName,
                 serverName,
-                scope: isFullArchive ? 'full_archive' : 'date_range',
-                startDate: isFullArchive ? null : formattedStartDate,
-                endDate: isFullArchive ? null : formattedEndDate,
+                scope: isBatched ? 'batched_date_range' : (isFullArchive ? 'full_archive' : 'date_range'),
+                startDate: formattedStartDate,
+                endDate: formattedEndDate,
+                batchCount: batches.length,
             });
 
-            const url = isFullArchive
-                ? `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}`
-                : `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}&startDate=${encodeURIComponent(formattedStartDate)}&endDate=${encodeURIComponent(formattedEndDate)}`;
-            setProgressText(isFullArchive
-                ? 'Large archive selected. Waiting for the server to start streaming the full CSV...'
-                : 'Waiting for the server to start the CSV stream...');
-            const response = await fetch(url, {credentials: 'include'});
-            const contentType = response.headers.get('content-type') || '';
+            for (let index = 0; index < batches.length; index += 1) {
+                const batch = batches[index];
+                const batchLabel = isBatched ? `Part ${index + 1} of ${batches.length}.` : '';
+                const fileName = isBatched
+                    ? `${tableName}_${serverName}_${batch.startDate}_${batch.endDate}_part_${index + 1}_of_${batches.length}.csv`
+                    : `${tableName}_${serverName}_${batch.startDate}_${batch.endDate}.csv`;
+                const url = `/api/summary_table/download?tableName=${encodeURIComponent(tableName)}&serverName=${encodeURIComponent(serverName)}&startDate=${encodeURIComponent(batch.startDate)}&endDate=${encodeURIComponent(batch.endDate)}`;
 
-            if (!response.ok || !contentType.includes('text/csv')) {
-                const message = await response.text();
-                throw new Error(message.slice(0, 300) || `Download failed with status ${response.status}`);
-            }
+                setDownloadTitle(isBatched ? `Downloading CSV batch ${index + 1} of ${batches.length}` : 'Preparing CSV download');
+                setProgressText(`${batchLabel} Waiting for ${batch.startDate} to ${batch.endDate} to start streaming...`);
 
-            const totalBytes = Number(response.headers.get('content-length')) || 0;
-            const cacheStatus = response.headers.get('x-csv-cache');
-            setDownloadTitle(cacheStatus === 'hit'
-                ? 'Downloading cached CSV'
-                : (isFullArchive ? 'Streaming large CSV archive' : 'Streaming CSV export'));
-            setProgressMax(totalBytes);
-            setProgressText(totalBytes
-                ? `${sizeLabel} 0 of ${formatBytes(totalBytes)} received`
-                : `${sizeLabel} Size is unknown until the stream finishes.`);
+                const response = await fetch(url, {credentials: 'include'});
+                const contentType = response.headers.get('content-type') || '';
 
-            if (!response.body || !window.streamSaver) {
-                setProgressText('Browser stream download is unavailable. Saving with the fallback download method...');
-                const blob = await response.blob();
-                const fallbackSize = totalBytes || blob.size || 1;
-                setProgressMax(fallbackSize);
-                setProgressValue(fallbackSize);
-                const objectUrl = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = objectUrl;
-                link.download = fileName;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(objectUrl);
-                setDownloadTitle('Download ready');
-                setProgressText(`Saved ${fileName} (${formatBytes(blob.size)})`);
-                setTimeout(hideDownloadProgressWidget, 3000);
-                return;
-            }
-
-            const fileStream = window.streamSaver.createWriteStream(fileName);
-            const writer = fileStream.getWriter();
-            const reader = response.body.getReader();
-            let receivedBytes = 0;
-
-            try {
-                while (true) {
-                    const {done, value} = await reader.read();
-                    if (done) break;
-                    receivedBytes += value.length;
-                    await writer.write(value);
-                    updateDownloadProgressWidget(receivedBytes, totalBytes, sizeLabel);
+                if (!response.ok || !contentType.includes('text/csv')) {
+                    const message = await response.text();
+                    throw new Error(message.slice(0, 300) || `Download failed with status ${response.status}`);
                 }
-            } finally {
-                await writer.close();
+
+                const totalBytes = Number(response.headers.get('content-length')) || 0;
+                const cacheStatus = response.headers.get('x-csv-cache');
+                setDownloadTitle(cacheStatus === 'hit'
+                    ? `Downloading cached CSV${isBatched ? ` ${index + 1} of ${batches.length}` : ''}`
+                    : `Streaming CSV export${isBatched ? ` ${index + 1} of ${batches.length}` : ''}`);
+
+                if (!isBatched) {
+                    setProgressMax(totalBytes);
+                }
+
+                if (!response.body || !window.streamSaver) {
+                    setProgressText(`${batchLabel} Browser stream download is unavailable. Saving with the fallback download method...`);
+                    const blob = await response.blob();
+                    const fallbackSize = totalBytes || blob.size || 1;
+                    if (!isBatched) {
+                        setProgressMax(fallbackSize);
+                        setProgressValue(fallbackSize);
+                    }
+                    const objectUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = objectUrl;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(objectUrl);
+                } else {
+                    const fileStream = window.streamSaver.createWriteStream(fileName);
+                    const writer = fileStream.getWriter();
+                    const reader = response.body.getReader();
+                    let receivedBytes = 0;
+
+                    try {
+                        while (true) {
+                            const {done, value} = await reader.read();
+                            if (done) break;
+                            receivedBytes += value.length;
+                            await writer.write(value);
+                            if (isBatched) {
+                                setProgressValue(index);
+                                setProgressText(`${batchLabel} ${formatBytes(receivedBytes)} downloaded for ${batch.startDate} to ${batch.endDate}.`);
+                            } else {
+                                updateDownloadProgressWidget(receivedBytes, totalBytes, sizeLabel);
+                            }
+                        }
+                    } finally {
+                        await writer.close();
+                    }
+                }
+
+                if (isBatched) {
+                    setProgressValue(index + 1);
+                    setProgressText(`Saved part ${index + 1} of ${batches.length}: ${fileName}`);
+                    if (index < batches.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 600));
+                    }
+                }
             }
-            setProgressValue(totalBytes || receivedBytes || 1);
-            setProgressMax(totalBytes || receivedBytes || 1);
+
+            setProgressValue(isBatched ? batches.length : 1);
+            setProgressMax(isBatched ? batches.length : 1);
             setDownloadTitle('Download complete');
-            setProgressText(`Saved ${fileName}${receivedBytes ? ` (${formatBytes(receivedBytes)})` : ''}`);
-            setTimeout(hideDownloadProgressWidget, 3000);
+            setProgressText(isBatched
+                ? `Saved ${batches.length} CSV files for ${requestLabel}.`
+                : `Saved CSV file for ${requestLabel}.`);
+            setTimeout(hideDownloadProgressWidget, 5000);
         } catch (error) {
             console.error('Download failed:', error);
             setDownloadTitle('Download failed');
@@ -2057,37 +2124,6 @@ const Data = ({user}) => { // Receive user as a prop
                                     dateFormat="dd-MM-yyyy"/>
                     </div>
                 </div>
-                <div className="data-filter-bar">
-                    <label className="data-filter-field">
-                        <span>Select site</span>
-                        <select value={selectedSiteOption} onChange={(event) => handleSiteSelect(event.target.value)}>
-                            <option value="">All sites</option>
-                            {servers.map((server) => (
-                                <option key={server.display_server_name} value={server.display_server_name}>
-                                    {server.display_server_name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="data-filter-field">
-                        <span>Select table</span>
-                        <select
-                            value={selectedTableOption}
-                            onChange={(event) => handleTableSelect(event.target.value)}
-                            disabled={!selectedSiteOption || !selectedSiteTables.length}
-                        >
-                            <option value="">{selectedSiteOption ? 'Choose a table' : 'Select a site first'}</option>
-                            {selectedSiteTables.map((table) => (
-                                <option key={table.display_table_name} value={table.display_table_name}>
-                                    {table.display_table_name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <div className="data-filter-summary">
-                        {visibleServers.length} of {servers.length} sites
-                    </div>
-                </div>
                 {dataNotice && (
                     <div className={`data-inline-notice data-inline-notice--${dataNotice.type}`}>
                         <span>{dataNotice.message}</span>
@@ -2625,17 +2661,18 @@ const Data = ({user}) => { // Receive user as a prop
                                     type="button"
                                     className="download-choice-option download-choice-option--large"
                                     onClick={() => startDownloadWithScope({type: 'full'})}
+                                    disabled={!range?.start_date || !range?.end_date}
                                 >
                                     <strong>Full available archive</strong>
                                     <span>
-                                        Streams the full site-table history from the database{range?.start_date && range?.end_date ? ` (${getDateRangeLabel(range)})` : ''}.
+                                        Downloads the available archive in sequential CSV batches{range?.start_date && range?.end_date ? ` (${getDateRangeLabel(range)})` : ''}.
                                     </span>
                                     <small>{getDownloadScopeSizeLabel({type: 'full'})}</small>
                                 </button>
                             </div>
 
                             <p className="download-choice-note">
-                                Large archive files can be hundreds of MB. Use monthly or selected-range downloads when you only need a short period.
+                                Large date ranges are split into sequential CSV files automatically, so the live service stays responsive while the export runs.
                             </p>
                         </div>
                     );
