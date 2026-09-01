@@ -3587,7 +3587,7 @@ const populateUnifiedMappingTable = async () => {
         COALESCE(umt.display_field_name, stf.field_name) AS display_field_name,
         stf.units AS current_units,
         COALESCE(umt.display_units, stf.units) AS display_units,
-        COALESCE(umt.include_in_summary, TRUE) AS include_in_summary
+        COALESCE(umt.include_in_summary, FALSE) AS include_in_summary
     FROM
         servers s
     JOIN
@@ -3630,49 +3630,15 @@ const populateUnifiedMappingTable = async () => {
 	        current_units = EXCLUDED.current_units,
 	        include_in_summary = CASE
 	          WHEN unified_mapping_table.include_in_summary IS NULL
-	          THEN TRUE
-	          ELSE unified_mapping_table.include_in_summary
-	        END;
-	  `;
-
-    const enableRawDataForNewActiveServersQuery = `
-      WITH active_server_summary AS (
-        SELECT
-          umt.server_id,
-          COUNT(*) FILTER (
-            WHERE st.status = 'active'
-              AND stf.status = 'active'
-          ) AS active_field_count,
-          COUNT(*) FILTER (
-            WHERE st.status = 'active'
-              AND stf.status = 'active'
-              AND umt.include_in_summary IS TRUE
-          ) AS included_field_count
-        FROM unified_mapping_table umt
-        JOIN server_tables st ON st.table_id = umt.table_id
-        JOIN server_table_fields stf ON stf.field_id = umt.field_id
-        GROUP BY umt.server_id
-      )
-      UPDATE unified_mapping_table umt
-      SET include_in_summary = TRUE
-      FROM active_server_summary summary
-      JOIN server_tables st ON st.server_id = summary.server_id
-      JOIN server_table_fields stf ON stf.table_id = st.table_id
-      WHERE umt.server_id = summary.server_id
-        AND umt.table_id = st.table_id
-        AND umt.field_id = stf.field_id
-        AND st.status = 'active'
-        AND stf.status = 'active'
-        AND summary.active_field_count > 0
-        AND summary.included_field_count = 0
-        AND umt.include_in_summary IS DISTINCT FROM TRUE;
-    `;
+		          THEN FALSE
+		          ELSE unified_mapping_table.include_in_summary
+		        END;
+		  `;
 
 	    try {
 	        await pool.query('BEGIN');
 	        await pool.query(query);
-	        await pool.query('ALTER TABLE unified_mapping_table ALTER COLUMN include_in_summary SET DEFAULT TRUE');
-	        await pool.query(enableRawDataForNewActiveServersQuery);
+	        await pool.query('ALTER TABLE unified_mapping_table ALTER COLUMN include_in_summary SET DEFAULT FALSE');
 	        await pool.query('COMMIT');
 	        console.log('Unified mapping table populated successfully.');
     } catch (error) {
