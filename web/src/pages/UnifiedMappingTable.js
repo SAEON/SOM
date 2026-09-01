@@ -2091,6 +2091,7 @@ const UnifiedMappingTable = () => {
 	                    <strong>{bulkValues.applyToFilteredRows ? 'Current filter target' : `${selectedBulkRowCount} selected row${selectedBulkRowCount === 1 ? '' : 's'}`}</strong>
 	                    <label>
 	                        <input
+	                            className="mapping-checkbox"
 	                            type="checkbox"
 	                            checked={bulkValues.applyToFilteredRows}
 	                            onChange={e => setBulkValues({...bulkValues, applyToFilteredRows: e.target.checked})}
@@ -2158,6 +2159,7 @@ const UnifiedMappingTable = () => {
 	                            Include in Summary
 	                            <input
 	                                type="checkbox"
+	                                className="mapping-checkbox"
 	                                checked={bulkValues.includeInSummary}
 	                                onChange={e => setBulkValues({...bulkValues, includeInSummary: e.target.checked})}
 	                            />

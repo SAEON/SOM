@@ -1749,6 +1749,7 @@
 
 .mapping-bulk-card {
     border-color: #b8d6c4;
+    padding: 18px;
 }
 
 .mapping-bulk-actions,
@@ -1772,8 +1773,41 @@
 .mapping-bulk-status label {
     align-items: center;
     display: inline-flex;
+    font-weight: 700;
     gap: 8px;
     margin: 0;
+}
+
+.mapping-bulk-card .update-section {
+    align-items: end;
+    gap: 14px;
+    grid-template-columns:
+        minmax(220px, 1.15fr)
+        minmax(180px, 0.95fr)
+        minmax(130px, 0.7fr)
+        minmax(130px, 0.7fr)
+        minmax(110px, 0.55fr)
+        minmax(160px, 0.8fr)
+        minmax(120px, 0.6fr)
+        minmax(170px, 0.8fr);
+}
+
+.mapping-bulk-card .input-group {
+    gap: 5px;
+}
+
+.mapping-bulk-card .mapping-primary-button {
+    min-height: 42px;
+    width: 100%;
+}
+
+.mapping-checkbox {
+    accent-color: #1479e8;
+    flex: 0 0 auto;
+    height: 16px !important;
+    min-height: 16px !important;
+    padding: 0 !important;
+    width: 16px !important;
 }
 
 .mapping-row-button {
@@ -1808,6 +1842,7 @@
 
     .mapping-flow-diagram,
     .mapping-flow-tools,
+    .mapping-bulk-card .update-section,
     .backfill-workflow-panel,
     .backfill-target-selectors,
     .backfill-button-row {
