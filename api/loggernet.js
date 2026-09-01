@@ -1649,7 +1649,6 @@ const publicDownloadLimiter = createRateLimiter({
   skip: isRateLimitExempt,
 });
 
-app.use('/api/summary_table/download', requireLoggedInPublicApi);
 app.use(['/api/public', '/api/v1'], identifyOptionalPublicApiUser);
 app.use('/api/public/download', publicDownloadLimiter);
 app.use('/api/summary_table/download', publicDownloadLimiter);
@@ -1659,7 +1658,6 @@ app.use(
     '/api/public/servers',
     '/api/public/tables',
     '/api/public/date-range',
-    '/api/public/download',
   ],
   requireLoggedInPublicApi,
 );

@@ -389,11 +389,9 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
                 return;
             }
 
-            // Construct the file name (ensure it matches the actual file name on the server)
+            // Use the API route so downloads are generated dynamically when no prepared CSV exists.
             const fileName = `${fetchedTableName}_${fetchedServerName}.csv`;
-            console.log(fileName);
-            // Construct the download URL pointing to the Nginx-served file
-            const url = `/express_downloads/${encodeURIComponent(fileName)}`;
+            const url = `/api/tables/${encodeURIComponent(tableId)}/download`;
 
             // Create a temporary link element for the download
             const link = document.createElement('a');
