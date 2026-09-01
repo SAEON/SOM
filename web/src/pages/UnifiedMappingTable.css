@@ -1747,6 +1747,50 @@
     margin: 0;
 }
 
+.mapping-bulk-card {
+    border-color: #b8d6c4;
+}
+
+.mapping-bulk-actions,
+.mapping-bulk-status {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.mapping-bulk-status {
+    background: #f4fbf6;
+    border: 1px solid #d5eadc;
+    border-radius: 8px;
+    color: #244635;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+}
+
+.mapping-bulk-status label {
+    align-items: center;
+    display: inline-flex;
+    gap: 8px;
+    margin: 0;
+}
+
+.mapping-row-button {
+    background: #eef5fb;
+    border: 1px solid #b8cde0;
+    border-radius: 6px;
+    color: #163552;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 6px 10px;
+    white-space: nowrap;
+}
+
+.mapping-row-button:hover {
+    background: #dfeefa;
+}
+
 @media (max-width: 900px) {
     .mapping-page-hero,
     .mapping-section-heading {

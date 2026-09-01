@@ -16,8 +16,12 @@ const MyHeatMap = ({
                        useVerticalScroll = false,
                    }) => {
     const chartRef = useRef(null);
-    const fullHeight = Math.max(minHeight, (variables?.length || 1) * rowHeight + 150);
-    const heightPx = useVerticalScroll ? fullHeight : Math.min(maxHeight, fullHeight);
+    const variableCount = variables?.length || 1;
+    const fullHeight = Math.max(minHeight, variableCount * rowHeight + 150);
+    const heightPx = Math.min(maxHeight, fullHeight);
+    const visibleRows = Math.max(1, Math.floor((heightPx - 150) / rowHeight));
+    const needsVerticalNavigation = useVerticalScroll || variableCount > visibleRows;
+    const initialVerticalEnd = Math.min(100, Math.max(8, Math.round((visibleRows / variableCount) * 100)));
 
     useEffect(() => {
         if (!chartRef.current || !data?.length) return;
@@ -50,7 +54,7 @@ const MyHeatMap = ({
                     saveAsImage: { title: 'Save chart' },
                 },
             },
-            grid: { left: 390, right: useVerticalScroll ? 28 : 74, top: 44, bottom: 86, containLabel: false },
+            grid: { left: 390, right: needsVerticalNavigation ? 74 : 28, top: 44, bottom: 86, containLabel: false },
             xAxis: {
                 type: 'category',
                 data: labelDates,
@@ -84,9 +88,9 @@ const MyHeatMap = ({
             dataZoom: [
                 { type: 'inside', xAxisIndex: 0, filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true },
                 { type: 'slider', xAxisIndex: 0, height: 18, bottom: 38, borderColor: '#d7e0ea', fillerColor: 'rgba(46, 107, 154, 0.18)', handleStyle: { color: '#2e6b9a' } },
-                ...(!useVerticalScroll ? [
-                    { type: 'inside', yAxisIndex: 0, filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseWheel: true },
-                    { type: 'slider', yAxisIndex: 0, right: 14, width: 16, top: 46, bottom: 90, start: 0, end: 100, zoomLock: false, borderColor: '#d7e0ea', fillerColor: 'rgba(46, 107, 154, 0.18)', handleStyle: { color: '#2e6b9a' } },
+                ...(needsVerticalNavigation ? [
+                    { type: 'inside', yAxisIndex: 0, filterMode: 'none', zoomOnMouseWheel: false, moveOnMouseWheel: true },
+                    { type: 'slider', yAxisIndex: 0, right: 14, width: 16, top: 46, bottom: 90, start: 0, end: initialVerticalEnd, zoomLock: false, borderColor: '#d7e0ea', fillerColor: 'rgba(46, 107, 154, 0.18)', handleStyle: { color: '#2e6b9a' } },
                 ] : []),
             ],
             visualMap: {
@@ -122,7 +126,7 @@ const MyHeatMap = ({
         const resize = () => inst.resize();
         window.addEventListener('resize', resize);
         return () => { inst.dispose(); window.removeEventListener('resize', resize); };
-    }, [data, dates, variables, heightPx, useVerticalScroll]);
+    }, [data, dates, variables, heightPx, initialVerticalEnd, needsVerticalNavigation]);
 
     return <div ref={chartRef} style={{ width: '100%', height: `${heightPx}px` }} />;
 };

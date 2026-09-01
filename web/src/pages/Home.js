@@ -412,10 +412,10 @@ const Home = ({ user }) => {
             meta: `${formatMetric(activityHighlights?.allTimeApiRequests)} API requests since tracking began.`,
         },
         {
-            label: "Public data sites",
-            value: activityHighlights?.activeSites,
-            detail: `${formatMetric(activityHighlights?.datasets)} public site-table datasets are mapped for data access.`,
-            meta: `${formatMetric(locations.length)} mapped site locations are visible on the map.`,
+            label: "Mapped public sites",
+            value: locations.length,
+            detail: `${formatMetric(locations.length)} public site locations are visible on the map.`,
+            meta: `${formatMetric(activityHighlights?.activeSites)} sites have public data across ${formatMetric(activityHighlights?.datasets)} site-table datasets.`,
         },
     ];
 

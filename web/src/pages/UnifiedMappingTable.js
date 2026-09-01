@@ -8,6 +8,7 @@ import './UnifiedMappingTable.css';
 const UnifiedMappingTable = () => {
     const [data, setData] = useState([]);
     const [selectedRow, setSelectedRow] = useState(null);
+    const [selectedBulkRows, setSelectedBulkRows] = useState([]);
     const [updateValues, setUpdateValues] = useState({
         displayServerName: '',
         displayTableName: '',
@@ -18,6 +19,16 @@ const UnifiedMappingTable = () => {
         units: '',
         aggregationType: '',
         includeInSummary: false
+    });
+    const [bulkValues, setBulkValues] = useState({
+        displayServerName: '',
+        displayTableName: '',
+        latitude: '',
+        longitude: '',
+        multiplier: '1',
+        aggregationType: '',
+        includeInSummary: true,
+        applyToFilteredRows: false
     });
     const [includeInSummaryIndeterminate, setIncludeInSummaryIndeterminate] = useState(false);
     const [serverNames, setServerNames] = useState([]);
@@ -92,6 +103,29 @@ const UnifiedMappingTable = () => {
         multiplier: normalizeText(updateValues.multiplier),
         includeInSummary: updateValues.includeInSummary
     });
+
+    const buildBulkPayload = () => ({
+        ids: bulkValues.applyToFilteredRows ? [] : selectedBulkRows,
+        filters: {
+            serverName: selectedServer,
+            tableName: selectedTable,
+            fieldName: selectedField,
+            includeInSummary: includeInSummaryFilter
+        },
+        displayServerName: normalizeText(bulkValues.displayServerName),
+        displayTableName: normalizeText(bulkValues.displayTableName),
+        latitude: normalizeText(bulkValues.latitude),
+        longitude: normalizeText(bulkValues.longitude),
+        aggregationType: normalizeText(bulkValues.aggregationType),
+        multiplier: normalizeText(bulkValues.multiplier),
+        includeInSummary: bulkValues.includeInSummary,
+        copyCurrentFieldNames: true,
+        copyCurrentUnits: true
+    });
+
+    const selectedBulkRowCount = bulkValues.applyToFilteredRows ? null : selectedBulkRows.length;
+    const visibleRowIds = data.map((row) => row.id);
+    const allVisibleRowsSelected = visibleRowIds.length > 0 && visibleRowIds.every((id) => selectedBulkRows.includes(id));
 
     const fetchHealth = async () => {
         setHealthRefreshing(true);
@@ -458,6 +492,57 @@ const UnifiedMappingTable = () => {
         } catch (error) {
             setPreflight(error.response?.data || null);
             setAlertMessage(`Update failed:\n${getApiErrorMessage(error)}`);
+            setAlertModalIsOpen(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleBulkRowSelection = (rowId) => {
+        setSelectedBulkRows((current) =>
+            current.includes(rowId)
+                ? current.filter((id) => id !== rowId)
+                : [...current, rowId]
+        );
+    };
+
+    const selectVisibleBulkRows = () => {
+        setSelectedBulkRows((current) => {
+            const existing = new Set(current);
+            visibleRowIds.forEach((id) => existing.add(id));
+            return Array.from(existing);
+        });
+    };
+
+    const clearBulkSelection = () => {
+        setSelectedBulkRows([]);
+        setBulkValues((current) => ({...current, applyToFilteredRows: false}));
+    };
+
+    const handleBulkApply = async () => {
+        if (!bulkValues.applyToFilteredRows && selectedBulkRows.length === 0) {
+            setAlertMessage('Tick one or more mapping rows before applying shared values.');
+            setAlertModalIsOpen(true);
+            return;
+        }
+        if (bulkValues.applyToFilteredRows && !selectedServer) {
+            setAlertMessage('Choose at least a server filter before applying shared values to filtered rows.');
+            setAlertModalIsOpen(true);
+            return;
+        }
+
+        const payload = buildBulkPayload();
+        setLoading(true);
+        try {
+            const response = await axios.post('/api/unified_mapping_table/bulk-apply', payload);
+            const summary = response.data.summary || {};
+            setAlertMessage(`Bulk mapping applied successfully.\nRows updated: ${response.data.rowsUpdated}\nSummary updated: ${summary.updated || 0}\nSummary inserted: ${summary.inserted || 0}\nSummary removed: ${summary.deleted || 0}`);
+            setAlertModalIsOpen(true);
+            setSelectedBulkRows([]);
+            fetchData();
+            fetchHealth();
+        } catch (error) {
+            setAlertMessage(`Bulk mapping failed:\n${getApiErrorMessage(error)}`);
             setAlertModalIsOpen(true);
         } finally {
             setLoading(false);
@@ -1983,11 +2068,107 @@ const UnifiedMappingTable = () => {
                     </label>
                 </div>
                 <button className="mapping-primary-button" onClick={handleUpdate} disabled={loading || !selectedRow}>Update Selected Row</button>
-                <button className="mapping-secondary-button" onClick={runPreflight} disabled={loading || !selectedRow}>Run Preflight</button>
-                <button className="mapping-secondary-button" onClick={showDuplicates}>Show Duplicates</button>
-            </div>
-            </section>
-            <section className="mapping-table-card">
+	                <button className="mapping-secondary-button" onClick={runPreflight} disabled={loading || !selectedRow}>Run Preflight</button>
+	                <button className="mapping-secondary-button" onClick={showDuplicates}>Show Duplicates</button>
+	            </div>
+	            </section>
+	            <section className="mapping-editor-card mapping-bulk-card">
+	                <div className="mapping-section-heading">
+	                    <div>
+	                        <h2>Bulk Publisher</h2>
+	                        <p>Apply shared site/table values once while each selected row keeps its own variable name and units.</p>
+	                    </div>
+	                    <div className="mapping-bulk-actions">
+	                        <button type="button" className="mapping-secondary-button" onClick={selectVisibleBulkRows} disabled={loading || data.length === 0}>
+	                            Select Visible
+	                        </button>
+	                        <button type="button" className="mapping-secondary-button" onClick={clearBulkSelection} disabled={loading || selectedBulkRows.length === 0}>
+	                            Clear
+	                        </button>
+	                    </div>
+	                </div>
+	                <div className="mapping-bulk-status">
+	                    <strong>{bulkValues.applyToFilteredRows ? 'Current filter target' : `${selectedBulkRowCount} selected row${selectedBulkRowCount === 1 ? '' : 's'}`}</strong>
+	                    <label>
+	                        <input
+	                            type="checkbox"
+	                            checked={bulkValues.applyToFilteredRows}
+	                            onChange={e => setBulkValues({...bulkValues, applyToFilteredRows: e.target.checked})}
+	                        />
+	                        Apply to all active rows matching the current filters
+	                    </label>
+	                </div>
+	                <div className="update-section">
+	                    <div className="input-group">
+	                        <label>Display Server Name</label>
+	                        <input
+	                            type="text"
+	                            placeholder="Display Server Name"
+	                            value={bulkValues.displayServerName}
+	                            onChange={e => setBulkValues({...bulkValues, displayServerName: e.target.value})}
+	                        />
+	                    </div>
+	                    <div className="input-group">
+	                        <label>Display Table Name</label>
+	                        <input
+	                            type="text"
+	                            placeholder="Display Table Name"
+	                            value={bulkValues.displayTableName}
+	                            onChange={e => setBulkValues({...bulkValues, displayTableName: e.target.value})}
+	                        />
+	                    </div>
+	                    <div className="input-group">
+	                        <label>Longitude</label>
+	                        <input
+	                            type="text"
+	                            placeholder="Longitude"
+	                            value={bulkValues.longitude}
+	                            onChange={e => setBulkValues({...bulkValues, longitude: e.target.value})}
+	                        />
+	                    </div>
+	                    <div className="input-group">
+	                        <label>Latitude</label>
+	                        <input
+	                            type="text"
+	                            placeholder="Latitude"
+	                            value={bulkValues.latitude}
+	                            onChange={e => setBulkValues({...bulkValues, latitude: e.target.value})}
+	                        />
+	                    </div>
+	                    <div className="input-group">
+	                        <label>Multiplier</label>
+	                        <input
+	                            type="text"
+	                            placeholder="Multiplier"
+	                            value={bulkValues.multiplier}
+	                            onChange={e => setBulkValues({...bulkValues, multiplier: e.target.value})}
+	                        />
+	                    </div>
+	                    <div className="input-group">
+	                        <label>Aggregation (minutes)</label>
+	                        <input
+	                            type="text"
+	                            placeholder="Aggregation Type"
+	                            value={bulkValues.aggregationType}
+	                            onChange={e => setBulkValues({...bulkValues, aggregationType: e.target.value})}
+	                        />
+	                    </div>
+	                    <div className="input-group">
+	                        <label>
+	                            Include in Summary
+	                            <input
+	                                type="checkbox"
+	                                checked={bulkValues.includeInSummary}
+	                                onChange={e => setBulkValues({...bulkValues, includeInSummary: e.target.checked})}
+	                            />
+	                        </label>
+	                    </div>
+	                    <button className="mapping-primary-button" onClick={handleBulkApply} disabled={loading || (!bulkValues.applyToFilteredRows && selectedBulkRows.length === 0)}>
+	                        Apply Shared Values
+	                    </button>
+	                </div>
+	            </section>
+	            <section className="mapping-table-card">
                 <div className="mapping-section-heading">
                     <div>
                         <h2>Mapping Rows</h2>
@@ -2026,11 +2207,19 @@ const UnifiedMappingTable = () => {
                 </select>
             </div>
             <div className="mapping-table-wrap">
-            <table>
-                <thead>
-                <tr>
-                    <th></th>
-                    <th>Current Server Name</th>
+	            <table>
+	                <thead>
+	                <tr>
+	                    <th>
+	                        <input
+	                            type="checkbox"
+	                            checked={allVisibleRowsSelected}
+	                            onChange={allVisibleRowsSelected ? clearBulkSelection : selectVisibleBulkRows}
+	                            aria-label="Select visible mapping rows"
+	                        />
+	                    </th>
+	                    <th>Edit</th>
+	                    <th>Current Server Name</th>
                     <th>Current Table Name</th>
                     <th>Current Field Name</th>
                     <th>Display Server Name</th>
@@ -2047,16 +2236,22 @@ const UnifiedMappingTable = () => {
                 </thead>
                 <tbody>
                 {data.length > 0 ? (
-                    data.map(row => (
-                        <tr key={row.id} className={selectedRow === row.id ? 'selected-mapping-row' : ''}>
-                            <td>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedRow === row.id}
-                                    onChange={() => handleRowSelect(row)}
-                                />
-                            </td>
-                            <td>{row.current_server_name}</td>
+	                    data.map(row => (
+	                        <tr key={row.id} className={selectedRow === row.id ? 'selected-mapping-row' : ''}>
+	                            <td>
+	                                <input
+	                                    type="checkbox"
+	                                    checked={selectedBulkRows.includes(row.id)}
+	                                    onChange={() => toggleBulkRowSelection(row.id)}
+	                                    aria-label={`Select ${row.current_server_name} ${row.current_table_name} ${row.current_field_name}`}
+	                                />
+	                            </td>
+	                            <td>
+	                                <button type="button" className="mapping-row-button" onClick={() => handleRowSelect(row)}>
+	                                    Edit
+	                                </button>
+	                            </td>
+	                            <td>{row.current_server_name}</td>
                             <td>{row.current_table_name}</td>
                             <td>{row.current_field_name}</td>
                             <td>{row.display_server_name}</td>
@@ -2071,11 +2266,11 @@ const UnifiedMappingTable = () => {
                             <td>{row.include_in_summary.toString()}</td>
                         </tr>
                     ))
-                ) : (
-                    <tr>
-                        <td colSpan="12">No data available</td>
-                    </tr>
-                )}
+	                ) : (
+	                    <tr>
+	                        <td colSpan="14">No data available</td>
+	                    </tr>
+	                )}
                 </tbody>
             </table>
             </div>

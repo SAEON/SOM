@@ -68,7 +68,7 @@ const backgroundStatus = {
   enabled: backgroundJobsEnabled,
   timezone: 'Africa/Johannesburg',
   readerSchedule: 'CSV exports daily at 00:15 SAST',
-  writerSchedule: 'Fast sync Mon-Sat at 06:00, 14:00, and 22:00 SAST; Sunday fast sync at 06:00 and 14:00 SAST; extended sync Sunday at 20:00 SAST',
+  writerSchedule: 'Metadata discovery and fast sync Mon-Sat at 06:00, 14:00, and 22:00 SAST; Sunday fast sync at 06:00 and 14:00 SAST; extended sync Sunday at 20:00 SAST',
   reader: emptyBackgroundLane(),
   writer: emptyBackgroundLane(),
 };
@@ -1407,20 +1407,24 @@ app.get('/api/unified_mapping_table/sankey', async (req, res) => {
     try {
         let query = `
       SELECT
-        current_server_name,
-        display_server_name,
-        current_table_name,
-        display_table_name,
-        current_field_name,
-        display_field_name
-      FROM unified_mapping_table
-      WHERE include_in_summary = $1
+        umt.current_server_name,
+        umt.display_server_name,
+        umt.current_table_name,
+        umt.display_table_name,
+        umt.current_field_name,
+        umt.display_field_name
+      FROM unified_mapping_table umt
+      JOIN server_tables st ON st.table_id = umt.table_id
+      JOIN server_table_fields stf ON stf.field_id = umt.field_id
+      WHERE umt.include_in_summary = $1
+        AND st.status = 'active'
+        AND stf.status = 'active'
     `;
 
         const params = [includeInSummary];
 
         if (selectedServers.length > 0 && selectedServers[0] !== undefined) {
-            query += ` AND display_server_name = ANY($2)`;
+            query += ` AND umt.display_server_name = ANY($2)`;
             params.push(selectedServers);
         }
 
@@ -3570,7 +3574,8 @@ const populateUnifiedMappingTable = async () => {
         current_field_name,
         display_field_name,
         current_units,
-        display_units
+        display_units,
+        include_in_summary
     )
     SELECT
         s.server_id,
@@ -3583,7 +3588,8 @@ const populateUnifiedMappingTable = async () => {
         stf.field_name AS current_field_name,
         COALESCE(umt.display_field_name, stf.field_name) AS display_field_name,
         stf.units AS current_units,
-        COALESCE(umt.display_units, stf.units) AS display_units
+        COALESCE(umt.display_units, stf.units) AS display_units,
+        COALESCE(umt.include_in_summary, TRUE) AS include_in_summary
     FROM
         servers s
     JOIN
@@ -3592,18 +3598,85 @@ const populateUnifiedMappingTable = async () => {
         server_table_fields stf ON st.table_id = stf.table_id
     LEFT JOIN
         unified_mapping_table umt ON s.server_id = umt.server_id AND st.table_id = umt.table_id AND stf.field_id = umt.field_id
-    ON CONFLICT (server_id, table_id, field_id) DO UPDATE SET
-        current_server_name = EXCLUDED.current_server_name,
-        current_table_name = EXCLUDED.current_table_name,
-        current_field_name = EXCLUDED.current_field_name,
-        current_units = EXCLUDED.current_units;
-  `;
+    WHERE
+        st.status = 'active'
+        AND stf.status = 'active'
+	    ON CONFLICT (server_id, table_id, field_id) DO UPDATE SET
+	        display_server_name = CASE
+          WHEN unified_mapping_table.display_server_name IS NULL
+            OR unified_mapping_table.display_server_name = unified_mapping_table.current_server_name
+          THEN EXCLUDED.display_server_name
+          ELSE unified_mapping_table.display_server_name
+        END,
+        display_table_name = CASE
+          WHEN unified_mapping_table.display_table_name IS NULL
+            OR unified_mapping_table.display_table_name = unified_mapping_table.current_table_name
+          THEN EXCLUDED.display_table_name
+          ELSE unified_mapping_table.display_table_name
+        END,
+        display_field_name = CASE
+          WHEN unified_mapping_table.display_field_name IS NULL
+            OR unified_mapping_table.display_field_name = unified_mapping_table.current_field_name
+          THEN EXCLUDED.display_field_name
+          ELSE unified_mapping_table.display_field_name
+        END,
+        display_units = CASE
+          WHEN unified_mapping_table.display_units IS NULL
+            OR unified_mapping_table.display_units = unified_mapping_table.current_units
+          THEN EXCLUDED.display_units
+          ELSE unified_mapping_table.display_units
+	        END,
+	        current_server_name = EXCLUDED.current_server_name,
+	        current_table_name = EXCLUDED.current_table_name,
+	        current_field_name = EXCLUDED.current_field_name,
+	        current_units = EXCLUDED.current_units,
+	        include_in_summary = CASE
+	          WHEN unified_mapping_table.include_in_summary IS NULL
+	          THEN TRUE
+	          ELSE unified_mapping_table.include_in_summary
+	        END;
+	  `;
 
-    try {
-        await pool.query('BEGIN');
-        await pool.query(query);
-        await pool.query('COMMIT');
-        console.log('Unified mapping table populated successfully.');
+    const enableRawDataForNewActiveServersQuery = `
+      WITH active_server_summary AS (
+        SELECT
+          umt.server_id,
+          COUNT(*) FILTER (
+            WHERE st.status = 'active'
+              AND stf.status = 'active'
+          ) AS active_field_count,
+          COUNT(*) FILTER (
+            WHERE st.status = 'active'
+              AND stf.status = 'active'
+              AND umt.include_in_summary IS TRUE
+          ) AS included_field_count
+        FROM unified_mapping_table umt
+        JOIN server_tables st ON st.table_id = umt.table_id
+        JOIN server_table_fields stf ON stf.field_id = umt.field_id
+        GROUP BY umt.server_id
+      )
+      UPDATE unified_mapping_table umt
+      SET include_in_summary = TRUE
+      FROM active_server_summary summary
+      JOIN server_tables st ON st.server_id = summary.server_id
+      JOIN server_table_fields stf ON stf.table_id = st.table_id
+      WHERE umt.server_id = summary.server_id
+        AND umt.table_id = st.table_id
+        AND umt.field_id = stf.field_id
+        AND st.status = 'active'
+        AND stf.status = 'active'
+        AND summary.active_field_count > 0
+        AND summary.included_field_count = 0
+        AND umt.include_in_summary IS DISTINCT FROM TRUE;
+    `;
+
+	    try {
+	        await pool.query('BEGIN');
+	        await pool.query(query);
+	        await pool.query('ALTER TABLE unified_mapping_table ALTER COLUMN include_in_summary SET DEFAULT TRUE');
+	        await pool.query(enableRawDataForNewActiveServersQuery);
+	        await pool.query('COMMIT');
+	        console.log('Unified mapping table populated successfully.');
     } catch (error) {
         await pool.query('ROLLBACK');
         console.error('Failed to populate unified mapping table:', error);
@@ -3626,7 +3699,14 @@ const insertIntoSummaryTable = async () => {
         -- If you have updated_at, include it here to prefer newest rows
         -- , umt.updated_at
       FROM unified_mapping_table umt
+      JOIN server_tables st ON st.table_id = umt.table_id
+      JOIN server_table_fields stf ON stf.field_id = umt.field_id
       WHERE umt.include_in_summary = TRUE
+        AND st.status = 'active'
+        AND stf.status = 'active'
+        AND btrim(umt.display_server_name) <> ''
+        AND btrim(umt.display_table_name) <> ''
+        AND btrim(umt.display_field_name) <> ''
     ),
     deduped AS (
       SELECT DISTINCT ON (
@@ -4247,6 +4327,86 @@ async function buildUnifiedMappingPreflight(client, values) {
   };
 }
 
+async function reconcileSummaryTableFromUnified(client) {
+  const reconcileSql = `
+    WITH src AS (
+      SELECT DISTINCT ON (display_server_name, display_table_name, display_field_name, aggregation_type)
+              umt.field_id,
+              umt.display_server_name,
+              umt.display_table_name,
+              umt.display_field_name,
+              umt.display_units      AS units,
+              umt.latitude,
+              umt.longitude,
+              umt.aggregation_type,
+              umt.multiplier
+      FROM unified_mapping_table umt
+      JOIN server_tables st ON st.table_id = umt.table_id
+      JOIN server_table_fields stf ON stf.field_id = umt.field_id
+      WHERE umt.include_in_summary = TRUE
+        AND st.status = 'active'
+        AND stf.status = 'active'
+        AND btrim(umt.display_server_name) <> ''
+        AND btrim(umt.display_table_name) <> ''
+        AND btrim(umt.display_field_name) <> ''
+      ORDER BY
+        umt.display_server_name, umt.display_table_name, umt.display_field_name, umt.aggregation_type
+    ),
+    upd AS (
+      UPDATE summary_table t
+      SET field_id        = s.field_id,
+          units           = s.units,
+          latitude        = s.latitude,
+          longitude       = s.longitude,
+          aggregation_type= s.aggregation_type,
+          multiplier      = s.multiplier
+      FROM src s
+      WHERE t.display_server_name = s.display_server_name
+        AND t.display_table_name  = s.display_table_name
+        AND t.display_field_name  = s.display_field_name
+        AND t.aggregation_type IS NOT DISTINCT FROM s.aggregation_type
+        AND (t.field_id, t.units, t.latitude, t.longitude, t.aggregation_type, t.multiplier)
+            IS DISTINCT FROM
+            (s.field_id, s.units, s.latitude, s.longitude, s.aggregation_type, s.multiplier)
+      RETURNING 1
+    ),
+    ins AS (
+      INSERT INTO summary_table (
+        id, field_id, display_server_name, display_table_name, display_field_name,
+        units, latitude, longitude, aggregation_type, multiplier
+      )
+      SELECT
+        uuid_generate_v4(), s.field_id, s.display_server_name, s.display_table_name, s.display_field_name,
+        s.units, s.latitude, s.longitude, s.aggregation_type, s.multiplier
+      FROM src s
+      LEFT JOIN summary_table t
+        ON t.display_server_name = s.display_server_name
+        AND t.display_table_name  = s.display_table_name
+        AND t.display_field_name  = s.display_field_name
+        AND t.aggregation_type IS NOT DISTINCT FROM s.aggregation_type
+      WHERE t.display_server_name IS NULL
+      RETURNING 1
+    ),
+    del AS (
+      DELETE FROM summary_table t
+      WHERE NOT EXISTS (
+        SELECT 1 FROM src s
+        WHERE t.display_server_name = s.display_server_name
+          AND t.display_table_name  = s.display_table_name
+          AND t.display_field_name  = s.display_field_name
+          AND t.aggregation_type IS NOT DISTINCT FROM s.aggregation_type
+      )
+      RETURNING 1
+    )
+    SELECT
+      (SELECT count(*)::int FROM upd) AS updated,
+      (SELECT count(*)::int FROM ins) AS inserted,
+      (SELECT count(*)::int FROM del) AS deleted;
+  `;
+  const result = await client.query(reconcileSql);
+  return result.rows[0] || {updated: 0, inserted: 0, deleted: 0};
+}
+
 app.post('/api/unified_mapping_table/preflight', async (req, res) => {
   if (!requireSuperUser(req, res)) return;
 
@@ -4595,99 +4755,195 @@ app.post('/api/unified_mapping_table/update', async (req, res) => {
       throw new Error(`Updated ${upd.rowCount}/${ids.length} mapping rows`);
     }
 
-    // 3) Reconcile summary_table WITHOUT TRUNCATE (no AccessExclusive lock)
-    //    - Build a de-duped “src” set of desired summary rows from unified_mapping_table where include_in_summary=TRUE
-    //    - UPDATE existing rows to match src
-    //    - INSERT rows that are in src but not in summary_table
-    //    - DELETE rows from summary_table that are NOT in src (stale)
+	    const summary = await reconcileSummaryTableFromUnified(client);
 
-    const reconcileSql = `
-      WITH src AS (
-        SELECT DISTINCT ON (display_server_name, display_table_name, display_field_name, aggregation_type)
-                umt.field_id,
-                umt.display_server_name,
-                umt.display_table_name,
-                umt.display_field_name,
-                umt.display_units      AS units,
-                umt.latitude,
-                umt.longitude,
-                umt.aggregation_type,
-                umt.multiplier
-        FROM unified_mapping_table umt
-        WHERE umt.include_in_summary = TRUE
-          AND btrim(umt.display_server_name) <> ''
-          AND btrim(umt.display_table_name) <> ''
-          AND btrim(umt.display_field_name) <> ''
-          AND umt.latitude IS NOT NULL
-          AND umt.longitude IS NOT NULL
-        ORDER BY
-          umt.display_server_name, umt.display_table_name, umt.display_field_name, umt.aggregation_type
-      ),
-
-      -- UPDATE existing rows to match src (only when values differ)
-      upd AS (
-        UPDATE summary_table t
-        SET field_id        = s.field_id,
-            units           = s.units,
-            latitude        = s.latitude,
-            longitude       = s.longitude,
-            aggregation_type= s.aggregation_type,
-            multiplier      = s.multiplier
-        FROM src s
-        WHERE t.display_server_name = s.display_server_name
-          AND t.display_table_name  = s.display_table_name
-          AND t.display_field_name  = s.display_field_name
-          AND t.aggregation_type    = s.aggregation_type
-          AND (t.field_id, t.units, t.latitude, t.longitude, t.aggregation_type, t.multiplier)
-              IS DISTINCT FROM
-              (s.field_id, s.units, s.latitude, s.longitude, s.aggregation_type, s.multiplier)
-        RETURNING t.display_server_name, t.display_table_name, t.display_field_name, t.aggregation_type
-      ),
-
-      -- INSERT rows that are in src but not in summary_table
-      ins AS (
-        INSERT INTO summary_table (
-          id, field_id, display_server_name, display_table_name, display_field_name,
-          units, latitude, longitude, aggregation_type, multiplier
-        )
-        SELECT
-          uuid_generate_v4(), s.field_id, s.display_server_name, s.display_table_name, s.display_field_name,
-          s.units, s.latitude, s.longitude, s.aggregation_type, s.multiplier
-        FROM src s
-        LEFT JOIN summary_table t
-          ON t.display_server_name = s.display_server_name
-          AND t.display_table_name  = s.display_table_name
-          AND t.display_field_name  = s.display_field_name
-          AND t.aggregation_type    = s.aggregation_type
-        WHERE t.display_server_name IS NULL
-        RETURNING 1
-      )
-
-      -- DELETE rows in summary_table that no longer have a source in src (stale)
-      DELETE FROM summary_table t
-      WHERE NOT EXISTS (
-        SELECT 1 FROM src s
-        WHERE t.display_server_name = s.display_server_name
-          AND t.display_table_name  = s.display_table_name
-          AND t.display_field_name  = s.display_field_name
-          AND t.aggregation_type    = s.aggregation_type
-      );
-    `;
-
-    await client.query(reconcileSql);
-
-    await client.query('COMMIT');
-    await client.query(`SELECT pg_advisory_unlock(hashtext('summary_rebuild'))`);
-    return res.status(200).json({
-      message: 'Update successful. Summary table reconciled.',
-      warnings: preflight.warnings
-    });
+	    await client.query('COMMIT');
+	    await client.query(`SELECT pg_advisory_unlock(hashtext('summary_rebuild'))`);
+	    return res.status(200).json({
+	      message: 'Update successful. Summary table reconciled.',
+	      warnings: preflight.warnings,
+	      summary
+	    });
 
   } catch (error) {
     await client.query('ROLLBACK');
     await client.query(`SELECT pg_advisory_unlock(hashtext('summary_rebuild'))`).catch(()=>{});
     console.error('Update failed:', error);
     return res.status(500).json({ message: 'Update failed.', error: error.message });
+  } finally {
+    client.release();
+	  }
+	});
+
+app.post('/api/unified_mapping_table/bulk-apply', async (req, res) => {
+  if (!requireSuperUser(req, res)) return;
+
+  const {
+    ids,
+    filters = {},
+    displayServerName,
+    displayTableName,
+    latitude,
+    longitude,
+    aggregationType,
+    multiplier,
+    includeInSummary,
+    copyCurrentFieldNames = true,
+    copyCurrentUnits = true
+  } = req.body || {};
+
+  const normalized = {
+    displayServerName: normalizeText(displayServerName),
+    displayTableName: normalizeText(displayTableName),
+    latitude: parseNullableNumber(latitude),
+    longitude: parseNullableNumber(longitude),
+    aggregationType: normalizeText(aggregationType),
+    multiplier: parseNullableNumber(multiplier),
+    includeInSummary: includeInSummary === undefined ? null : !!includeInSummary
+  };
+  const errors = [];
+
+  if (latitude !== undefined && Number.isNaN(normalized.latitude)) errors.push('Latitude must be numeric.');
+  if (longitude !== undefined && Number.isNaN(normalized.longitude)) errors.push('Longitude must be numeric.');
+  errors.push(...validateLatLon(normalized.latitude, normalized.longitude));
+  if (aggregationType !== undefined && normalized.aggregationType && Number.isNaN(Number(normalized.aggregationType))) {
+    errors.push('Aggregation type must be numeric minutes.');
+  }
+  if (multiplier !== undefined && Number.isNaN(normalized.multiplier)) errors.push('Multiplier must be numeric.');
+  if (normalized.includeInSummary === true) {
+    if (!normalized.displayServerName) errors.push('Display server name is required when publishing rows in bulk.');
+    if (!normalized.displayTableName) errors.push('Display table name is required when publishing rows in bulk.');
+    if (normalized.latitude === null) errors.push('Latitude is required when publishing rows in bulk.');
+    if (normalized.longitude === null) errors.push('Longitude is required when publishing rows in bulk.');
+    if (!normalized.aggregationType) errors.push('Aggregation type is required when publishing rows in bulk.');
+    if (normalized.multiplier === null) errors.push('Multiplier is required when publishing rows in bulk.');
+  }
+  if (errors.length > 0) {
+    return res.status(400).json({message: 'Bulk mapping failed validation.', errors});
+  }
+
+  const targetConditions = [];
+  const targetParams = [];
+  const addTargetParam = (value) => {
+    targetParams.push(value);
+    return `$${targetParams.length + 9}`;
+  };
+
+  if (Array.isArray(ids) && ids.length > 0) {
+    targetConditions.push(`umt.id = ANY(${addTargetParam(ids)}::uuid[])`);
+  } else {
+    const cleanServer = normalizeText(filters.serverName);
+    if (!cleanServer) {
+      return res.status(400).json({message: 'Select rows or choose a server filter before applying a bulk mapping.'});
+    }
+    targetConditions.push(`umt.current_server_name = ${addTargetParam(cleanServer)}`);
+
+    const cleanTable = normalizeText(filters.tableName);
+    if (cleanTable) targetConditions.push(`umt.current_table_name = ${addTargetParam(cleanTable)}`);
+
+    const cleanField = normalizeText(filters.fieldName);
+    if (cleanField) targetConditions.push(`umt.current_field_name = ${addTargetParam(cleanField)}`);
+
+    if (filters.includeInSummary !== undefined && filters.includeInSummary !== '') {
+      targetConditions.push(`umt.include_in_summary = ${addTargetParam(filters.includeInSummary === true || filters.includeInSummary === 'true')}`);
+    }
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_lock(hashtext('summary_rebuild'))`);
+
+    const updateSql = `
+      WITH target AS (
+        SELECT umt.id
+        FROM unified_mapping_table umt
+        JOIN server_tables st ON st.table_id = umt.table_id
+        JOIN server_table_fields stf ON stf.field_id = umt.field_id
+        WHERE ${targetConditions.join(' AND ')}
+          AND st.status = 'active'
+          AND stf.status = 'active'
+      )
+      UPDATE unified_mapping_table umt
+      SET
+        display_server_name = COALESCE($1, umt.display_server_name, umt.current_server_name),
+        display_table_name  = COALESCE($2, umt.display_table_name, umt.current_table_name),
+        display_field_name  = CASE
+          WHEN $8 THEN COALESCE(NULLIF(umt.display_field_name, ''), umt.current_field_name)
+          ELSE umt.display_field_name
+        END,
+        display_units = CASE
+          WHEN $9 THEN COALESCE(NULLIF(umt.display_units, ''), umt.current_units)
+          ELSE umt.display_units
+        END,
+        latitude = COALESCE($3, umt.latitude),
+        longitude = COALESCE($4, umt.longitude),
+        aggregation_type = COALESCE($5, umt.aggregation_type),
+        multiplier = COALESCE($6, umt.multiplier, 1),
+        include_in_summary = COALESCE($7, umt.include_in_summary)
+      FROM target
+      WHERE umt.id = target.id
+      RETURNING umt.id;
+    `;
+    const updateParams = [
+      normalized.displayServerName || null,
+      normalized.displayTableName || null,
+      normalized.latitude,
+      normalized.longitude,
+      normalized.aggregationType || null,
+      normalized.multiplier,
+      normalized.includeInSummary,
+      !!copyCurrentFieldNames,
+      !!copyCurrentUnits,
+      ...targetParams
+    ];
+    const updated = await client.query(updateSql, updateParams);
+    if (updated.rowCount === 0) {
+      throw new Error('No active mapping rows matched the selected bulk target.');
+    }
+
+    const updatedIds = updated.rows.map((row) => row.id);
+    const duplicateResult = await client.query(`
+      WITH changed_keys AS (
+        SELECT btrim(display_server_name) AS display_server_name,
+               btrim(display_table_name) AS display_table_name,
+               btrim(display_field_name) AS display_field_name,
+               btrim(aggregation_type) AS aggregation_type
+        FROM unified_mapping_table
+        WHERE id = ANY($1::uuid[])
+          AND include_in_summary IS TRUE
+      )
+      SELECT ck.display_server_name, ck.display_table_name, ck.display_field_name, ck.aggregation_type, count(*)::int AS count
+      FROM changed_keys ck
+      JOIN unified_mapping_table umt
+        ON btrim(umt.display_server_name) = ck.display_server_name
+       AND btrim(umt.display_table_name) = ck.display_table_name
+       AND btrim(umt.display_field_name) = ck.display_field_name
+       AND btrim(umt.aggregation_type) = ck.aggregation_type
+      WHERE umt.include_in_summary IS TRUE
+      GROUP BY 1, 2, 3, 4
+      HAVING count(*) > 1
+      LIMIT 10
+    `, [updatedIds]);
+
+    if (duplicateResult.rows.length > 0) {
+      const first = duplicateResult.rows[0];
+      throw new Error(`Bulk update would create duplicate live mapping keys. First duplicate: ${first.display_server_name} / ${first.display_table_name} / ${first.display_field_name} / ${first.aggregation_type}`);
+    }
+
+    const summary = await reconcileSummaryTableFromUnified(client);
+    await client.query('COMMIT');
+    await client.query(`SELECT pg_advisory_unlock(hashtext('summary_rebuild'))`);
+    res.json({
+      message: 'Bulk mapping applied successfully.',
+      rowsUpdated: updated.rowCount,
+      summary
+    });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (rollbackError) { console.error('Bulk mapping rollback failed:', rollbackError); }
+    try { await client.query(`SELECT pg_advisory_unlock(hashtext('summary_rebuild'))`); } catch (unlockError) { console.error('Bulk mapping unlock failed:', unlockError); }
+    console.error('Failed to bulk apply unified mapping:', error);
+    res.status(500).json({message: 'Failed to bulk apply unified mapping', error: error.message});
   } finally {
     client.release();
   }
@@ -4877,9 +5133,13 @@ app.get('/api/unified_mapping_table/sankey_with_status', async (req, res) => {
     u.end_date
     FROM
     unified_mapping_table u
+    JOIN server_tables st ON st.table_id = u.table_id
+    JOIN server_table_fields stf ON stf.field_id = u.field_id
     WHERE
     u.display_server_name = $1
-    AND u.include_in_summary = true;
+    AND u.include_in_summary = true
+    AND st.status = 'active'
+    AND stf.status = 'active';
     `;
 
         const result = await pool.query(query, [selectedServer]);
@@ -5152,9 +5412,14 @@ app.get('/api/unified_mapping_table/servers', async (req, res) => {
 app.get('/api/unified_mapping_table/display_servers', async (req, res) => {
     try {
         const result = await pool.query(`
-      SELECT DISTINCT display_server_name
-      FROM unified_mapping_table
-      WHERE include_in_summary = true
+      SELECT DISTINCT umt.display_server_name
+      FROM unified_mapping_table umt
+      JOIN server_tables st ON st.table_id = umt.table_id
+      JOIN server_table_fields stf ON stf.field_id = umt.field_id
+      WHERE umt.include_in_summary = true
+        AND st.status = 'active'
+        AND stf.status = 'active'
+        AND btrim(umt.display_server_name) <> ''
     `);
         setPublicCache(res, 300);
         await res.json(result.rows.map(row => row.display_server_name));
@@ -5997,7 +6262,7 @@ app.post('/api/site_mappings/update', async (req, res) => {
       )
       UPDATE unified_mapping_table umt
       SET
-        display_server_name = input.display_name,
+        display_server_name = COALESCE(input.display_name, input.site_name),
         latitude = input.latitude,
         longitude = input.longitude
       FROM input
@@ -7664,6 +7929,116 @@ async function syncSingleServer(server, p1) {
   }
 }
 
+async function syncServerMetadata() {
+  try {
+    console.log('[SYNC] Starting server metadata discovery...');
+
+    const res = await axios.get(
+      'https://lognet.saeon.ac.za/?command=browsesymbols&uri=Server&format=json',
+      { httpsAgent: agent, timeout: REQUEST_TIMEOUT_MS }
+    );
+
+    const allServers = Array.isArray(res && res.data && res.data.symbols) ? res.data.symbols : [];
+    const servers = allServers.filter(function (s) { return !shouldSkipServer(s); });
+
+    if (!servers.length) {
+      console.log('[SYNC] No servers found during metadata discovery.');
+      return;
+    }
+
+    const lane = activeBackgroundLane && backgroundStatus[activeBackgroundLane]
+      ? backgroundStatus[activeBackgroundLane]
+      : null;
+    if (lane) {
+      lane.subStepIndex = 0;
+      lane.subStepTotal = servers.length;
+      lane.detail = 'Discovering server metadata 0 of ' + servers.length;
+    }
+
+    let completedServers = 0;
+    const run = limitConcurrency(Number(process.env.METADATA_SYNC_CONCURRENCY || 3));
+    const results = await Promise.allSettled(
+      servers.map(function (server) {
+        return run(async function () {
+          try {
+            return await retryWithBackoff(function () { return syncSingleServerMetadata(server); },
+              { retries: 5, baseDelayMs: 500, maxDelayMs: 8000 });
+          } finally {
+            completedServers += 1;
+            if (lane) {
+              lane.subStepIndex = completedServers;
+              lane.subStepTotal = servers.length;
+              lane.detail = 'Discovered server metadata ' + completedServers + ' of ' + servers.length;
+            }
+          }
+        });
+      })
+    );
+
+    const ok = results.filter(function (r) { return r.status === 'fulfilled'; }).length;
+    const fail = results.length - ok;
+    console.log('[SYNC] Server metadata discovery complete. ' + ok + ' ok, ' + fail + ' failed.');
+
+    if (ok === 0) {
+      throw new Error('[SYNC] Server metadata discovery failed for every server.');
+    }
+  } catch (error) {
+    console.error('[SYNC] Server metadata discovery failed:', error && error.message ? error.message : error);
+    throw error;
+  }
+}
+
+async function syncSingleServerMetadata(server) {
+  if (shouldSkipServer(server)) {
+    console.log('[SYNC] Skipping server metadata: ' + (server && server.name ? server.name : '(unknown)'));
+    return;
+  }
+
+  const name = server.name;
+  const uri = server.uri;
+  const type = server.type;
+  const is_enabled = server.is_enabled;
+  const is_read_only = server.is_read_only;
+  const can_expand = server.can_expand;
+
+  console.log('[SYNC] Discovering metadata for server: ' + name);
+
+  const upsertServerSql = [
+    'INSERT INTO servers (name, uri, type, is_enabled, is_read_only, can_expand)',
+    'VALUES ($1, $2, $3, $4, $5, $6)',
+    'ON CONFLICT (name) DO UPDATE SET',
+    'uri = EXCLUDED.uri,',
+    'type = EXCLUDED.type,',
+    'is_enabled = EXCLUDED.is_enabled,',
+    'is_read_only = EXCLUDED.is_read_only,',
+    'can_expand = EXCLUDED.can_expand'
+  ].join(' ');
+  await pool.query(upsertServerSql, [name, uri, type, is_enabled, is_read_only, can_expand]);
+
+  const serverResult = await pool.query('SELECT server_id FROM servers WHERE name = $1', [name]);
+  const serverId = serverResult.rows && serverResult.rows[0] ? serverResult.rows[0].server_id : null;
+  if (!serverId) throw new Error('Server ID not found for server: ' + name);
+
+  const tables = await retryWithBackoff(function () {
+    return fetchTablesForServer(uri);
+  }, { retries: 5, baseDelayMs: 500, maxDelayMs: 8000 });
+  await updateTablesForServer(serverId, tables);
+
+  const tableResult = await pool.query(
+    'SELECT table_id, uri FROM server_tables WHERE server_id = $1 AND status = $2',
+    [serverId, 'active']
+  );
+
+  for (const table of tableResult.rows) {
+    const fields = await retryWithBackoff(function () {
+      return fetchFieldsForTable(table.uri, 1);
+    }, { retries: 5, baseDelayMs: 500, maxDelayMs: 8000 });
+    await updateFieldsForTable(table.table_id, fields);
+  }
+
+  console.log('[SYNC] Metadata discovery complete for server: ' + name);
+}
+
 
 async function updateTablesForServer(serverId, tables) {
   const client = await pool.connect();
@@ -8595,6 +8970,7 @@ async function runReaderTasks() {
 async function runWriterTasksDaily() {
   const p = await getIncrementalSyncStartDate();
   await runTaskList([
+    { label: 'Discover server metadata', run: syncServerMetadata },
     { label: `Sync active table values since ${p}`, run: () => syncActiveTableValues(p) },
     { label: 'Populate unified mapping table', run: populateUnifiedMappingTable },
     { label: 'Update units mapping', run: updateUnitsMapping },
@@ -8746,7 +9122,7 @@ async function runScheduledWriterJob({ extended = false } = {}) {
     running: true,
     currentStep: extended ? 'Starting Sunday extended sync' : 'Starting nightly sync',
     currentStepIndex: 0,
-    totalSteps: extended ? 14 : 13,
+    totalSteps: 14,
     lastCompletedStep: null,
     lastStartedAt: new Date(start).toISOString(),
     lastFinishedAt: null,
@@ -8889,7 +9265,7 @@ if (backgroundJobsEnabled) {
   cron.schedule('0 6,14,22 * * 1-6', () => runScheduledWriterJob({ extended: false }), BACKGROUND_CRON_OPTIONS);
   cron.schedule('0 6,14 * * 0', () => runScheduledWriterJob({ extended: false }), BACKGROUND_CRON_OPTIONS);
   cron.schedule('0 20 * * 0', () => runScheduledWriterJob({ extended: true }), BACKGROUND_CRON_OPTIONS);
-  console.log('[BACKGROUND] Enabled. Scheduled CSV exports at 00:15 SAST, fast sync Mon-Sat 06:00/14:00/22:00 SAST, Sunday fast sync 06:00/14:00 SAST, Sunday extended sync 20:00 SAST.');
+  console.log('[BACKGROUND] Enabled. Scheduled CSV exports at 00:15 SAST, metadata discovery and fast sync Mon-Sat 06:00/14:00/22:00 SAST, Sunday fast sync 06:00/14:00 SAST, Sunday extended sync 20:00 SAST.');
 } else {
   console.log('[BACKGROUND] Disabled. Set ENABLE_BACKGROUND_JOBS=true to run scheduled reader/writer jobs.');
 }
