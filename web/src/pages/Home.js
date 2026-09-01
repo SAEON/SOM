@@ -580,9 +580,9 @@ const Home = ({ user }) => {
                         <p>Raw rows retained for long-term monitoring and processing.</p>
                     </div>
                     <div className="home-monitoring-metric">
-                        <span>Public variables</span>
+                        <span>Public mapped variables</span>
                         <strong>{formatMetric(monitoringHighlights?.publicVariables)}</strong>
-                        <p>Mapped variables across {formatMetric(monitoringHighlights?.publicDatasets)} public datasets.</p>
+                        <p>Site-table-field mappings across {formatMetric(monitoringHighlights?.publicDatasets)} public datasets.</p>
                     </div>
                     <div className="home-monitoring-metric">
                         <span>Archive range</span>
