@@ -2,6 +2,9 @@
 
 The production deployment should be code-only through GitHub. The database and uploaded files stay in Docker volumes on the server.
 
+Production URL: https://observationsmonitor.saeon.ac.za/
+Production checkout: `/opt/saeon-observations-monitor-v2`
+
 ## Normal Deploy
 
 SSH to the server and run:
@@ -84,3 +87,35 @@ After logging in:
 ```sh
 curl -b saeon.cookies http://localhost:3081/api/background-status
 ```
+
+## Trigger Writer Sync After Deploy
+
+After deployments that affect LoggerNet metadata, raw mappings, or reporting views, trigger the writer once so the server immediately discovers new sites, tables, and fields before the next scheduled run.
+
+From the production server:
+
+```sh
+cd /opt/saeon-observations-monitor-v2
+
+curl -k -c /tmp/loggernet.cookies \
+  -H "Content-Type: application/json" \
+  -d '{"username":"Marc","password":"YOUR_PASSWORD"}' \
+  https://observationsmonitor.saeon.ac.za/api/login
+
+curl -k -b /tmp/loggernet.cookies \
+  -X POST \
+  https://observationsmonitor.saeon.ac.za/api/background/run-writer
+
+curl -k -b /tmp/loggernet.cookies \
+  https://observationsmonitor.saeon.ac.za/api/background-status
+
+rm -f /tmp/loggernet.cookies
+```
+
+Watch progress with:
+
+```sh
+docker compose logs -f api
+```
+
+The writer should start with `Discover server metadata`, then continue into active table values, availability, and reporting refreshes.
