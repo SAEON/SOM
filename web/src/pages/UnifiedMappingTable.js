@@ -602,8 +602,20 @@ const UnifiedMappingTable = () => {
         if (message.includes('image uploaded')) {
             return {kicker: 'Image ready', title: 'Image uploaded'};
         }
+        if (message.includes('preflight failed')) {
+            return {kicker: 'Preflight', title: 'Mapping preflight failed'};
+        }
+        if (message.includes('ready to publish')) {
+            return {kicker: 'Preflight', title: 'Mapping row ready'};
+        }
+        if (message.includes('bulk mapping failed')) {
+            return {kicker: 'Needs attention', title: 'Bulk mapping not applied'};
+        }
+        if (message.includes('update failed')) {
+            return {kicker: 'Needs attention', title: 'Mapping row not saved'};
+        }
         if (message.includes('successfully') || message.includes('update successful')) {
-            return {kicker: 'Saved', title: 'Site mappings updated'};
+            return {kicker: 'Saved', title: 'Changes saved'};
         }
         return {kicker: 'Needs attention', title: 'Site mappings not saved'};
     };
@@ -632,7 +644,10 @@ const UnifiedMappingTable = () => {
             setLoading(true);
             try {
                 const [response, gapsResponse, locationsResponse] = await Promise.all([
-                    axios.get('/api/site_mappings?scope=assets'),
+                    axios.get('/api/site_mappings', {
+                        params: {scope: 'assets', _: Date.now()},
+                        headers: {'Cache-Control': 'no-cache'}
+                    }),
                     axios.get('/api/summary_table/location-gaps'),
                     axios.get('/api/summary_table/locations'),
                 ]);

@@ -6061,9 +6061,9 @@ app.get('/api/summary_table/all-mapped-locations', async (req, res) => {
 
 app.get('/api/site_mappings', async (req, res) => {
     try {
-        setPublicCache(res, 300);
         if (req.query.scope === 'assets') {
             if (!requireSuperUser(req, res)) return;
+            setNoStore(res);
             const result = await pool.query(`
                 SELECT
                     site_id,
@@ -6096,6 +6096,7 @@ app.get('/api/site_mappings', async (req, res) => {
             return res.json(result.rows);
         }
 
+        setPublicCache(res, 300);
         const result = await pool.query(`
             SELECT
                 site_id,
@@ -6234,11 +6235,14 @@ app.post('/api/site_mappings/update', async (req, res) => {
         AND umt.current_server_name != '__Statistics__'
     `, [JSON.stringify(validSiteMappings)]);
 
+    const summary = await reconcileSummaryTableFromUnified(client);
+
     await client.query('COMMIT');
     res.status(200).json({
       message: 'Site mappings and unified mapping table updated successfully.',
       siteMappingsUpdated: siteMappingResult.rowCount,
-      unifiedMappingsUpdated: unifiedMappingResult.rowCount
+      unifiedMappingsUpdated: unifiedMappingResult.rowCount,
+      summary
     });
   } catch (err) {
     console.error('Error during site mappings update:', err.message, err.stack);
@@ -6346,17 +6350,32 @@ app.post('/api/units_mappings/update', async (req, res) => {
           )
           UPDATE unified_mapping_table umt
           SET
-            display_field_name = input.phen_name,
-            display_units = input.units
+            display_field_name = CASE
+              WHEN umt.display_field_name IS NULL
+                OR btrim(umt.display_field_name) = ''
+                OR btrim(umt.display_field_name) = btrim(umt.current_field_name)
+              THEN input.phen_name
+              ELSE umt.display_field_name
+            END,
+            display_units = CASE
+              WHEN umt.display_units IS NULL
+                OR btrim(umt.display_units) = ''
+                OR btrim(umt.display_units) = btrim(coalesce(umt.current_units, ''))
+              THEN input.units
+              ELSE umt.display_units
+            END
           FROM input
           WHERE umt.current_field_name = input.uz_phen_name
         `, [JSON.stringify(validUnitsMappings)]);
+
+        const summary = await reconcileSummaryTableFromUnified(client);
 
         await client.query('COMMIT');
         res.status(200).json({
             message: 'Units mappings and unified mapping table updated successfully',
             unitsMappingsUpdated: unitsMappingResult.rowCount,
-            unifiedMappingsUpdated: unifiedMappingResult.rowCount
+            unifiedMappingsUpdated: unifiedMappingResult.rowCount,
+            summary
         });
     } catch (err) {
         console.error('Error updating units mappings and unified mapping table:', err);
