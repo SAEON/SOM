@@ -73,6 +73,10 @@ const BAD_FIELD_VALUE_STRINGS = new Set(['', 'NAN', 'NA', 'NULL', 'INF', 'INFINI
 const BATCH_SIZE = Number(process.env.REIMPORT_BATCH_SIZE || 5000);
 const REQUEST_TIMEOUT_MS = Number(process.env.TABLE_VALUE_REQUEST_TIMEOUT_MS || 120000);
 
+function logProgress(message) {
+  console.log(`[${new Date().toISOString()}] ${message}`);
+}
+
 function normalizeText(value) {
   return value == null ? '' : String(value).trim();
 }
@@ -125,11 +129,14 @@ async function fetchValuesForTable(tableUri, p1) {
     encodeURIComponent(tableUri) +
     '&format=json&mode=since-time&p1=' + encodeURIComponent(p1);
 
+  logProgress(`Fetching LoggerNet data for ${tableUri} since ${p1}`);
   const response = await axios.get(url, {httpsAgent: agent, timeout: REQUEST_TIMEOUT_MS});
-  return {
+  const payload = {
     fields: response.data?.head && Array.isArray(response.data.head.fields) ? response.data.head.fields : [],
     data: Array.isArray(response.data?.data) ? response.data.data : [],
   };
+  logProgress(`Fetched ${payload.data.length} LoggerNet rows and ${payload.fields.length} fields for ${tableUri}`);
+  return payload;
 }
 
 function buildRows(fieldsByName, payload) {
@@ -208,6 +215,7 @@ async function loadTargetTables() {
 }
 
 async function countDbRows(client, fieldIds, sinceDb) {
+  logProgress(`Counting existing DB values for ${fieldIds.length} mapped fields since ${sinceDb} SAST`);
   const {rows} = await client.query(`
     SELECT
       count(*)::bigint AS values,
@@ -222,19 +230,24 @@ async function countDbRows(client, fieldIds, sinceDb) {
 }
 
 async function deleteDbRows(client, fieldIds, sinceDb) {
+  logProgress(`Deleting existing DB values for ${fieldIds.length} mapped fields since ${sinceDb} SAST`);
   const {rows} = await client.query(`
     DELETE FROM public.field_values
     WHERE field_id = ANY($1::uuid[])
       AND "timestamp" >= ($2::timestamp AT TIME ZONE 'Africa/Johannesburg')
     RETURNING 1
   `, [fieldIds, sinceDb]);
+  logProgress(`Deleted ${rows.length} existing DB values`);
   return rows.length;
 }
 
 async function insertRows(client, rows) {
   let touched = 0;
+  const totalBatches = Math.ceil(rows.length / BATCH_SIZE);
   for (let start = 0; start < rows.length; start += BATCH_SIZE) {
     const slice = rows.slice(start, start + BATCH_SIZE);
+    const batchNumber = Math.floor(start / BATCH_SIZE) + 1;
+    logProgress(`Inserting batch ${batchNumber}/${totalBatches} (${slice.length} values)`);
     const placeholders = [];
     const params = [];
     let p = 1;
@@ -252,6 +265,7 @@ async function insertRows(client, rows) {
          OR field_values.status IS DISTINCT FROM 'active'
     `, params);
     touched += result.rowCount || 0;
+    logProgress(`Inserted/updated batch ${batchNumber}/${totalBatches}; touched so far ${touched}`);
   }
   return touched;
 }
@@ -266,7 +280,9 @@ async function reimportTable(table) {
   try {
     const before = await countDbRows(client, fieldIds, sinceDb);
     const payload = await fetchValuesForTable(table.tableUri, sinceLoggerNet);
+    logProgress(`Normalizing LoggerNet rows for ${table.displayServerName} / ${table.displayTableName}`);
     const rows = buildRows(fieldsByName, payload);
+    logProgress(`Normalized ${rows.length} importable values for ${table.displayServerName} / ${table.displayTableName}`);
     const uniqueTimestamps = new Set(rows.map((row) => row[1].toISOString()));
     const apiFieldNames = new Set((payload.fields || []).map((field) => field.name));
     const missingFields = table.fields
