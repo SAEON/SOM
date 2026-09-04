@@ -149,16 +149,20 @@ async function fetchValuesForTable(tableUri, p1) {
   return payload;
 }
 
-function buildRows(fieldsByName, payload) {
+function buildRows(fieldsByName, payload, minTimestamp = null) {
   const rows = [];
   const apiFields = Array.isArray(payload.fields) ? payload.fields : [];
   const data = Array.isArray(payload.data) ? payload.data : [];
   const fieldIdsByPosition = apiFields.map((field) => fieldsByName.get(field?.name) || null);
+  const minTime = minTimestamp instanceof Date && !Number.isNaN(minTimestamp.getTime())
+    ? minTimestamp.getTime()
+    : null;
 
   for (const row of data) {
     const rawTime = row?.time != null ? row.time : (row?.timestamp || row?.t);
     const timestamp = parseLoggerNetTimestamp(rawTime);
     if (Number.isNaN(timestamp.getTime())) continue;
+    if (minTime != null && timestamp.getTime() < minTime) continue;
 
     const vals = Array.isArray(row?.vals) ? row.vals : [];
     for (let i = 0; i < fieldIdsByPosition.length; i += 1) {
@@ -347,6 +351,7 @@ async function reimportTable(table) {
 
   const client = await pool.connect();
   try {
+    const minTimestamp = parseLoggerNetTimestamp(sinceDb);
     const before = skipDbCount
       ? {
         values: null,
@@ -357,7 +362,7 @@ async function reimportTable(table) {
       : await countDbRows(client, fieldIds, sinceDb);
     const payload = await fetchValuesForTable(table.tableUri, sinceLoggerNet);
     logProgress(`Normalizing LoggerNet rows for ${table.displayServerName} / ${table.displayTableName}`);
-    const rows = dedupeRows(buildRows(fieldsByName, payload));
+    const rows = dedupeRows(buildRows(fieldsByName, payload, minTimestamp));
     logProgress(`Normalized ${rows.length} importable values for ${table.displayServerName} / ${table.displayTableName}`);
     const uniqueTimestamps = new Set(rows.map((row) => row[1].toISOString()));
     const apiFieldNames = new Set((payload.fields || []).map((field) => field.name));
