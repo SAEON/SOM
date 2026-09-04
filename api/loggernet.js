@@ -3305,7 +3305,7 @@ app.get('/api/tables/:tableId/values', async (req, res) => {
   try {
     const valuesQuery = `
       SELECT
-        timestamp,
+        TO_CHAR(timestamp AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS timestamp,
         fields
       FROM pre_aggregated_table_values
       WHERE table_id = $1

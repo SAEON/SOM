@@ -80,7 +80,7 @@ const agent = new https.Agent({
 });
 
 const BAD_FIELD_VALUE_STRINGS = new Set(['', 'NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY']);
-const BATCH_SIZE = Number(process.env.REIMPORT_BATCH_SIZE || 5000);
+const BATCH_SIZE = Number(process.env.REIMPORT_BATCH_SIZE || 50000);
 const REQUEST_TIMEOUT_MS = Number(process.env.TABLE_VALUE_REQUEST_TIMEOUT_MS || 120000);
 
 function logProgress(message) {
@@ -171,6 +171,14 @@ function buildRows(fieldsByName, payload) {
   }
 
   return rows;
+}
+
+function dedupeRows(rows) {
+  const byKey = new Map();
+  for (const row of rows) {
+    byKey.set(`${row[0]}|${row[1].toISOString()}`, row);
+  }
+  return Array.from(byKey.values());
 }
 
 async function loadTargetTables() {
@@ -316,22 +324,14 @@ async function insertRows(client, rows) {
     const slice = rows.slice(start, start + BATCH_SIZE);
     const batchNumber = Math.floor(start / BATCH_SIZE) + 1;
     logProgress(`Inserting batch ${batchNumber}/${totalBatches} (${slice.length} values)`);
-    const placeholders = [];
-    const params = [];
-    let p = 1;
-    for (const row of slice) {
-      params.push(row[0], row[1], row[2]);
-      placeholders.push(`($${p++}, $${p++}, $${p++}, 'active')`);
-    }
+    const fieldIds = slice.map((row) => row[0]);
+    const timestamps = slice.map((row) => row[1]);
+    const values = slice.map((row) => String(row[2]));
     const result = await client.query(`
       INSERT INTO public.field_values (field_id, "timestamp", value, status)
-      VALUES ${placeholders.join(',')}
-      ON CONFLICT (field_id, "timestamp") DO UPDATE SET
-        value = EXCLUDED.value,
-        status = 'active'
-      WHERE field_values.value IS DISTINCT FROM EXCLUDED.value
-         OR field_values.status IS DISTINCT FROM 'active'
-    `, params);
+      SELECT field_id, "timestamp", value, 'active'
+      FROM unnest($1::uuid[], $2::timestamptz[], $3::text[]) AS rows(field_id, "timestamp", value)
+    `, [fieldIds, timestamps, values]);
     touched += result.rowCount || 0;
     logProgress(`Inserted/updated batch ${batchNumber}/${totalBatches}; touched so far ${touched}`);
   }
@@ -357,7 +357,7 @@ async function reimportTable(table) {
       : await countDbRows(client, fieldIds, sinceDb);
     const payload = await fetchValuesForTable(table.tableUri, sinceLoggerNet);
     logProgress(`Normalizing LoggerNet rows for ${table.displayServerName} / ${table.displayTableName}`);
-    const rows = buildRows(fieldsByName, payload);
+    const rows = dedupeRows(buildRows(fieldsByName, payload));
     logProgress(`Normalized ${rows.length} importable values for ${table.displayServerName} / ${table.displayTableName}`);
     const uniqueTimestamps = new Set(rows.map((row) => row[1].toISOString()));
     const apiFieldNames = new Set((payload.fields || []).map((field) => field.name));
