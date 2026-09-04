@@ -24,9 +24,12 @@ Usage:
 
 Options:
   --server     Public display server name from summary_table. Required.
-  --table      Public display table name. Optional; all public tables for the site when omitted.
+  --table      Raw or public display table name. Optional; all active raw tables for the site when omitted.
   --since      Local SAST date/time to replace from. Default: 2026-02-01.
   --execute    Delete and reimport. Without this flag the script is dry-run only.
+  --public-only
+              Repair only currently public mapped fields. Default repairs all
+              active raw fields for the mapped LoggerNet site.
   --skip-db-count
               Skip the preflight DB count. Useful when live DB count is slow and
               LoggerNet availability is the only dry-run check needed.
@@ -37,6 +40,7 @@ const displayServerName = argValue('--server');
 const displayTableName = argValue('--table');
 const sinceInput = argValue('--since', '2026-02-01');
 const execute = hasFlag('--execute');
+const publicOnly = hasFlag('--public-only');
 const skipDbCount = hasFlag('--skip-db-count');
 
 if (!displayServerName) {
@@ -172,29 +176,56 @@ async function loadTargetTables() {
   let tableFilter = '';
   if (displayTableName) {
     params.push(displayTableName);
-    tableFilter = 'AND btrim(st.display_table_name) = $2';
+    tableFilter = 'AND (btrim(stbl.table_name) = $2 OR btrim(coalesce(public_tables.display_table_name, stbl.table_name)) = $2)';
   }
 
   const {rows} = await pool.query(`
+    WITH site_servers AS (
+      SELECT DISTINCT
+        stbl.server_id,
+        s.name AS raw_server_name,
+        st.display_server_name
+      FROM public.summary_table st
+      JOIN public.server_table_fields stf ON stf.field_id = st.field_id
+      JOIN public.server_tables stbl ON stbl.table_id = stf.table_id
+      JOIN public.servers s ON s.server_id = stbl.server_id
+      WHERE btrim(st.display_server_name) = $1
+    ),
+    public_tables AS (
+      SELECT DISTINCT
+        stf.table_id,
+        st.display_table_name
+      FROM public.summary_table st
+      JOIN public.server_table_fields stf ON stf.field_id = st.field_id
+      WHERE btrim(st.display_server_name) = $1
+    ),
+    public_fields AS (
+      SELECT DISTINCT st.field_id
+      FROM public.summary_table st
+      WHERE btrim(st.display_server_name) = $1
+    )
     SELECT DISTINCT
-      st.display_server_name,
-      st.display_table_name,
+      ss.display_server_name,
+      coalesce(public_tables.display_table_name, stbl.table_name) AS display_table_name,
       stf.field_id,
       stf.field_name,
       stbl.table_id,
       stbl.table_name,
       stbl.uri AS table_uri,
-      s.name AS raw_server_name
-    FROM public.summary_table st
-    JOIN public.server_table_fields stf ON stf.field_id = st.field_id
-    JOIN public.server_tables stbl ON stbl.table_id = stf.table_id
-    JOIN public.servers s ON s.server_id = stbl.server_id
-    WHERE btrim(st.display_server_name) = $1
+      ss.raw_server_name,
+      (public_fields.field_id IS NOT NULL) AS currently_public
+    FROM site_servers ss
+    JOIN public.server_tables stbl ON stbl.server_id = ss.server_id
+    JOIN public.server_table_fields stf ON stf.table_id = stbl.table_id
+    LEFT JOIN public_tables ON public_tables.table_id = stbl.table_id
+    LEFT JOIN public_fields ON public_fields.field_id = stf.field_id
+    WHERE stbl.status = 'active'
+      AND stf.status = 'active'
       ${tableFilter}
-      AND st.field_id IS NOT NULL
       AND stbl.uri IS NOT NULL
-    ORDER BY st.display_table_name, stbl.table_name, stf.field_name
-  `, params);
+      AND ($${params.length + 1}::boolean IS FALSE OR public_fields.field_id IS NOT NULL)
+    ORDER BY coalesce(public_tables.display_table_name, stbl.table_name), stbl.table_name, stf.field_name
+  `, [...params, publicOnly]);
 
   const byTable = new Map();
   for (const row of rows) {
@@ -213,13 +244,14 @@ async function loadTargetTables() {
     byTable.get(key).fields.push({
       fieldId: row.field_id,
       fieldName: row.field_name,
+      currentlyPublic: row.currently_public,
     });
   }
   return Array.from(byTable.values());
 }
 
 async function countDbRows(client, fieldIds, sinceDb) {
-  logProgress(`Counting existing DB values for ${fieldIds.length} mapped fields since ${sinceDb} SAST`);
+  logProgress(`Counting existing DB values for ${fieldIds.length} fields since ${sinceDb} SAST`);
   const {rows} = await client.query(`
     SELECT
       count(*)::bigint AS values,
@@ -234,7 +266,7 @@ async function countDbRows(client, fieldIds, sinceDb) {
 }
 
 async function deleteDbRows(client, fieldIds, sinceDb) {
-  logProgress(`Deleting existing DB values for ${fieldIds.length} mapped fields since ${sinceDb} SAST`);
+  logProgress(`Deleting existing DB values for ${fieldIds.length} fields since ${sinceDb} SAST`);
   const result = await client.query(`
     DELETE FROM public.field_values
     WHERE field_id = ANY($1::uuid[])
@@ -278,6 +310,7 @@ async function reimportTable(table) {
   const sinceLoggerNet = sinceForLoggerNet(sinceInput);
   const fieldIds = table.fields.map((field) => field.fieldId);
   const fieldsByName = new Map(table.fields.map((field) => [field.fieldName, field.fieldId]));
+  const currentlyPublicCount = table.fields.filter((field) => field.currentlyPublic).length;
 
   const client = await pool.connect();
   try {
@@ -309,7 +342,8 @@ async function reimportTable(table) {
       dbLastSast: before.last_sast,
       loggernetRows: payload.data.length,
       loggernetFields: payload.fields.length,
-      mappedFields: table.fields.length,
+      repairedFields: table.fields.length,
+      currentlyPublicFields: currentlyPublicCount,
       missingMappedFields: missingFields,
       importableValues: rows.length,
       importableTimestamps: uniqueTimestamps.size,
