@@ -3292,38 +3292,42 @@ app.get('/api/tables/:tableId/values', async (req, res) => {
   const limit = parseInt(pageSize, 10) || 10; // Default page size to 10
   const offset = ((parseInt(page, 10) || 1) - 1) * limit; // Default page to 1
 
-  // Convert and validate dates
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    return res.status(400).json({ error: 'Invalid date format' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate || '') || !/^\d{4}-\d{2}-\d{2}$/.test(endDate || '')) {
+    return res.status(400).json({ error: 'Dates must use YYYY-MM-DD' });
   }
-
-  const formattedStart = start.toISOString();
-  const formattedEnd = end.toISOString();
 
   try {
     const valuesQuery = `
       SELECT
-        TO_CHAR(timestamp AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS timestamp,
-        fields
-      FROM pre_aggregated_table_values
-      WHERE table_id = $1
-        AND timestamp BETWEEN $2 AND $3
-      ORDER BY timestamp DESC
+        TO_CHAR(fv.timestamp AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS timestamp,
+        JSON_AGG(JSON_BUILD_OBJECT(
+          'field_name', sf.field_name,
+          'value', fv.value,
+          'status', COALESCE(sf.status, ''),
+          'units', COALESCE(sf.units, '')
+        ) ORDER BY sf.field_name) AS fields
+      FROM field_values fv
+      JOIN server_table_fields sf ON sf.field_id = fv.field_id
+      WHERE sf.table_id = $1
+        AND fv.timestamp >= ($2::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
+        AND fv.timestamp < (($3::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
+      GROUP BY fv.timestamp
+      ORDER BY fv.timestamp DESC
       LIMIT $4 OFFSET $5;
     `;
 
     const countQuery = `
-      SELECT COUNT(DISTINCT timestamp) AS total_count
-      FROM pre_aggregated_table_values
-      WHERE table_id = $1
-        AND timestamp BETWEEN $2 AND $3;
+      SELECT COUNT(DISTINCT fv.timestamp) AS total_count
+      FROM field_values fv
+      JOIN server_table_fields sf ON sf.field_id = fv.field_id
+      WHERE sf.table_id = $1
+        AND fv.timestamp >= ($2::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
+        AND fv.timestamp < (($3::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg');
     `;
 
     const [result, totalCountResult] = await Promise.all([
-      pool.query(valuesQuery, [tableId, formattedStart, formattedEnd, limit, offset]),
-      pool.query(countQuery, [tableId, formattedStart, formattedEnd])
+      pool.query(valuesQuery, [tableId, startDate, endDate, limit, offset]),
+      pool.query(countQuery, [tableId, startDate, endDate])
     ]);
 
     const totalRecords = parseInt(totalCountResult.rows[0].total_count, 10);
@@ -3337,7 +3341,7 @@ app.get('/api/tables/:tableId/values', async (req, res) => {
       pageSize: limit
     });
   } catch (error) {
-    console.error('Failed to retrieve values from materialized view:', error);
+    console.error('Failed to retrieve live table values:', error);
     res.status(500).json({ message: 'Failed to retrieve values for table' });
   }
 });
@@ -5547,26 +5551,48 @@ app.get("/api/summary_table/values", async (req, res) => {
 
   try {
     const totalCountQuery = pool.query(`
-          SELECT COUNT(DISTINCT timestamp) AS total_count
-          FROM pre_aggregated_field_values
-          WHERE display_table_name = $1
-            AND display_server_name = $2
-            AND timestamp >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
-            AND timestamp < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
+          SELECT COUNT(DISTINCT fv.timestamp) AS total_count
+          FROM summary_table st
+          JOIN field_values fv ON fv.field_id = st.field_id
+          WHERE st.display_table_name = $1
+            AND st.display_server_name = $2
+            AND fv.timestamp >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
+            AND fv.timestamp < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
+            AND st.display_field_name IS NOT NULL
+            AND btrim(st.display_field_name) <> ''
+            AND fv.value IS NOT NULL
+            AND btrim(fv.value) <> ''
+            AND upper(btrim(fv.value)) NOT IN ('NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY')
         `, [tableName, serverName, startDate, endDate]);
 
     const optimizedQuery = `
           SELECT
-            timestamp,
-            field_values,
-            latitude,
-            longitude
-          FROM pre_aggregated_field_values
-          WHERE display_table_name = $1
-            AND display_server_name = $2
-            AND timestamp >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
-            AND timestamp < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
-          ORDER BY timestamp DESC
+            TO_CHAR(fv.timestamp AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS timestamp,
+            JSON_AGG(JSON_BUILD_OBJECT(
+              'display_field_name', st.display_field_name,
+              'field_value', CASE
+                WHEN fv.value ~ '^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$'
+                  AND st.multiplier IS NOT NULL
+                  THEN (fv.value::numeric * st.multiplier::numeric)::text
+                ELSE fv.value
+              END,
+              'units', COALESCE(st.units, '')
+            ) ORDER BY st.display_field_name) AS field_values,
+            MAX(st.latitude) AS latitude,
+            MAX(st.longitude) AS longitude
+          FROM summary_table st
+          JOIN field_values fv ON fv.field_id = st.field_id
+          WHERE st.display_table_name = $1
+            AND st.display_server_name = $2
+            AND fv.timestamp >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
+            AND fv.timestamp < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
+            AND st.display_field_name IS NOT NULL
+            AND btrim(st.display_field_name) <> ''
+            AND fv.value IS NOT NULL
+            AND btrim(fv.value) <> ''
+            AND upper(btrim(fv.value)) NOT IN ('NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY')
+          GROUP BY fv.timestamp
+          ORDER BY fv.timestamp DESC
           LIMIT $5 OFFSET $6;
         `;
 
@@ -5590,8 +5616,8 @@ app.get("/api/summary_table/values", async (req, res) => {
       endDate,
     });
   } catch (error) {
-    console.error("Failed to retrieve values from materialized view:", error);
-    res.status(500).json({message: "Failed to retrieve values from materialized view"});
+    console.error("Failed to retrieve summary table values:", error);
+    res.status(500).json({message: "Failed to retrieve summary table values"});
   }
 });
 
@@ -8969,8 +8995,6 @@ async function runWriterTasksDaily() {
     { label: 'Cleanup invalid timestamps', run: runCleanupAndSummaryUpdate },
     { label: 'Calculate daily data availability', run: calculateDailyDataAvailability },
     { label: 'Daily data availability cleanup', run: cleanUpDailyDataAvailability },
-    { label: 'Refresh live table MV', run: refreshTableMaterializedView },
-    { label: 'Refresh data MV', run: refreshMaterializedView },
     { label: 'Update date ranges', run: updateDateRanges },
     { label: 'Update summary date ranges', run: updateSummaryDateRanges },
     { label: 'Update field values summary', run: updateFieldValuesSummary },
@@ -8990,8 +9014,6 @@ async function runWriterTasksExtended() {
     { label: 'Cleanup invalid timestamps', run: runCleanupAndSummaryUpdate },
     { label: 'Calculate daily data availability', run: calculateDailyDataAvailability },
     { label: 'Daily data availability cleanup', run: cleanUpDailyDataAvailability },
-    { label: 'Refresh live table MV', run: refreshTableMaterializedView },
-    { label: 'Refresh data MV', run: refreshMaterializedView },
     { label: 'Update date ranges', run: updateDateRanges },
     { label: 'Update summary date ranges', run: updateSummaryDateRanges },
     { label: 'Update field values summary', run: updateFieldValuesSummary },
@@ -9112,7 +9134,7 @@ async function runScheduledWriterJob({ extended = false } = {}) {
     running: true,
     currentStep: extended ? 'Starting Sunday extended sync' : 'Starting nightly sync',
     currentStepIndex: 0,
-    totalSteps: 14,
+    totalSteps: 12,
     lastCompletedStep: null,
     lastStartedAt: new Date(start).toISOString(),
     lastFinishedAt: null,
