@@ -27,6 +27,9 @@ Options:
   --table      Public display table name. Optional; all public tables for the site when omitted.
   --since      Local SAST date/time to replace from. Default: 2026-02-01.
   --execute    Delete and reimport. Without this flag the script is dry-run only.
+  --skip-db-count
+              Skip the preflight DB count. Useful when live DB count is slow and
+              LoggerNet availability is the only dry-run check needed.
 `);
 }
 
@@ -34,6 +37,7 @@ const displayServerName = argValue('--server');
 const displayTableName = argValue('--table');
 const sinceInput = argValue('--since', '2026-02-01');
 const execute = hasFlag('--execute');
+const skipDbCount = hasFlag('--skip-db-count');
 
 if (!displayServerName) {
   usage();
@@ -231,14 +235,13 @@ async function countDbRows(client, fieldIds, sinceDb) {
 
 async function deleteDbRows(client, fieldIds, sinceDb) {
   logProgress(`Deleting existing DB values for ${fieldIds.length} mapped fields since ${sinceDb} SAST`);
-  const {rows} = await client.query(`
+  const result = await client.query(`
     DELETE FROM public.field_values
     WHERE field_id = ANY($1::uuid[])
       AND "timestamp" >= ($2::timestamp AT TIME ZONE 'Africa/Johannesburg')
-    RETURNING 1
   `, [fieldIds, sinceDb]);
-  logProgress(`Deleted ${rows.length} existing DB values`);
-  return rows.length;
+  logProgress(`Deleted ${result.rowCount || 0} existing DB values`);
+  return result.rowCount || 0;
 }
 
 async function insertRows(client, rows) {
@@ -278,7 +281,14 @@ async function reimportTable(table) {
 
   const client = await pool.connect();
   try {
-    const before = await countDbRows(client, fieldIds, sinceDb);
+    const before = skipDbCount
+      ? {
+        values: null,
+        timestamps: null,
+        first_sast: null,
+        last_sast: null,
+      }
+      : await countDbRows(client, fieldIds, sinceDb);
     const payload = await fetchValuesForTable(table.tableUri, sinceLoggerNet);
     logProgress(`Normalizing LoggerNet rows for ${table.displayServerName} / ${table.displayTableName}`);
     const rows = buildRows(fieldsByName, payload);
