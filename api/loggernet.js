@@ -850,11 +850,18 @@ function parseBackfillTimestamp(value) {
   const raw = normalizeText(value);
   if (!raw) return null;
   const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
-  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
-  const candidate = hasTimezone ? normalized : `${normalized}+02:00`;
-  const parsed = new Date(candidate);
+  const parsed = parseLoggerNetTimestamp(normalized);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed;
+}
+
+function parseLoggerNetTimestamp(value) {
+  if (value instanceof Date) return value;
+  const raw = normalizeText(value);
+  if (!raw) return new Date(NaN);
+  const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
+  return new Date(hasTimezone ? normalized : `${normalized}+02:00`);
 }
 
 function isBackfillBlank(value) {
@@ -8392,8 +8399,8 @@ function normalizeValueRows(fieldId, values) {
     const rawTime = (r.time != null) ? r.time : (r.timestamp || r.t);
     if (!rawTime) continue;
 
-    // Normalize timestamp → JS Date
-    const d = (rawTime instanceof Date) ? rawTime : new Date(rawTime);
+    // LoggerNet timestamps without an offset are station-local SAST times.
+    const d = parseLoggerNetTimestamp(rawTime);
     if (isNaN(d.getTime())) continue;
 
     // Pick value (single or array)
@@ -8513,7 +8520,7 @@ function normalizeTableValueRows(dbFieldsByName, payload) {
     if (!row) continue;
     const rawTime = row.time != null ? row.time : (row.timestamp || row.t);
     if (!rawTime) continue;
-    const timestamp = rawTime instanceof Date ? rawTime : new Date(rawTime);
+    const timestamp = parseLoggerNetTimestamp(rawTime);
     if (Number.isNaN(timestamp.getTime())) continue;
 
     const vals = Array.isArray(row.vals) ? row.vals : [];
