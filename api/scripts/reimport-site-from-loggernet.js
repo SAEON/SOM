@@ -19,11 +19,12 @@ function hasFlag(name) {
 function usage() {
   console.log(`
 Usage:
-  node scripts/reimport-site-from-loggernet.js --server "Bambanani AWS" --since 2026-02-01
+  node scripts/reimport-site-from-loggernet.js --raw-server "EFTEON_Bambanani ERS" --since 2026-02-01
   node scripts/reimport-site-from-loggernet.js --server "Bambanani AWS" --table daily --since 2026-02-01 --execute
 
 Options:
-  --server     Public display server name from summary_table. Required.
+  --raw-server Raw LoggerNet server name from the LoggerNet Server list.
+  --server     Public display server name from summary_table. Use when raw name is not supplied.
   --table      Raw or public display table name. Optional; all active raw tables for the site when omitted.
   --since      Local SAST date/time to replace from. Default: 2026-02-01.
   --execute    Delete and reimport. Without this flag the script is dry-run only.
@@ -37,13 +38,14 @@ Options:
 }
 
 const displayServerName = argValue('--server');
+const rawServerName = argValue('--raw-server');
 const displayTableName = argValue('--table');
 const sinceInput = argValue('--since', '2026-02-01');
 const execute = hasFlag('--execute');
 const publicOnly = hasFlag('--public-only');
 const skipDbCount = hasFlag('--skip-db-count');
 
-if (!displayServerName) {
+if (!displayServerName && !rawServerName) {
   usage();
   process.exit(1);
 }
@@ -172,15 +174,31 @@ function buildRows(fieldsByName, payload) {
 }
 
 async function loadTargetTables() {
-  const params = [displayServerName];
-  let tableFilter = '';
-  if (displayTableName) {
-    params.push(displayTableName);
-    tableFilter = 'AND (btrim(stbl.table_name) = $2 OR btrim(coalesce(public_tables.display_table_name, stbl.table_name)) = $2)';
-  }
-
-  const {rows} = await pool.query(`
-    WITH site_servers AS (
+  const targetName = rawServerName || displayServerName;
+  const targetClause = rawServerName
+    ? 'WHERE btrim(s.name) = $1'
+    : 'WHERE btrim(st.display_server_name) = $1';
+  const siteServersSource = rawServerName
+    ? `
+      SELECT DISTINCT
+        s.server_id,
+        s.name AS raw_server_name,
+        coalesce(site_names.display_server_name, s.name) AS display_server_name
+      FROM public.servers s
+      LEFT JOIN LATERAL (
+        SELECT st.display_server_name
+        FROM public.server_tables stbl
+        JOIN public.server_table_fields stf ON stf.table_id = stbl.table_id
+        JOIN public.summary_table st ON st.field_id = stf.field_id
+        WHERE stbl.server_id = s.server_id
+          AND st.display_server_name IS NOT NULL
+          AND btrim(st.display_server_name) <> ''
+        ORDER BY st.display_server_name
+        LIMIT 1
+      ) site_names ON true
+      ${targetClause}
+    `
+    : `
       SELECT DISTINCT
         stbl.server_id,
         s.name AS raw_server_name,
@@ -189,7 +207,19 @@ async function loadTargetTables() {
       JOIN public.server_table_fields stf ON stf.field_id = st.field_id
       JOIN public.server_tables stbl ON stbl.table_id = stf.table_id
       JOIN public.servers s ON s.server_id = stbl.server_id
-      WHERE btrim(st.display_server_name) = $1
+      ${targetClause}
+    `;
+
+  const params = [targetName];
+  let tableFilter = '';
+  if (displayTableName) {
+    params.push(displayTableName);
+    tableFilter = 'AND (btrim(stbl.table_name) = $2 OR btrim(coalesce(public_tables.display_table_name, stbl.table_name)) = $2)';
+  }
+
+  const {rows} = await pool.query(`
+    WITH site_servers AS (
+      ${siteServersSource}
     ),
     public_tables AS (
       SELECT DISTINCT
@@ -197,12 +227,15 @@ async function loadTargetTables() {
         st.display_table_name
       FROM public.summary_table st
       JOIN public.server_table_fields stf ON stf.field_id = st.field_id
-      WHERE btrim(st.display_server_name) = $1
+      JOIN public.server_tables stbl ON stbl.table_id = stf.table_id
+      JOIN site_servers ss ON ss.server_id = stbl.server_id
     ),
     public_fields AS (
       SELECT DISTINCT st.field_id
       FROM public.summary_table st
-      WHERE btrim(st.display_server_name) = $1
+      JOIN public.server_table_fields stf ON stf.field_id = st.field_id
+      JOIN public.server_tables stbl ON stbl.table_id = stf.table_id
+      JOIN site_servers ss ON ss.server_id = stbl.server_id
     )
     SELECT DISTINCT
       ss.display_server_name,
@@ -340,6 +373,10 @@ async function reimportTable(table) {
       dbTimestampsBefore: before.timestamps,
       dbFirstSast: before.first_sast,
       dbLastSast: before.last_sast,
+      dbValuesAfter: null,
+      dbTimestampsAfter: null,
+      dbFirstSastAfter: null,
+      dbLastSastAfter: null,
       loggernetRows: payload.data.length,
       loggernetFields: payload.fields.length,
       repairedFields: table.fields.length,
@@ -349,6 +386,7 @@ async function reimportTable(table) {
       importableTimestamps: uniqueTimestamps.size,
       deleted: 0,
       touched: 0,
+      verified: !execute ? null : false,
     };
 
     if (!execute) return summary;
@@ -357,6 +395,14 @@ async function reimportTable(table) {
     await client.query('SET LOCAL synchronous_commit = OFF');
     summary.deleted = await deleteDbRows(client, fieldIds, sinceDb);
     summary.touched = await insertRows(client, rows);
+    const after = await countDbRows(client, fieldIds, sinceDb);
+    summary.dbValuesAfter = after.values;
+    summary.dbTimestampsAfter = after.timestamps;
+    summary.dbFirstSastAfter = after.first_sast;
+    summary.dbLastSastAfter = after.last_sast;
+    summary.verified =
+      String(after.values) === String(rows.length) &&
+      String(after.timestamps) === String(uniqueTimestamps.size);
     await client.query('COMMIT');
     return summary;
   } catch (error) {
@@ -373,7 +419,7 @@ async function reimportTable(table) {
 
 (async () => {
   console.log(`[MODE] ${execute ? 'EXECUTE' : 'DRY RUN'}`);
-  console.log(`[TARGET] ${displayServerName}${displayTableName ? ' / ' + displayTableName : ''}`);
+  console.log(`[TARGET] ${(rawServerName && 'raw: ' + rawServerName) || displayServerName}${displayTableName ? ' / ' + displayTableName : ''}`);
   console.log(`[SINCE] ${sinceForDb(sinceInput)} SAST`);
 
   const tables = await loadTargetTables();
