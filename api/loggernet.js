@@ -7097,9 +7097,9 @@ const calculateDailyDataAvailabilityWindow = async (monthsBack = 3) => {
   }
 };
 
-const calculateDailyDataAvailability = async () => {
+const calculateDailyDataAvailability = async (monthsOverride = null) => {
   try {
-    const monthsBack = Math.max(1, Number(process.env.DAILY_AVAILABILITY_MONTHS || 1));
+    const monthsBack = Math.max(1, Number(monthsOverride || process.env.DAILY_AVAILABILITY_MONTHS || 1));
     await calculateDailyDataAvailabilityWindow(monthsBack);
   } catch (error) {
     console.error('Error calculating and storing daily data availability:', error);
@@ -9062,6 +9062,7 @@ async function runWriterTasksDaily() {
 // WRITER lane — Sunday extended run (p2)
 async function runWriterTasksExtended() {
   const p = getP2(); // month window by default, or your existing p2
+  const extendedAvailabilityMonths = Math.max(1, Number(process.env.EXTENDED_AVAILABILITY_MONTHS || process.env.DAILY_AVAILABILITY_MONTHS || 1));
   await runTaskList([
     { label: 'Sync servers (extended, p2)', run: () => syncServers(p) },
     { label: 'Populate unified mapping table', run: populateUnifiedMappingTable },
@@ -9070,7 +9071,7 @@ async function runWriterTasksExtended() {
     { label: 'Sync field metadata', run: syncFieldMetadata },
     { label: 'Populate summary table', run: populateSummaryTable },
     { label: 'Cleanup invalid timestamps', run: runCleanupAndSummaryUpdate },
-    { label: 'Calculate daily data availability', run: calculateDailyDataAvailability },
+    { label: `Calculate daily data availability (${extendedAvailabilityMonths} months)`, run: () => calculateDailyDataAvailability(extendedAvailabilityMonths) },
     { label: 'Daily data availability cleanup', run: cleanUpDailyDataAvailability },
     { label: 'Update date ranges', run: updateDateRanges },
     { label: 'Update summary date ranges', run: updateSummaryDateRanges },
