@@ -102,6 +102,65 @@ function getSastDateParts(date = new Date()) {
   };
 }
 
+function normalizeIp(ip) {
+  return String(ip || '').replace(/^::ffff:/, '').trim();
+}
+
+function isPublicIpForGeo(ip) {
+  const normalized = normalizeIp(ip);
+  if (!normalized || normalized === 'unknown') return false;
+  if (
+    normalized === '::1' ||
+    normalized === '127.0.0.1' ||
+    normalized.startsWith('10.') ||
+    normalized.startsWith('192.168.') ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function getRequestIp(req, fallbackIp = null) {
+  const candidates = [
+    fallbackIp,
+    ...(req.headers['x-forwarded-for'] || '').split(','),
+    req.headers['cf-connecting-ip'],
+    req.headers['x-real-ip'],
+    req.ip,
+    req.socket?.remoteAddress,
+  ].map(normalizeIp).filter(Boolean);
+
+  return candidates.find(isPublicIpForGeo) || candidates[0] || null;
+}
+
+function normalizeGeoLocation(data = {}) {
+  const latitude = data.lat ?? data.latitude ?? '';
+  const longitude = data.lon ?? data.longitude ?? '';
+  return {
+    city: data.city || data.city_name || '',
+    country: data.country || data.country_name || '',
+    latitude,
+    longitude,
+    lat: latitude,
+    lon: longitude,
+  };
+}
+
+function hasUsableGeoLocation(location) {
+  return Boolean(location?.country || (location?.latitude && location?.longitude));
+}
+
+function isFailedGeoResponse(data = {}) {
+  return (
+    data.success === false ||
+    data.status === 'fail' ||
+    data.status === 'error' ||
+    data.message === 'reserved range' ||
+    data.country_name === 'Not found'
+  );
+}
+
 function isPrivilegedApiRole(role) {
   return ['admin', 'su', 'collaborator', 'collaborators'].includes(String(role || '').trim().toLowerCase());
 }
@@ -155,11 +214,7 @@ function createRateLimiter({windowMs, max, message, skip}) {
 
 function logApiAnalytics(req, res, interactionType, additionalData = {}) {
   res.on('finish', () => {
-    const requestIp =
-      req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-      req.ip ||
-      req.socket?.remoteAddress ||
-      null;
+    const requestIp = getRequestIp(req);
     const eventTimestamp = new Date();
     const interactionHour = new Date(eventTimestamp);
     interactionHour.setMinutes(0, 0, 0);
@@ -706,6 +761,10 @@ const backfillCsvUpload = multer({
 });
 
 async function fetchLocation(ip) {
+    if (!isPublicIpForGeo(ip)) {
+        throw new Error('Skipping geolocation for private or missing IP');
+    }
+
     const maxRetries = 3;
     const retryDelay = 1000; // 1 second delay between retries
     const services = [
@@ -720,11 +779,13 @@ async function fetchLocation(ip) {
         while (attempt < maxRetries) {
             try {
                 const response = await service();
-                if (response.data && response.data.success !== false) {
-                    return response.data;
-                } else {
-                    console.warn(`Service returned an unsuccessful response: ${response.data.message || 'Unknown error'}`);
+                if (response.data && !isFailedGeoResponse(response.data)) {
+                    const location = normalizeGeoLocation(response.data);
+                    if (hasUsableGeoLocation(location)) {
+                        return location;
+                    }
                 }
+                console.warn(`Service returned an unusable location response: ${response.data?.message || response.data?.status || 'Unknown error'}`);
             } catch (error) {
                 console.error(`Attempt ${attempt + 1} with service failed: ${error.message}`);
             }
@@ -1531,11 +1592,12 @@ app.post('/api/log_interaction', async (req, res) => {
         user_id
     } = req.body;
 
+    const requestIp = getRequestIp(req, ip);
     const timestamp = new Date();
     let location = null;
 
     try {
-        location = await fetchLocation(ip);
+        location = await fetchLocation(requestIp);
     } catch (error) {
         console.warn('Failed to fetch location, proceeding without it:', error.message);
     }
@@ -1547,7 +1609,7 @@ app.post('/api/log_interaction', async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       ON CONFLICT (ip, user_agent, interaction_type, request_path, date_trunc('minute', timestamp))
       DO NOTHING`,
-            [user_id, ip, interaction_type, request_path, referrer, user_agent, status_code, response_size, timestamp, additional_data, session_id, location]
+            [user_id, requestIp, interaction_type, request_path, referrer, user_agent, status_code, response_size, timestamp, additional_data, session_id, location]
         );
         res.status(200).send({success: true});
     } catch (error) {
@@ -1571,11 +1633,7 @@ app.post('/api/check_and_log_interaction', async (req, res) => {
         timestamp // This is now passed from the client
     } = req.body;
 
-    const requestIp =
-        ip ||
-        req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-        req.socket?.remoteAddress ||
-        null;
+    const requestIp = getRequestIp(req, ip);
     const safeAdditionalData = additional_data || {};
 
     const eventTimestamp = timestamp ? new Date(timestamp) : new Date();
@@ -1590,8 +1648,8 @@ app.post('/api/check_and_log_interaction', async (req, res) => {
     let location = null;
 
     try {
-        if (ip) {
-            location = await fetchLocation(ip);
+        if (requestIp) {
+            location = await fetchLocation(requestIp);
         }
 
         // Check if a similar interaction exists for the same hour
@@ -9277,7 +9335,6 @@ if (backgroundJobsEnabled) {
   cron.schedule('0 6,14,22 * * 1-6', () => runScheduledWriterJob({ extended: false }), BACKGROUND_CRON_OPTIONS);
   cron.schedule('0 6,14 * * 0', () => runScheduledWriterJob({ extended: false }), BACKGROUND_CRON_OPTIONS);
   cron.schedule('0 20 * * 0', () => runScheduledWriterJob({ extended: true }), BACKGROUND_CRON_OPTIONS);
-  console.log('[BACKGROUND] Enabled. Scheduled CSV exports at 00:15 SAST, metadata discovery and fast sync Mon-Sat 06:00/14:00/22:00 SAST, Sunday fast sync 06:00/14:00 SAST, Sunday extended sync 20:00 SAST.');
 } else {
   console.log('[BACKGROUND] Disabled. Set ENABLE_BACKGROUND_JOBS=true to run scheduled reader/writer jobs.');
 }

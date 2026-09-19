@@ -100,8 +100,8 @@ const buildUserLinePrefix = (detail, profile) => {
     // base interaction fields
     const name  = (profile?.merged?.full_name) || `${detail.firstName || 'Anonymous'} ${detail.lastName || ''}`.trim();
     const sector = detail.sector || profile?.sector || 'Unknown';
-    const locCountry = detail.location?.country || 'Unknown';
-    const locCity    = detail.location?.city || 'Unknown';
+    const locCountry = detail.location?.country || detail.userCountry || profile?.merged?.country || 'Unknown';
+    const locCity    = detail.location?.city || profile?.merged?.city || 'Unknown';
 
     const merged0 = profile?.merged || {};
     const merged  = (profile?.redacted || !profile?.popiaConsentAny) ? redactMerged(merged0) : merged0;
