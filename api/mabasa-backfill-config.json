@@ -1,0 +1,99 @@
+{
+  "targets": {
+    "TableDay": {
+      "serverName": "EFTEON_MabasaTA_AWS",
+      "tableName": "TableDay",
+      "tableId": "39e0a801-f0a1-4481-8301-f649c4646788",
+      "interval": 86400
+    },
+    "daily": {
+      "serverName": "EFTEON_MabasaTA_AWS",
+      "tableName": "daily",
+      "tableId": "55449537-7065-4476-8b80-0a749b87de62",
+      "interval": 86400
+    },
+    "TableHour": {
+      "serverName": "EFTEON_MabasaTA_AWS",
+      "tableName": "TableHour",
+      "tableId": "0f74c304-b1e8-47ae-9918-756c3502015d",
+      "interval": 3600
+    },
+    "hourly": {
+      "serverName": "EFTEON_MabasaTA_AWS",
+      "tableName": "hourly",
+      "tableId": "11913d22-2a31-4589-b9eb-0b32aecee32e",
+      "interval": 3600
+    },
+    "five_min": {
+      "serverName": "EFTEON_MabasaTA_AWS",
+      "tableName": "five_min",
+      "tableId": "a5a211c4-5b23-4231-be82-fb4d30b0ce7f",
+      "interval": 300
+    }
+  },
+  "unitRules": {
+    "TableDay.BPressure_Min": {
+      "target_unit": "kPa",
+      "factors": {
+        "mbar": "0.1",
+        "kPa": "1"
+      }
+    },
+    "TableDay.BPressure_Max": {
+      "target_unit": "kPa",
+      "factors": {
+        "mbar": "0.1",
+        "kPa": "1"
+      }
+    },
+    "TableDay.BPressure_Avg": {
+      "target_unit": "kPa",
+      "factors": {
+        "mbar": "0.1",
+        "kPa": "1"
+      }
+    },
+    "TableHour.BPressure_Avg": {
+      "target_unit": "kPa",
+      "factors": {
+        "mbar": "0.1",
+        "kPa": "1"
+      }
+    },
+    "daily.pressure_atm_min": {
+      "target_unit": "hpa",
+      "factors": {
+        "hpa": "1",
+        "hPa": "1"
+      }
+    },
+    "daily.pressure_atm_max": {
+      "target_unit": "hpa",
+      "factors": {
+        "hpa": "1",
+        "hPa": "1"
+      }
+    },
+    "hourly.pressure_atm": {
+      "target_unit": "hpa",
+      "factors": {
+        "hpa": "1",
+        "hPa": "1"
+      }
+    }
+  },
+  "exclusions": {
+    "hourly.pressure_atm": {
+      "before": "2025-05-23 16:00:00",
+      "reason": "Header says hPa but paired kPa stream has same magnitude; source unit needs confirmation."
+    },
+    "daily.pressure_atm_min": {
+      "before": "2025-05-24 00:00:00",
+      "reason": "Header says hPa but paired kPa daily minimum has same magnitude."
+    },
+    "daily.pressure_atm_max": {
+      "before": "2025-05-24 00:00:00",
+      "reason": "Header says hPa but paired kPa daily maximum has same magnitude."
+    }
+  }
+}

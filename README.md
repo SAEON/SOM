@@ -278,3 +278,44 @@ URLs. Missing static files return 404 rather than HTML and are not marked
 immutable. Already-open pages keep their loaded code until navigation/reload;
 this does not forcibly reload a page during an active download.
 The host HTTPS proxy must preserve these headers rather than override them.
+
+## Insert-only technician CSV backfill
+
+The backfill importer skips existing (field_id, timestamp) pairs with DO NOTHING.
+It does not change an existing reading's value or status. New observations use
+status=backfilled. The legacy audit counter inserted_or_updated_count now counts
+inserts; skipped existing readings are reported in the response and warnings.
+Preflight checks headers, mappings, duplicate timestamps, limits, and invalid
+missing-value tokens. Blank cells are skipped; numeric zero is valid. Ambiguous
+display headers mapping to multiple raw fields block the import. Import remains
+transactional and revalidates the uploaded file. Use the dedicated Mabasa CLI
+for raw masterfiles; the public-name UI is not the target for this package.
+
+Use the downloaded template, ISO/SAST timestamps, and raw LoggerNet values.
+Public downloads can contain converted units/multipliers; do not paste those
+scaled values back into raw storage without reversing the conversion.
+This protects against overwrites by this importer; the separate LoggerNet sync
+has its own upsert behavior. Availability and stored date ranges are not refreshed
+automatically by CSV import, particularly for dates outside the scheduled window.
+This follow-up historical refresh remains a limitation of the existing workflow.
+
+A database-backed local test validates CSV parsing, SAST, invalid-value rejection,
+preservation of the existing 36.57 observation/status, insertion of a missing
+zero, and repeat-import idempotency. All fixture writes are rolled back:
+
+```bash
+docker exec -e ALLOW_LOCAL_BACKFILL_TEST=true som-migration-api node /app/scripts/test-backfill-local.js
+```
+
+Do not run rollback fixture tests against production. Deploy the updated API
+before using the insert-only safeguards.
+
+## Validated Mabasa raw backfill CLI
+
+Use [MABASA-ALL-BACKFILL.md](MABASA-ALL-BACKFILL.md) for the five exact raw
+targets, units/exclusions, validated batch counts and deployment/transfer steps.
+The CLI defaults to read-only preflight and requires the prepared manifest.
+Actual import additionally requires explicit mode, database confirmation and
+operator name. It preserves every existing reading/status and refreshes affected
+historical availability/date bounds in the same transaction. Source masterfiles
+and database backups are not committed to this repository.

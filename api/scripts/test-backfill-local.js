@@ -1,0 +1,43 @@
+if (process.env.ALLOW_LOCAL_BACKFILL_TEST !== 'true') throw new Error('Set ALLOW_LOCAL_BACKFILL_TEST=true only for the isolated local test.');
+const assert = require('node:assert/strict');
+const {Pool} = require('/app/node_modules/pg');
+const {insertMissingBackfillValues} = require('/app/backfill-insert');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('/app/loggernet.js','utf8');
+const helpers = source.slice(source.indexOf('function parseCsvText('), source.indexOf('async function recordBackfillJob('));
+const {validateBackfillCsv} = vm.runInNewContext(helpers + '\n({validateBackfillCsv})', {Date, Buffer, normalizeText: value => String(value ?? '').trim()});
+const pool = new Pool({host:process.env.DB_HOST, port:process.env.DB_PORT, user:process.env.DB_USER, password:process.env.DB_PASSWORD, database:process.env.DB_NAME});
+(async () => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const {rows: fields} = await client.query(`SELECT field_id FROM server_table_fields WHERE table_id=$1 AND field_name='AirTC_Max'`, ['b313f720-2fb5-4425-bdae-9ffc77ab7c4b']);
+    assert.equal(fields.length,1);
+    const fieldId = fields[0].field_id;
+    const existingTime = '2020-11-19T22:00:00Z';
+    const gapTime = '2020-11-19T22:01:23Z';
+    const existing = await client.query('SELECT value,status FROM field_values WHERE field_id=$1 AND timestamp=$2',[fieldId,existingTime]);
+    assert.equal(existing.rows[0].value,'36.57');
+    const gap = await client.query('SELECT value FROM field_values WHERE field_id=$1 AND timestamp=$2',[fieldId,gapTime]);
+    assert.equal(gap.rowCount,0,'Test gap is occupied; select another fixture timestamp');
+    const preflight = await validateBackfillCsv(client, {serverName:'SA Wildlife College AWS', tableName:'daily', fileBuffer:Buffer.from('timestamp,temp_air_max\n2020-11-20 00:00:00,999.99\n2020-11-20 00:01:23,0\n')});
+    assert.equal(preflight.ok,true,preflight.errors.join('; '));
+    assert.equal(preflight.valueCount,2);
+    assert.equal(preflight.valueRows[0].timestamp.toISOString(),existingTime.replace('Z','.000Z'));
+    const upload = preflight.valueRows;
+    const invalid = await validateBackfillCsv(client, {serverName:'SA Wildlife College AWS',tableName:'daily',fileBuffer:Buffer.from('timestamp,temp_air_max\n2020-11-20 00:00:00,NA\n')});
+    assert.equal(invalid.ok,false,'NA must fail before PostgreSQL constraint errors');
+    const duplicates = await validateBackfillCsv(client, {serverName:'SA Wildlife College AWS',tableName:'daily',fileBuffer:Buffer.from('timestamp,temp_air_max\n2020-11-20 00:00:00,1\n2020-11-20 00:00:00,2\n')});
+    assert.equal(duplicates.ok,false,'Duplicate timestamps must fail preflight');
+    assert.deepEqual(await insertMissingBackfillValues(client,upload),{insertedCount:1,skippedExistingCount:1});
+    const after = await client.query('SELECT value,status FROM field_values WHERE field_id=$1 AND timestamp=$2',[fieldId,existingTime]);
+    assert.deepEqual(after.rows,existing.rows,'Existing value or status was overwritten');
+    const inserted = await client.query('SELECT value,status,timestamp AT TIME ZONE \'Africa/Johannesburg\' AS sast FROM field_values WHERE field_id=$1 AND timestamp=$2',[fieldId,gapTime]);
+    assert.equal(inserted.rows[0].value,'0');
+    assert.equal(inserted.rows[0].status,'backfilled');
+    assert.deepEqual(await insertMissingBackfillValues(client,upload),{insertedCount:0,skippedExistingCount:2});
+    console.log('PASS: existing 36.57 and status preserved; missing zero inserted; repeat import skips both readings.');
+  } finally {await client.query('ROLLBACK'); client.release(); await pool.end();}
+  console.log('All test inserts rolled back. No fixture observations retained.');
+})().catch(error => {console.error(error.message);process.exitCode=1;});

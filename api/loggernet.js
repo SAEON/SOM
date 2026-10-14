@@ -1,3 +1,4 @@
+const {insertMissingBackfillValues} = require('./backfill-insert');
 const {logoutSession} = require('./logout-session');
 const {backgroundResources, batches, normalizedTableRows} = require('./background-resources');
 require("dotenv").config();
@@ -532,13 +533,13 @@ app.get('/api/backfill/walkthrough', async (req, res) => {
       'Download the CSV template. Keep the timestamp column and the generated field headers unchanged.',
       'Paste historical values into the template. Use SAST timestamps unless the timestamp includes an explicit timezone.',
       'Run Preflight. Fix unknown columns, duplicate timestamps, blank timestamps, or rows with no values.',
-      'Import only after Preflight passes. Existing field/timestamp values are updated; new values are inserted.',
-      'Open the Data page and refresh availability/downloads for the same site and table.',
+      'Import only after Preflight passes. Only missing field/timestamp readings are inserted. Existing readings and their statuses are preserved, even if the uploaded value differs.',
+      'Check the same site/table in Data. Raw readings appear in dynamic previews/downloads; availability and cached date ranges require a separate refresh for the imported historical dates.',
     ],
     csvRules: [
       'Required timestamp headers: timestamp, time, datetime, or date_time.',
       'Field headers must exactly match the template display field names.',
-      'Blank values are skipped.',
+      'Blank values are skipped. Enter raw LoggerNet values; public downloads may already apply unit multipliers.',
       'Each upload is capped at 20,000 timestamp rows and 250,000 values.',
       'Imports are audited in backfill_jobs.',
     ],
@@ -667,30 +668,9 @@ app.post('/api/backfill/import', (req, res) => {
       await client.query('BEGIN');
       await client.query(`SELECT pg_advisory_lock(hashtext('technician_backfill'))`);
 
-      let insertedOrUpdatedCount = 0;
-      const batchSize = 5000;
-      for (let offset = 0; offset < result.valueRows.length; offset += batchSize) {
-        const batch = result.valueRows.slice(offset, offset + batchSize);
-        const params = [];
-        const valuesSql = batch.map((item, index) => {
-          const base = index * 4;
-          params.push(item.fieldId, item.timestamp, item.value, item.status);
-          return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`;
-        }).join(',');
-        const insertResult = await client.query(
-          `
-            INSERT INTO field_values (field_id, "timestamp", value, status)
-            VALUES ${valuesSql}
-            ON CONFLICT (field_id, "timestamp") DO UPDATE
-            SET value = EXCLUDED.value,
-                status = EXCLUDED.status
-            WHERE field_values.value IS DISTINCT FROM EXCLUDED.value
-               OR field_values.status IS DISTINCT FROM EXCLUDED.status
-          `,
-          params,
-        );
-        insertedOrUpdatedCount += insertResult.rowCount;
-      }
+      const {insertedCount, skippedExistingCount} = await insertMissingBackfillValues(client, result.valueRows);
+      const insertedOrUpdatedCount = insertedCount; // Legacy audit column: now inserts only.
+      if (skippedExistingCount) result.warnings.push(`${skippedExistingCount} existing reading(s) were preserved and skipped.`);
 
       const job = await recordBackfillJob(client, req, {
         serverName,
@@ -715,6 +695,8 @@ app.post('/api/backfill/import', (req, res) => {
         rowsWithValues: result.rowsWithValues,
         valueCount: result.valueCount,
         insertedOrUpdatedCount,
+        insertedCount,
+        skippedExistingCount,
         warnings: result.warnings,
       });
     } catch (error) {
@@ -959,6 +941,15 @@ async function validateBackfillCsv(client, {serverName, tableName, fileBuffer}) 
     return {ok: false, errors, warnings, fields, rows: [], valueRows: [], rowCount: 0, valueCount: 0};
   }
 
+  const mappedIdsByName = new Map();
+  for (const field of fields) {
+    const ids = mappedIdsByName.get(field.display_field_name) || new Set();
+    ids.add(field.field_id);
+    mappedIdsByName.set(field.display_field_name, ids);
+  }
+  for (const [name, ids] of mappedIdsByName) {
+    if (ids.size > 1) errors.push(`Ambiguous mapping for ${name}: multiple raw fields. Resolve the mapping before backfill.`);
+  }
   const csvText = fileBuffer.toString('utf8').replace(/^\uFEFF/, '');
   const parsedRows = parseCsvText(csvText);
   if (parsedRows.length < 2) {
@@ -1027,6 +1018,10 @@ async function validateBackfillCsv(client, {serverName, tableName, fileBuffer}) 
       const rawValue = csvRow[column.index];
       if (isBackfillBlank(rawValue)) return;
       const value = String(rawValue).trim();
+      if (['NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY'].includes(value.toUpperCase())) {
+        errors.push(`Row ${rowNumber}, ${column.header}: invalid missing-value token; leave the cell blank instead.`);
+        return;
+      }
       if (value.length > 1000) {
         errors.push(`Row ${rowNumber}, ${column.header}: value is longer than 1000 characters.`);
         return;
