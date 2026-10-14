@@ -4,6 +4,7 @@ const fs=require('node:fs');const path=require('node:path');
 const {Pool}=require('pg');
 const {TARGETS,validateMabasa,insertMissingBackfillValues}=require('../mabasa-backfill');
 const {refreshMabasaMetadata}=require('../mabasa-backfill-metadata');
+const {importResumable}=require('../mabasa-resumable');
 
 const args={};
 for(let i=2;i<process.argv.length;i+=2){const key=process.argv[i];const value=process.argv[i+1];if(!key.startsWith('--')||!value)throw new Error('Arguments are --name value pairs.');args[key.slice(2)]=value;}
@@ -31,6 +32,24 @@ const pool=new Pool({host:process.env.DB_HOST,port:process.env.DB_PORT,user:proc
   const report={database:process.env.DB_NAME,mode,target:TARGET,...summary,sourceConflictCells:manifest.tables.find(t=>t.table===args.table).conflicting_cells,
    warnings:['Existing readings and statuses are preserved, including existing pressure values requiring separate correction.','Conflicting source cells are blank in the prepared file.']};
   console.log(JSON.stringify(report,null,2));
+  if(mode==='import'){
+   await client.query('ROLLBACK');transaction=false;
+   console.log('Importing resumable batches; each completed batch is committed and audited.');
+   try{
+    report.importResult=await importResumable(client,validated,TARGET,{operator:args.operator,fileName:path.basename(args.file)},
+     p=>console.log(p.phase==='insert'?`Committed: ${p.checked}/${p.total} candidates; ${p.insertedCount} inserted; ${Math.round((Date.now()-started)/1000)}s elapsed`:
+      `Availability: ${p.checked}/${p.total} months refreshed (${p.month})`));
+    report.committed=true;
+   }catch(error){
+    report.importResult=error.partialResult;report.status='incomplete';report.error=error.message;
+    fs.writeFileSync(args.report,JSON.stringify(report,null,2)+'\n',{flag:'wx'});
+    console.error('Stopped. Completed batches remain saved. Retry the same file with a NEW report path; existing readings are skipped.');
+    throw error;
+   }
+   fs.writeFileSync(args.report,JSON.stringify(report,null,2)+'\n',{flag:'wx'});
+   console.log('Import committed. Availability refresh complete. Report: '+args.report);
+   return;
+  }
   if(mode!=='preflight'){
    console.log(`Inserting ${missingValueRows.length} missing readings in batches of 250...`);
    missingValueRows.sort((a,b)=>a.timestamp-b.timestamp||a.fieldId.localeCompare(b.fieldId));

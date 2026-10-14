@@ -1,4 +1,4 @@
-// Called inside the import transaction: failure rolls observations and metadata back together.
+// Called within a metadata transaction; the resumable importer commits observations separately.
 async function refreshMabasaMetadata(client, tableId, valueRows) {
  const ids=[...new Set(valueRows.map(v=>v.fieldId))];
  const days=[...new Set(valueRows.map(v=>new Date(v.timestamp.getTime()+7200000).toISOString().slice(0,10)))].sort();
@@ -45,10 +45,14 @@ async function refreshMabasaMetadata(client, tableId, valueRows) {
    availability_percentage=EXCLUDED.availability_percentage,calculated_at=now()`,[days]);
   periods[unit]=result.rowCount;
  }
+ // Insert-only imports can extend cached bounds without scanning every historical partition.
+ const times=valueRows.map(v=>v.timestamp.getTime());
  await client.query(`INSERT INTO raw_data_date_ranges(table_id,start_date,end_date,updated_at)
-  SELECT $1::uuid,min(fv.timestamp),max(fv.timestamp),now() FROM field_values fv
-  WHERE fv.field_id IN(SELECT field_id FROM server_table_fields WHERE table_id=$1::uuid)
-  ON CONFLICT(table_id) DO UPDATE SET start_date=EXCLUDED.start_date,end_date=EXCLUDED.end_date,updated_at=now()`,[tableId]);
+  VALUES ($1::uuid,$2::timestamptz,$3::timestamptz,now())
+  ON CONFLICT(table_id) DO UPDATE SET
+   start_date=least(raw_data_date_ranges.start_date,EXCLUDED.start_date),
+   end_date=greatest(raw_data_date_ranges.end_date,EXCLUDED.end_date),updated_at=now()`,
+  [tableId,new Date(Math.min(...times)),new Date(Math.max(...times))]);
  await client.query(`INSERT INTO summary_data_date_ranges(server_name,table_name,start_date,end_date,total_count,updated_at)
   SELECT d.display_server_name,d.display_table_name,min(d.date)::timestamp,max(d.date)::timestamp,sum(d.available_records)::int,now()
   FROM daily_data_availability d WHERE d.available_records>0 AND (d.display_server_name,d.display_table_name) IN

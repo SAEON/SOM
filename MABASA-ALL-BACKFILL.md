@@ -128,10 +128,14 @@ in backfill_jobs. Background ingestion has its own update behavior and is not
 changed by this CLI.
 
 An import inserts only absent field/timestamp pairs with status backfilled.
-Observation inserts, affected daily/weekly/monthly/yearly availability, date
-bounds and audit share one transaction. Failure rolls them all back together.
+Each batch of 250 observation candidates and its audit record share a transaction.
+Completed batches remain saved if a later batch or availability refresh fails.
+Availability is refreshed separately in SAST monthly windows. Rerun the same
+validated file with a new report path to resume; existing values are skipped.
 Existing public total_count is left for the normal summary refresh.
 
 ### Import progress and bounded inserts
 
-The CLI reuses preflight results to insert only missing readings, sorted by timestamp, in batches of 250. Every batch still uses `ON CONFLICT DO NOTHING` to preserve readings added concurrently. Progress is printed for insertion and before metadata refresh. All stages remain in one transaction: a timeout rolls back the import. Wait for `Import committed.` before treating an import as complete.
+The CLI reuses preflight results to insert only missing readings, sorted by timestamp, in batches of 250. Every batch still uses `ON CONFLICT DO NOTHING` to preserve readings added concurrently. Progress is printed for insertion and before metadata refresh. Each completed insertion batch is committed separately. A timeout rolls back only the current transaction; earlier batches remain saved. Wait for `Import committed.` before treating an import as complete.
+
+Run all five tables sequentially with `node /app/scripts/backfill-mabasa-all.js --prepared /tmp/Mabasa_prepared --reports /tmp/mabasa-reports --confirm-database loggernet --operator Marc`. The runner stops on any failed file; rerunning skips existing readings and retries metadata. Copy reports out before recreating the API container. Saved observation batches and audit records persist in PostgreSQL.
