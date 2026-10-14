@@ -1,5 +1,5 @@
 // src/App.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Modal from 'react-modal';
 import Navbar from './components/Navbar';
 import './App.css';
@@ -15,6 +15,7 @@ import AdminPanel from './pages/AdminPanel';
 import About from './pages/About';
 import LoginRegisterPage from './pages/LoginRegisterPage';
 import axios from 'axios';
+import { logoutSession } from './utils/logoutSession';
 import Footer from './components/Footer';
 import MetadataPortal from './pages/MetadataPortal';
 import PhentabSTS from './pages/PhentabSTS';
@@ -153,18 +154,24 @@ function BackgroundSyncStatus({ user }) {
 function App() {
     const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')));
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [logoutError, setLogoutError] = useState('');
+    const authGeneration = useRef(0);
 
     // --- Site status banner state ---
     const [siteStatus, setSiteStatus] = useState({ active: true, message: '' });
 
     useEffect(() => {
+        const generation = authGeneration.current;
         const fetchUser = async () => {
             try {
                 const response = await axios.get('/api/current_user');
+                if (generation !== authGeneration.current) return;
                 const userData = response.data;
                 setUser(userData);
                 localStorage.setItem('user', JSON.stringify(userData));
             } catch (error) {
+                if (generation !== authGeneration.current) return;
                 if (error.response && error.response.status === 401) {
                     console.log('No user is currently logged in.');
                     setUser(null);
@@ -232,9 +239,22 @@ function App() {
     const openLoginModal = () => setIsLoginModalOpen(true);
     const closeLoginModal = () => setIsLoginModalOpen(false);
 
-    const handleLogout = () => {
-        setUser(null);
-        localStorage.removeItem('user');
+    const handleLogout = async () => {
+        if (isLoggingOut) return;
+        authGeneration.current += 1;
+        setIsLoggingOut(true);
+        setLogoutError('');
+        try {
+            await logoutSession(() => {
+                setUser(null);
+                localStorage.removeItem('user');
+                closeLoginModal();
+            });
+        } catch (error) {
+            setLogoutError('Logout failed. Please try again; you are still signed in.');
+        } finally {
+            setIsLoggingOut(false);
+        }
     };
 
     return (
@@ -251,7 +271,8 @@ function App() {
                 </div>
             )}
 
-            <Navbar openLoginModal={openLoginModal} user={user} onLogout={handleLogout} />
+            <Navbar openLoginModal={openLoginModal} user={user} onLogout={handleLogout} isLoggingOut={isLoggingOut} />
+            {logoutError && <p role="alert">{logoutError}</p>}
             <BackgroundSyncStatus user={user} />
 
             <Routes>
@@ -290,6 +311,8 @@ function App() {
                 isOpen={isLoginModalOpen}
                 closeModal={closeLoginModal}
                 setUser={(user) => {
+                    authGeneration.current += 1;
+                    setLogoutError('');
                     setUser(user);
                     localStorage.setItem('user', JSON.stringify(user));
                 }}

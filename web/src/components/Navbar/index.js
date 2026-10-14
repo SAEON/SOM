@@ -8,7 +8,7 @@ import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import Modal from 'react-modal';
 import { logInteraction } from '../../utils/logInteraction'; // Ensure this is the correct import path
 
-const Navbar = ({ user, onLogout, openLoginModal }) => {
+const Navbar = ({ user, onLogout, openLoginModal, isLoggingOut = false }) => {
     const [totalValues, setTotalValues] = useState(null);
     const [lastUpdated, setLastUpdated] = useState('');
     const [lastDataAvailabilitySync, setLastDataAvailabilitySync] = useState('');
@@ -89,8 +89,8 @@ const Navbar = ({ user, onLogout, openLoginModal }) => {
                         <h1 className="nav-title">SAEON observations monitor</h1>
                         <div className="login-status">
                             {user ? (
-                                <button className="logged-in-button" onClick={onLogout}>
-                                    Logged in as: {user.username} (Logout)
+                                <button className="logged-in-button" onClick={onLogout} disabled={isLoggingOut}>
+                                    {isLoggingOut ? 'Logging out…' : `Logged in as: ${user.username} (Logout)`}
                                 </button>
                             ) : (
                                 <p>Not logged in</p>

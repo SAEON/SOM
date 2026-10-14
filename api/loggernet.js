@@ -1,3 +1,4 @@
+const {logoutSession} = require('./logout-session');
 const {backgroundResources, batches, normalizedTableRows} = require('./background-resources');
 require("dotenv").config();
 const backgroundResourceLimits = backgroundResources();
@@ -3044,6 +3045,7 @@ app.post('/api/login', async (req, res) => {
 
 // Current user endpoint
 app.get('/api/current_user', (req, res) => {
+    res.set('Cache-Control', 'no-store');
     if (req.session && req.session.user) {
         res.json(req.session.user);
     } else {
@@ -3052,14 +3054,7 @@ app.get('/api/current_user', (req, res) => {
 });
 
 // Logout endpoint
-app.post('/api/logout', (req, res) => {
-    req.session.destroy(err => {
-        if (err) {
-            return res.status(500).json({message: 'Failed to log out'});
-        }
-        res.status(200).json({message: 'Logged out successfully'});
-    });
-});
+app.post('/api/logout', logoutSession);
 
 // Register endpoint
 app.post('/api/register', async (req, res) => {
