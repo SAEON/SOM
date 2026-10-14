@@ -13,32 +13,35 @@ async function getRawBackfillFields(client, serverName, tableName, rawTableId) {
   return rows;
 }
 
-async function compareBackfillReadings(client, valueRows) {
+async function compareBackfillReadings(client, valueRows, onProgress = null) {
   let existingCount=0, differingCount=0;
-  // One field at a time keeps both index lookups and returned rows bounded.
-  // Joining a large unnest to the partitioned parent can choose a broad scan.
-  for (let offset=0;offset<valueRows.length;offset+=5000) {
-    const fields = new Map();
-    for (const item of valueRows.slice(offset,offset+5000)) {
-      const readings=fields.get(item.fieldId) || [];
-      readings.push(item); fields.set(item.fieldId,readings);
+  // Read each bounded monthly slice once, instead of thousands of random
+  // per-field timestamp probes against a partitioned database.
+  const windows=new Map();
+  for(const item of valueRows){
+    const month=item.timestamp.toISOString().slice(0,7);
+    const readings=windows.get(month)||[];readings.push(item);windows.set(month,readings);
+  }
+  let checked=0,windowIndex=0;
+  for(const readings of windows.values()){
+    windowIndex+=1;
+    const fieldIds=[...new Set(readings.map(v=>v.fieldId))];
+    const times=readings.map(v=>v.timestamp.getTime());
+    const {rows}=await client.query(`
+      SELECT field_id, timestamp, value FROM field_values
+      WHERE field_id=ANY($1::uuid[]) AND timestamp >= $2::timestamptz
+       AND timestamp <= $3::timestamptz
+       AND timestamp = date_trunc('milliseconds', timestamp) LIMIT 250001`,
+      [fieldIds,new Date(Math.min(...times)),new Date(Math.max(...times))]);
+    if(rows.length>250000)throw new Error('Existing monthly slice exceeds preflight memory cap; split the upload into shorter windows.');
+    const existing=new Map(rows.map(row=>[row.field_id+':'+row.timestamp.toISOString(),row.value]));
+    for(const incoming of readings){
+      const key=incoming.fieldId+':'+incoming.timestamp.toISOString();
+      if(!existing.has(key))continue;
+      existingCount+=1;if(existing.get(key)!==incoming.value)differingCount+=1;
     }
-    for (const [fieldId, readings] of fields) {
-      const timestamps=readings.map(v=>v.timestamp);
-      const {rows}=await client.query(`
-        SELECT timestamp, value FROM field_values
-        WHERE field_id=$1::uuid AND timestamp=ANY($2::timestamptz[])
-          AND timestamp >= $3::timestamptz AND timestamp <= $4::timestamptz`,
-        [fieldId,timestamps,new Date(Math.min(...timestamps.map(v=>v.getTime()))),
-         new Date(Math.max(...timestamps.map(v=>v.getTime())))]);
-      const existing=new Map(rows.map(row=>[row.timestamp.toISOString(),row.value]));
-      for (const incoming of readings) {
-        const key=incoming.timestamp.toISOString();
-        if (!existing.has(key)) continue;
-        existingCount+=1;
-        if (existing.get(key)!==incoming.value) differingCount+=1;
-      }
-    }
+    checked+=readings.length;
+    if(onProgress)onProgress({checked,total:valueRows.length,windowIndex,windowTotal:windows.size});
   }
   return {missingCount:valueRows.length-existingCount,existingCount,differingCount};
 }

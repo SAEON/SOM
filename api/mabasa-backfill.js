@@ -29,7 +29,7 @@ function parseSastTime(text) {
  return Number.isNaN(date.getTime())?null:date;
 }
 
-async function validateMabasa(client, buffer, manifest, fileName, tableName) {
+async function validateMabasa(client, buffer, manifest, fileName, tableName, onProgress = null) {
  const TARGET=TARGETS[tableName];
  if(!TARGET)throw new Error('Unsupported Mabasa raw table.');
  const sha=crypto.createHash('sha256').update(buffer).digest('hex');
@@ -75,6 +75,6 @@ async function validateMabasa(client, buffer, manifest, fileName, tableName) {
   }
  }
  if(!valueRows.length||valueRows.length>250000)throw new Error('Expected 1–250,000 values.');
- return {sha,rowCount:rows.length,valueCount:valueRows.length,valueRows,fields,counts:await compareBackfillReadings(client,valueRows)};
+ return {sha,rowCount:rows.length,valueCount:valueRows.length,valueRows,fields,counts:await compareBackfillReadings(client,valueRows,onProgress)};
 }
 module.exports={TARGETS,parseCsv,parseSastTime,validateMabasa,insertMissingBackfillValues};

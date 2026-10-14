@@ -16,14 +16,17 @@ if(mode==='import'&&(args['confirm-database']!==process.env.DB_NAME||!args.opera
 if(mode==='test'&&process.env.ALLOW_LOCAL_BACKFILL_TEST!=='true')throw new Error('Rollback test requires ALLOW_LOCAL_BACKFILL_TEST=true on local only.');
 const manifest=JSON.parse(fs.readFileSync(args.manifest,'utf8'));
 const buffer=fs.readFileSync(args.file);
-const pool=new Pool({host:process.env.DB_HOST,port:process.env.DB_PORT,user:process.env.DB_USER,password:process.env.DB_PASSWORD,database:process.env.DB_NAME,max:1});
+const pool=new Pool({host:process.env.DB_HOST,port:process.env.DB_PORT,user:process.env.DB_USER,password:process.env.DB_PASSWORD,database:process.env.DB_NAME,max:1,application_name:'som-mabasa-backfill'});
 (async()=>{
  const client=await pool.connect();let transaction=false;
  try {
   await client.query(mode==='preflight'?'BEGIN READ ONLY':'BEGIN');transaction=true;
   await client.query('SET LOCAL statement_timeout = \'120s\'');
   if(mode!=='preflight')await client.query("SELECT pg_advisory_xact_lock(hashtext('technician_backfill'))");
-  const validated=await validateMabasa(client,buffer,manifest,path.relative(path.dirname(args.manifest),args.file).split(path.sep).join('/'),args.table);
+  console.log(`Validating ${args.table}: checksum, raw schema, units and timestamps...`);
+  const started=Date.now();
+  const validated=await validateMabasa(client,buffer,manifest,path.relative(path.dirname(args.manifest),args.file).split(path.sep).join('/'),args.table,
+    progress=>console.log(`Preflight: ${progress.checked}/${progress.total} readings checked; month ${progress.windowIndex}/${progress.windowTotal}; ${Math.round((Date.now()-started)/1000)}s elapsed`));
   const {valueRows,fields,...summary}=validated;
   const report={database:process.env.DB_NAME,mode,target:TARGET,...summary,sourceConflictCells:manifest.tables.find(t=>t.table===args.table).conflicting_cells,
    warnings:['Existing readings and statuses are preserved, including existing pressure values requiring separate correction.','Conflicting source cells are blank in the prepared file.']};

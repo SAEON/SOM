@@ -4,7 +4,7 @@ const config=require('../mabasa-backfill-config.json');
 function fixture(table,field,units,time,value){
  const buffer=Buffer.from(`timestamp,${field}\n${time},${value}\n`);
  const manifest={outputs:{'test.csv':crypto.createHash('sha256').update(buffer).digest('hex')},tables:[{table,table_id:TARGETS[table].tableId}],as_of:'2026-10-14',timezone_offset:'+02:00',expected_serials:['6456'],unit_rules:config.unitRules,cell_exclusions:config.exclusions};
- const client={query:async sql=>sql.includes('SELECT timestamp, value FROM field_values')?{rows:[]}:{rows:[{field_id:'00000000-0000-4000-8000-000000000001',display_field_name:field,data_type:'xsd:float',units}]}};
+ const client={query:async sql=>sql.includes('SELECT field_id, timestamp, value FROM field_values')?{rows:[]}:{rows:[{field_id:'00000000-0000-4000-8000-000000000001',display_field_name:field,data_type:'xsd:float',units}]}};
  return {buffer,manifest,client};
 }
 test('legacy hourly validation uses exact target and does not convert pressure twice',async()=>{
