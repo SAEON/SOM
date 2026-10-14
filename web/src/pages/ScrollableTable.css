@@ -818,3 +818,8 @@ th {
         margin: 0;
     }
 }
+
+/* Download feedback remains visible while the native browser saves the stream. */
+.download-status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; color: #244532; font-size: 14px; }
+.download-status progress { width: 110px; height: 10px; accent-color: #23734b; }
+.download-button:disabled { opacity: .65; cursor: wait; }

@@ -5,6 +5,14 @@ The production deployment should be code-only through GitHub. The database and u
 Production URL: https://observationsmonitor.saeon.ac.za/
 Production checkout: `/opt/saeon-observations-monitor-v2`
 
+## October 2026 release prerequisites
+
+Read [the backup-gated release instructions](DEPLOYMENT-OCTOBER-2026.md) before
+deploying the dynamic-download, availability-index, and PostgreSQL-memory changes.
+The deployment script requires a completed backup and `.complete` marker, checks
+the existing named database volume, and recreates PostgreSQL without deleting it.
+It preserves e-news and server environment files. A push alone does not deploy.
+
 ## Normal Deploy
 
 SSH to the server and run:
@@ -18,7 +26,9 @@ That script:
 
 - pulls the current Git branch from GitHub
 - validates `.env` and `api/.env`
-- rebuilds only the `api` and `web` images
+- rebuilds the `api` and `web` images before downtime
+- recreates PostgreSQL with the existing volume and configured memory settings
+- applies availability reporting indexes concurrently
 - keeps the existing Postgres, export, and image Docker volumes
 - restarts the API and web containers
 - smoke-tests the local web and API ports

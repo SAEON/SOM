@@ -3,8 +3,19 @@ services:
     image: postgres:16
     container_name: loggernet-db
     restart: unless-stopped
+    shm_size: 256mb
     command:
       - postgres
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-4GB}
+      - -c
+      - effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-10GB}
+      - -c
+      - work_mem=${POSTGRES_WORK_MEM:-16MB}
+      - -c
+      - maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM:-512MB}
+      - -c
+      - autovacuum_work_mem=${POSTGRES_AUTOVACUUM_WORK_MEM:-128MB}
       - -c
       - max_wal_size=4GB
       - -c

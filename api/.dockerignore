@@ -2,3 +2,8 @@ node_modules
 npm-debug.log
 .DS_Store
 .env.local
+
+# Generated exports must never be baked into the API image.
+csv_exports/
+csv_table_exports/
+**/*.csv

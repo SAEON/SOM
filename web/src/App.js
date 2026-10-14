@@ -104,7 +104,7 @@ function BackgroundSyncStatus({ user }) {
     } else if (isDisabled) {
         tone = 'disabled';
         title = 'Background sync jobs disabled';
-        detail = 'Set ENABLE_BACKGROUND_JOBS=true before live deployment so data, availability, summaries, and CSV exports update automatically.';
+        detail = 'Background ingestion is paused. Downloads are still generated on demand.';
     } else if (isRunning) {
         tone = 'running';
         const laneName = writerRunning ? 'Writer' : 'Reader';

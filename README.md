@@ -105,7 +105,7 @@ curl -k --resolve observationsmonitor.saeon.ac.za:443:127.0.0.1 \
 
 The API runs the sync and export scheduler when `ENABLE_BACKGROUND_JOBS=true`.
 
-- CSV exports: daily at 00:15 SAST.
+- CSV pre-generation: disabled; downloads are generated on demand.
 - Fast writer sync: Monday to Saturday at 06:00, 14:00, and 22:00 SAST.
 - Sunday fast sync: 06:00 and 14:00 SAST.
 - Sunday extended sync: 20:00 SAST.
@@ -161,3 +161,110 @@ curl -b saeon-api.cookies \
 - Keep uploaded site images in the Docker image volume, not in Git.
 - Do not run destructive volume commands unless there is a verified backup and a planned restore path.
 - Test on `localhost:3080` and `localhost:3081` before switching nginx routes.
+
+## CSV download timestamps
+
+Raw-table and mapped/public CSV downloads are generated dynamically from PostgreSQL;
+they do not serve pre-generated CSV files. Generated CSVs are excluded from the API
+Docker build context. Stored database timestamps are unchanged.
+
+CSV observation timestamps use Africa/Johannesburg (SAST, UTC+02:00), explicitly,
+independent of the container timezone. Responses include `X-CSV-Timezone:
+Africa/Johannesburg` and `X-CSV-Source` headers. Raw-table downloads retain the
+`timestamp` column and `DD/MM/YYYY HH:mm:ss` format. Timestamp strings stored as
+field values (such as AirTC_TMx) are preserved as supplied by LoggerNet.
+
+Run API regression tests with `cd api && npm test` (Node 20 or newer).
+
+## Download feedback and local database tuning
+
+Raw-data Download buttons remain busy while an export is preparing or streaming.
+They show exported row and byte counts and report success or failure. Files still
+stream directly to the browser, so large exports are not buffered in JavaScript
+memory. Completion means the server finished sending the file; the browser owns
+the final save. No percentage is shown because the final CSV size is unknown.
+Progress is held in the API process for 30 minutes and does not survive a restart.
+
+The raw-table query filters on the table's field IDs before aggregation, using
+the existing field/timestamp indexes instead of scanning all sites' observations.
+
+`compose.memory.yml` provides configurable starting settings for a 16 GB local
+Docker environment: shared_buffers=4GB, work_mem=16MB,
+maintenance_work_mem=512MB, autovacuum_work_mem=128MB, and
+effective_cache_size=10GB. The latter is a planner estimate, not allocated RAM;
+work_mem can be used by multiple query operations and workers simultaneously.
+These are local settings, not an automatic production rollout.
+
+For the standard repository stack, apply explicitly with:
+`docker compose -f docker-compose.yml -f compose.memory.yml up -d db api web`.
+The WSL migration installation already has these settings in its parent
+`compose.windows.yml`; continue using that file to preserve its restored volumes.
+
+Run download UI tests with `cd web && CI=true npm test -- --watchAll=false --runInBand --testPathPattern=LiveData.download.test.js`.
+
+## Data-tab preview and availability improvements
+
+Mapped previews and downloads filter by mapped field IDs while retaining date
+partition pruning, multipliers, units, coordinates, and invalid-value filtering.
+Mapped preview rows explicitly declare `timestamp_timezone: Africa/Johannesburg`.
+The browser interprets offset-free API timestamps as SAST, avoiding a second
+timezone conversion on computers outside South Africa.
+
+Data-tab downloads use native browser streaming and the same row/byte progress
+protocol as raw downloads. Batches remain sequential and files are not buffered
+as browser blobs. Completion means the server sent the export; check browser
+Downloads for the final save. Table and availability loading overlays announce
+which dataset is loading. Availability heatmaps already use memoized Map lookups
+and progressive canvas rendering; the daily detail and quick overview choices
+remain distinct.
+
+Availability reporting indexes are in
+`docker/postgres/50-availability-query-indexes.sql`. They support selected sites
+and dates for daily, weekly, monthly, and yearly reports. On an existing standard
+deployment, apply explicitly (do not wrap in a transaction):
+
+```bash
+docker compose exec -T db psql -U postgres -d loggernet -v ON_ERROR_STOP=1 < docker/postgres/50-availability-query-indexes.sql
+```
+
+These indexes are already applied to the restored local database. Aggregated
+availability reads run in a read-only transaction so their 20-second statement
+timeout is enforced and pool connections do not retain session settings.
+
+## Background resource limits
+
+Background CSV pre-generation is removed from the scheduler; the obsolete manual
+reader endpoint returns 410. Scheduled ingestion and availability tasks remain.
+Local background jobs stay disabled during restore and testing.
+
+Table ingestion normalizes readings lazily into bounded SQL batches, avoiding a
+second full normalized array alongside the fetched LoggerNet payload. The fetched
+upstream response is still held in memory; concurrency limits bound simultaneous
+responses rather than guaranteeing a fixed total memory footprint.
+
+Defaults and environment overrides:
+
+| Setting | Default | Allowed range |
+| --- | --- | --- |
+| INGEST_BATCH_SIZE | 5000 rows | 100–10000 |
+| DAILY_TABLE_SYNC_CONCURRENCY | 3 | 1–4 |
+| METADATA_SYNC_CONCURRENCY | 3 | 1–4 |
+| EXTENDED_SERVER_SYNC_CONCURRENCY | 2 | 1–3 |
+| EXTENDED_FIELD_SYNC_CONCURRENCY | 2 per server | 1–4 |
+| AVAILABILITY_WORK_MEM_MB | 128 | 16–256 |
+| AVAILABILITY_PARALLEL_WORKERS | 1 | 0–2 |
+
+Availability work memory and parallelism are set with SET LOCAL in the existing
+transaction. They reset on commit/rollback and do not raise interactive query
+memory. Work memory is per database operation, not a total-job memory cap.
+The normal ingestion/availability windows and SAST schedule remain unchanged.
+
+The standard `docker-compose.yml` now includes the same 4 GB shared-buffer / 10 GB
+cache-estimate profile, with environment overrides. `compose.memory.yml` is kept
+as an explicit reusable override. These defaults target a 16 GB host; the cache
+estimate is not reserved RAM. Other applications can keep running, while query
+work memory stays at 16 MB and background availability at 128 MB per operation.
+The restored local stack uses identical settings in its parent Compose file.
+Production receives these settings only after the commit is pulled and the db
+container is recreated (a brief database interruption); no volume deletion is
+needed. Restart the API after the database is healthy.

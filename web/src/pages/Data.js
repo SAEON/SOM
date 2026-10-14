@@ -6,7 +6,8 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import LoadingSpinner from "./LoadingSpinner";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
-import streamSaver from 'streamsaver';
+import {trackedCsvDownload} from '../utils/trackedCsvDownload';
+import {formatSastTimestamp} from '../utils/sast';
 
 
 import {
@@ -37,10 +38,6 @@ import DataAvailabilityModalContent from './DataAvailabilityModalContent';
 import {useLocation} from "react-router-dom";
 import {logInteraction} from "../utils/logInteraction"; // Import the logging function
 import './Data.css';
-// Ensure StreamSaver is available on the window object
-if (typeof window.streamSaver === 'undefined') {
-    window.streamSaver = streamSaver;
-}
 Modal.setAppElement("#root");
 
 const Data = ({user}) => { // Receive user as a prop
@@ -427,7 +424,7 @@ const Data = ({user}) => { // Receive user as a prop
         const dateRangeKey = getDateRangeKey(serverName, tableName);
 
         setLoading(true);
-        setLoadingMessage('Loading table data...');
+        setLoadingMessage(`Loading ${tableName} for ${serverName}…`);
 
         try {
             let dateRangeData = dateRanges[dateRangeKey];
@@ -471,7 +468,7 @@ const Data = ({user}) => { // Receive user as a prop
                 if (response.ok && Array.isArray(data.rows)) {
                     // Adjust timestamps to SAST
                     const adjustedRows = data.rows.map(row => {
-                        const adjustedTimestamp = new Date(row.timestamp).toLocaleString('en-ZA', {timeZone: 'Africa/Johannesburg'});
+                        const adjustedTimestamp = formatSastTimestamp(row.timestamp);
                         return {...row, timestamp: adjustedTimestamp};
                     });
 
@@ -496,10 +493,7 @@ const Data = ({user}) => { // Receive user as a prop
             }
         } catch (error) {
             console.error("Error fetching table details:", error);
-            setDateRanges(prevDateRanges => ({
-                ...prevDateRanges,
-                [dateRangeKey]: {error: true}
-            }));
+            setDataNotice({type: 'error', message: error.message || 'Could not load table data. Please retry.'});
             setLoading(false);
         }
     };
@@ -509,7 +503,7 @@ const Data = ({user}) => { // Receive user as a prop
         logInteraction('view_data_availability', {serverName, tableName}, user);
 
         setLoading(true);
-        setLoadingMessage('Fetching data availability...');
+        setLoadingMessage(`Loading availability for ${serverName} ${tableName}…`);
 
         try {
             const formattedStartDate = formatDateForApi(startDate);
@@ -1032,22 +1026,6 @@ const Data = ({user}) => { // Receive user as a prop
         setIsDownloading(false); // Hide the progress widget
     };
 
-    const updateDownloadProgressWidget = (receivedBytes, totalBytes, sizeLabel = '') => {
-        const percentComplete = totalBytes > 0 ? ((receivedBytes / totalBytes) * 100) : 0;
-        const prefix = sizeLabel ? `${sizeLabel} ` : '';
-
-        setProgressValue(receivedBytes);
-        setProgressMax(totalBytes);
-
-        setProgressText(
-            totalBytes > 0
-                ? `${prefix}${formatBytes(receivedBytes)} of ${formatBytes(totalBytes)} (${Math.min(percentComplete, 100).toFixed(0)}%)`
-                : `${prefix}${formatBytes(receivedBytes)} downloaded`
-        );
-
-        setDownloadTitle(totalBytes > 0 ? `Downloading CSV (${Math.min(percentComplete, 100).toFixed(0)}%)` : 'Downloading CSV');
-    };
-
     // const downloadData = async (tableName, serverName, attempt = 1, maxAttempts = 5) => {
     //     if (!tableName || !serverName) {
     //         alert('Table name and server name are required.');
@@ -1161,8 +1139,8 @@ const Data = ({user}) => { // Receive user as a prop
             setProgressMax(isBatched ? batches.length : 0);
 
             // Log interactions
-            await logInteraction('consent_given', {tableName, serverName});
-            await logInteraction('download_data', {
+            logInteraction('consent_given', {tableName, serverName});
+            logInteraction('download_data', {
                 tableName,
                 serverName,
                 scope: isBatched ? 'batched_date_range' : (isFullArchive ? 'full_archive' : 'date_range'),
@@ -1182,67 +1160,18 @@ const Data = ({user}) => { // Receive user as a prop
                 setDownloadTitle(isBatched ? `Downloading CSV batch ${index + 1} of ${batches.length}` : 'Preparing CSV download');
                 setProgressText(`${batchLabel} Waiting for ${batch.startDate} to ${batch.endDate} to start streaming...`);
 
-                const response = await fetch(url, {credentials: 'include'});
-                const contentType = response.headers.get('content-type') || '';
-
-                if (!response.ok || !contentType.includes('text/csv')) {
-                    const message = await response.text();
-                    throw new Error(message.slice(0, 300) || `Download failed with status ${response.status}`);
-                }
-
-                const totalBytes = Number(response.headers.get('content-length')) || 0;
-                const cacheStatus = response.headers.get('x-csv-cache');
-                setDownloadTitle(cacheStatus === 'hit'
-                    ? `Downloading cached CSV${isBatched ? ` ${index + 1} of ${batches.length}` : ''}`
-                    : `Streaming CSV export${isBatched ? ` ${index + 1} of ${batches.length}` : ''}`);
-
-                if (!isBatched) {
-                    setProgressMax(totalBytes);
-                }
-
-                if (!response.body || !window.streamSaver) {
-                    setProgressText(`${batchLabel} Browser stream download is unavailable. Saving with the fallback download method...`);
-                    const blob = await response.blob();
-                    const fallbackSize = totalBytes || blob.size || 1;
-                    if (!isBatched) {
-                        setProgressMax(fallbackSize);
-                        setProgressValue(fallbackSize);
-                    }
-                    const objectUrl = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = objectUrl;
-                    link.download = fileName;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(objectUrl);
-                } else {
-                    const fileStream = window.streamSaver.createWriteStream(fileName);
-                    const writer = fileStream.getWriter();
-                    const reader = response.body.getReader();
-                    let receivedBytes = 0;
-
-                    try {
-                        while (true) {
-                            const {done, value} = await reader.read();
-                            if (done) break;
-                            receivedBytes += value.length;
-                            await writer.write(value);
-                            if (isBatched) {
-                                setProgressValue(index);
-                                setProgressText(`${batchLabel} ${formatBytes(receivedBytes)} downloaded for ${batch.startDate} to ${batch.endDate}.`);
-                            } else {
-                                updateDownloadProgressWidget(receivedBytes, totalBytes, sizeLabel);
-                            }
-                        }
-                    } finally {
-                        await writer.close();
-                    }
-                }
-
+                await trackedCsvDownload(url, fileName, progress => {
+                    const detail = progress.rows > 0
+                        ? `${progress.rows.toLocaleString()} rows · ${formatBytes(progress.bytes)} exported`
+                        : 'Preparing CSV…';
+                    setDownloadTitle(progress.status === 'preparing' ? 'Preparing CSV download' : 'Downloading CSV');
+                    setProgressText(`${batchLabel} ${detail}`);
+                    if (isBatched) setProgressValue(index);
+                    else { setProgressMax(0); setProgressValue(0); }
+                });
                 if (isBatched) {
                     setProgressValue(index + 1);
-                    setProgressText(`Saved part ${index + 1} of ${batches.length}: ${fileName}`);
+                    setProgressText(`Sent part ${index + 1} to your browser of ${batches.length}: ${fileName}`);
                     if (index < batches.length - 1) {
                         await new Promise(resolve => setTimeout(resolve, 600));
                     }
@@ -1251,10 +1180,10 @@ const Data = ({user}) => { // Receive user as a prop
 
             setProgressValue(isBatched ? batches.length : 1);
             setProgressMax(isBatched ? batches.length : 1);
-            setDownloadTitle('Download complete');
+            setDownloadTitle('Export complete');
             setProgressText(isBatched
-                ? `Saved ${batches.length} CSV files for ${requestLabel}.`
-                : `Saved CSV file for ${requestLabel}.`);
+                ? `Sent ${batches.length} CSV files to your browser. Check Downloads.`
+                : `CSV sent to your browser. Check Downloads.`);
             setTimeout(hideDownloadProgressWidget, 5000);
         } catch (error) {
             console.error('Download failed:', error);
@@ -2341,7 +2270,7 @@ const Data = ({user}) => { // Receive user as a prop
             {renderServerSelectionModal()}
             {loading && (
 
-                <div className="loading-overlay">
+                <div className="loading-overlay" role="status" aria-live="polite" aria-busy="true">
                     <LoadingSpinner/>
                     <div className="loading-message">{loadingMessage}</div>
                 </div>

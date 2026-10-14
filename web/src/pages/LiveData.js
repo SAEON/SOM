@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useState, useRef} from "react";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {
     faDownload,
@@ -35,6 +35,32 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
     const [tableLoading, setTableLoading] = useState({});
     const [serverTableLoading, setServerTableLoading] = useState({});
     const [serverTableErrors, setServerTableErrors] = useState({});
+    const [downloads, setDownloads] = useState({});
+    const downloadTimers = useRef({});
+    const downloadMounted = useRef(true);
+    useEffect(() => {
+        downloadMounted.current = true;
+        return () => {
+            downloadMounted.current = false;
+            Object.values(downloadTimers.current).forEach(timer => clearTimeout(timer));
+        };
+    }, []);
+    const downloadBusy = id => ['preparing', 'streaming'].includes(downloads[id]?.status);
+    const downloadStatus = id => {
+        const progress = downloads[id];
+        if (!progress) return null;
+        const busy = ['preparing', 'streaming'].includes(progress.status);
+        return <div className="download-status" role="status" aria-live="polite">
+            {busy && <progress aria-label="CSV export in progress" />}
+            <span>{progress.status === 'preparing' ? 'Preparing CSV… large tables may take a moment.'
+                : progress.status === 'error' ? progress.message
+                : progress.status === 'complete' ? 'Export sent to your browser. Check Downloads.'
+                : 'Downloading…'}
+                {progress.rows > 0 && ` ${progress.rows.toLocaleString()} rows · ${(progress.bytes / 1048576).toFixed(1)} MB exported`}
+            </span>
+        </div>;
+    };
+
 
     useEffect(() => {// Log the interaction whether the user is logged in or not
         logInteraction('page_view', {viewport: {width: window.innerWidth, height: window.innerHeight}}, user);
@@ -90,14 +116,12 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
     const handlePageSizeChange = (newSize) => {
         setPageSize(newSize);
         setCurrentPage(1); // Reset to first page when page size changes
-        fetchTableData(currentTableId, 1); // Refetch data with new page size starting from page 1
     };
 
     const nextPage = () => {
         const newPage = currentPage + 1;
         if (newPage <= totalPages) {
             setCurrentPage(newPage);
-            fetchTableData(currentTableId, newPage);
         }
     };
 
@@ -105,7 +129,6 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
         const newPage = currentPage - 1;
         if (newPage >= 1) {
             setCurrentPage(newPage);
-            fetchTableData(currentTableId, newPage);
         }
     };
 
@@ -183,18 +206,7 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
             const response = await fetch(url);
             const valuesData = await response.json();
             if (response.ok && Array.isArray(valuesData.data)) {
-                const fieldsData = await fetchFieldsWithUnits(tableId);
-                const fieldsInfo = fieldsData.reduce((acc, field) => {
-                    acc[field.field_name] = {units: field.units, status: field.status};
-                    return acc;
-                }, {});
-
-                const dataWithUnits = valuesData.data.map((row) => ({
-                    ...row,
-                    units: fieldsInfo[row.field_name]?.units,
-                    status: fieldsInfo[row.field_name]?.status,
-                    timestamp: row.timestamp, // Use raw timestamp
-                }));
+                const dataWithUnits = valuesData.data;
 
                 setTableValues((prev) => ({...prev, [tableId]: dataWithUnits}));
                 if (!prefetch) {
@@ -226,6 +238,7 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
             return;
         }
 
+        setIsModalOpen(false);
         setCurrentTableId(tableId);
         setCurrentPage(1);
 
@@ -367,53 +380,57 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
     //     }
     // };
     const downloadData = async (tableId) => {
-        if (!tableId) return;
-
-        setLoading(true);
-        setLoadingMessage("Downloading data...");
-
+        if (!tableId || downloadBusy(tableId)) return;
+        const update = progress => {
+            if (downloadMounted.current) setDownloads(current => ({...current, [tableId]: progress}));
+        };
+        update({status: 'preparing', rows: 0, bytes: 0});
         try {
-            // Fetch server and table information
-            const serverAndTableResponse = await fetch(`/api/tables/${tableId}/info`);
-            const serverAndTableInfo = await serverAndTableResponse.json();
-
-            if (!serverAndTableResponse.ok || !serverAndTableInfo) {
-                throw new Error("Failed to fetch server and table information.");
-            }
-
-            const {servername: fetchedServerName, tablename: fetchedTableName} = serverAndTableInfo;
-
-            if (!fetchedServerName || !fetchedTableName) {
-                console.error("Server name or table name is missing.");
-                setLoading(false);
-                return;
-            }
-
-            // Use the API route so downloads are generated dynamically when no prepared CSV exists.
-            const fileName = `${fetchedTableName}_${fetchedServerName}.csv`;
-            const url = `/api/tables/${encodeURIComponent(tableId)}/download`;
-
-            // Create a temporary link element for the download
+            const infoResponse = await fetch(`/api/tables/${tableId}/info`);
+            if (!infoResponse.ok) throw new Error('Could not start this download. Please retry.');
+            const info = await infoResponse.json();
+            if (!downloadMounted.current) return;
+            const downloadId = window.crypto.randomUUID();
+            const started = Date.now();
+            const poll = async () => {
+                if (!downloadMounted.current) return;
+                try {
+                    const response = await fetch(`/api/downloads/${downloadId}/progress`, {cache: 'no-store'});
+                    if (response.ok) {
+                        const progress = await response.json();
+                        update(progress);
+                        if (['complete', 'error'].includes(progress.status)) {
+                            delete downloadTimers.current[tableId];
+                            return;
+                        }
+                    } else if (response.status === 404 && Date.now() - started > 15000) {
+                        throw new Error('The download did not start. Please retry.');
+                    }
+                } catch (error) {
+                    update({status: 'error', message: error.message || 'Could not check download progress. Check browser Downloads.'});
+                    delete downloadTimers.current[tableId];
+                    return;
+                }
+                if (Date.now() - started > 30 * 60 * 1000) {
+                    update({status: 'error', message: 'Progress tracking timed out. Check browser Downloads.'});
+                    delete downloadTimers.current[tableId];
+                    return;
+                }
+                if (downloadMounted.current) downloadTimers.current[tableId] = setTimeout(poll, 1000);
+            };
             const link = document.createElement('a');
-            link.href = url;
-            link.download = fileName; // Ensure the downloaded file has the correct name
+            link.href = `/api/tables/${encodeURIComponent(tableId)}/download?downloadId=${downloadId}`;
+            link.download = `${info.tablename}_${info.servername}.csv`;
             document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
-
-            setLoading(false);
-
-            // Log interactions after download
-            await logInteraction("consent_given", {serverName: fetchedServerName, tableName: fetchedTableName}, user);
-            await logInteraction('download_data', {serverName: fetchedServerName, tableName: fetchedTableName}, user);
-
+            link.remove();
+            downloadTimers.current[tableId] = setTimeout(poll, 300);
+            // Interaction logging must not block download feedback.
+            logInteraction('download_data', {serverName: info.servername, tableName: info.tablename}, user);
         } catch (error) {
-            console.error("Error downloading data:", error);
-            setLoading(false);
-            alert('Failed to start the download. Please try again.');
+            update({status: 'error', message: error.message || 'Could not start download. Please retry.'});
         }
     };
-
 
     const getStatusIndicator = (lastUpdated) => {
         const now = new Date();
@@ -475,10 +492,11 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
                             className="livedata-button"
                             // onClick={() => downloadData(currentTableId, startDate, endDate)}
                             onClick={() => downloadData(currentTableId)}
-                            disabled={loading}
+                            disabled={loading || downloadBusy(currentTableId)}
                         >
-                            {loading ? "Loading..." : "Download"}
+                            {downloadBusy(currentTableId) ? "Downloading…" : "Download"}
                         </button>
+                        {downloadStatus(currentTableId)}
                     </div>
                 </div>
                 <div className="livedata-pagination-controls">
@@ -641,10 +659,11 @@ const LiveData = ({user}) => { // Ensure user is passed as a prop
                                             className="date-range-display">{table.dateRange ? `${new Date(table.dateRange.start_date).toLocaleDateString()} - ${new Date(table.dateRange.end_date).toLocaleDateString()}` : "No dates available"}</span>
                                         {table.dateRange && getStatusIndicator(table.dateRange.end_date)}
                                     </button>
-                                    <button className="download-button" onClick={() => downloadData(table.table_id)}>
+                                    <button className="download-button" disabled={downloadBusy(table.table_id)} onClick={() => downloadData(table.table_id)}>
                                         <FontAwesomeIcon icon={faDownload} className="icon-right"/>
-                                        Download
+                                        {downloadBusy(table.table_id) ? "Downloading…" : "Download"}
                                     </button>
+                                    {downloadStatus(table.table_id)}
 
                                 </td>
                             </tr>

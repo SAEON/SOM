@@ -1,4 +1,6 @@
+const {backgroundResources, batches, normalizedTableRows} = require('./background-resources');
 require("dotenv").config();
+const backgroundResourceLimits = backgroundResources();
 const axios = require("axios");
 const https = require("https");
 const express = require("express");
@@ -67,7 +69,7 @@ const emptyBackgroundLane = () => ({
 const backgroundStatus = {
   enabled: backgroundJobsEnabled,
   timezone: 'Africa/Johannesburg',
-  readerSchedule: 'CSV exports daily at 00:15 SAST',
+  readerSchedule: 'Disabled: CSV downloads are generated on demand',
   writerSchedule: 'Metadata discovery and fast sync Mon-Sat at 06:00, 14:00, and 22:00 SAST; Sunday fast sync at 06:00 and 14:00 SAST; extended sync Sunday at 20:00 SAST',
   reader: emptyBackgroundLane(),
   writer: emptyBackgroundLane(),
@@ -3347,14 +3349,19 @@ app.get('/api/tables/:tableId/values', async (req, res) => {
 
   const { startDate, endDate, page, pageSize } = req.query;
 
-  const limit = parseInt(pageSize, 10) || 10; // Default page size to 10
-  const offset = ((parseInt(page, 10) || 1) - 1) * limit; // Default page to 1
+  const limit = Math.min(1000, Math.max(1, parseInt(pageSize, 10) || 10));
+  const currentPage = Math.max(1, parseInt(page, 10) || 1);
+  const offset = (currentPage - 1) * limit;
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate || '') || !/^\d{4}-\d{2}-\d{2}$/.test(endDate || '')) {
     return res.status(400).json({ error: 'Dates must use YYYY-MM-DD' });
   }
 
   try {
+    const fieldResult = await pool.query(
+      'SELECT field_id FROM server_table_fields WHERE table_id = $1', [tableId]
+    );
+    const fieldIds = fieldResult.rows.map(row => row.field_id);
     const valuesQuery = `
       SELECT
         TO_CHAR(fv.timestamp AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS timestamp,
@@ -3366,7 +3373,7 @@ app.get('/api/tables/:tableId/values', async (req, res) => {
         ) ORDER BY sf.field_name) AS fields
       FROM field_values fv
       JOIN server_table_fields sf ON sf.field_id = fv.field_id
-      WHERE sf.table_id = $1
+      WHERE fv.field_id = ANY($1::uuid[])
         AND fv.timestamp >= ($2::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
         AND fv.timestamp < (($3::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
       GROUP BY fv.timestamp
@@ -3378,14 +3385,14 @@ app.get('/api/tables/:tableId/values', async (req, res) => {
       SELECT COUNT(DISTINCT fv.timestamp) AS total_count
       FROM field_values fv
       JOIN server_table_fields sf ON sf.field_id = fv.field_id
-      WHERE sf.table_id = $1
+      WHERE fv.field_id = ANY($1::uuid[])
         AND fv.timestamp >= ($2::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
         AND fv.timestamp < (($3::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg');
     `;
 
     const [result, totalCountResult] = await Promise.all([
-      pool.query(valuesQuery, [tableId, startDate, endDate, limit, offset]),
-      pool.query(countQuery, [tableId, startDate, endDate])
+      pool.query(valuesQuery, [fieldIds, startDate, endDate, limit, offset]),
+      pool.query(countQuery, [fieldIds, startDate, endDate])
     ]);
 
     const totalRecords = parseInt(totalCountResult.rows[0].total_count, 10);
@@ -3395,7 +3402,7 @@ app.get('/api/tables/:tableId/values', async (req, res) => {
       data: result.rows,
       totalRecords,
       totalPages,
-      currentPage: parseInt(page || 1, 10),
+      currentPage,
       pageSize: limit
     });
   } catch (error) {
@@ -3461,131 +3468,10 @@ app.get('/api/tables/:tableId/date-range', async (req, res) => {
 
 
 
-app.get('/api/tables/:tableId/download', async (req, res) => {
-  const { tableId } = req.params;
-  if (!validateUUID(tableId)) {
-    return res.status(400).json({ error: 'Invalid table ID' });
-  }
-
-  try {
-    const client = await pool.connect();
-
-    // Retrieve the table name and site name based on the tableId
-    const tableNameResult = await client.query(`
-      SELECT st.table_name, s.name AS server_name
-      FROM server_tables st
-      JOIN servers s ON st.server_id = s.server_id
-      WHERE st.table_id = $1
-      LIMIT 1
-    `, [tableId]);
-
-    const tableName = tableNameResult.rows.length > 0 ? tableNameResult.rows[0].table_name : 'Unknown Table';
-    const siteName = tableNameResult.rows.length > 0 ? tableNameResult.rows[0].server_name : 'Unknown Site';
-
-    // Path to the pre-generated CSV file
-    const csvDir = path.join(__dirname, 'csv_table_exports');
-    const csvFilePath = path.join(csvDir, `${tableName}_${siteName}.csv`);
-
-    // Check if the pre-generated CSV file exists
-    if (fs.existsSync(csvFilePath)) {
-      console.log(`Serving pre-generated CSV: ${csvFilePath}`);
-
-      // Set headers and serve the pre-generated CSV
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="${tableName}_${siteName}_data.csv"`);
-
-      // Stream the pre-generated file to the client
-      const readStream = fs.createReadStream(csvFilePath);
-      return readStream.pipe(res);
-    } else {
-      console.log(`Pre-generated CSV not found, generating dynamically for table: ${tableName}, site: ${siteName}`);
-
-      // Fetch date range (earliest and latest timestamp) for dynamic generation
-      const dateRangeResult = await client.query(`
-        SELECT
-          MIN(fv.timestamp) AS start_date,
-          MAX(fv.timestamp) AS end_date
-        FROM field_values fv
-        JOIN server_table_fields sf ON fv.field_id = sf.field_id
-        WHERE sf.table_id = $1
-      `, [tableId]);
-
-      const { start_date: startDate, end_date: endDate } = dateRangeResult.rows[0];
-
-      if (!startDate || !endDate) {
-        return res.status(404).json({ message: 'No data available for the specified table.' });
-      }
-
-      const valuesQuery = `
-        SELECT
-          fv.timestamp,
-          JSON_AGG(JSON_BUILD_OBJECT(
-            'field_name', sf.field_name,
-            'value', fv.value,
-            'status', sf.status,
-            'units', sf.units
-          )) AS fields
-        FROM field_values fv
-        JOIN server_table_fields sf ON fv.field_id = sf.field_id
-        WHERE sf.table_id = $1
-        AND fv.timestamp BETWEEN $2 AND $3
-        GROUP BY fv.timestamp
-        ORDER BY fv.timestamp ASC;
-      `;
-
-      const query = new QueryStream(valuesQuery, [tableId, startDate, endDate]);
-      const stream = client.query(query);
-
-      res.setHeader('Content-Disposition', `attachment; filename="${tableName}_${siteName}_data.csv"`);
-      res.setHeader('Content-Type', 'text/csv');
-
-      let headersSet = false;
-      let allFieldNames = new Set();
-      let allFieldUnits = {};
-
-      const csvTransform = new Transform({
-        objectMode: true,
-        transform(row, encoding, callback) {
-          row.fields.forEach(field => {
-            allFieldNames.add(field.field_name);
-            allFieldUnits[field.field_name] = field.units;
-          });
-
-          const data = row.fields.reduce((acc, field) => {
-            acc[field.field_name] = field.value;
-            return acc;
-          }, {});
-
-          if (!headersSet) {
-            headersSet = true;
-            const sortedFieldNames = Array.from(allFieldNames).sort();
-            const headerRow = ['timestamp', ...sortedFieldNames].join(',');
-            const unitRow = ['', ...sortedFieldNames.map(field => allFieldUnits[field] || '')].join(',');
-            this.push(headerRow + '\n' + unitRow + '\n');
-          }
-
-          const readableTimestamp = new Date(row.timestamp).toLocaleDateString('en-GB') + ' ' + new Date(row.timestamp).toLocaleTimeString('en-GB', { hour12: false });
-
-          const sortedFieldNames = Array.from(allFieldNames).sort();
-          const csvRow = [readableTimestamp, ...sortedFieldNames.map(field => data[field] || '')].join(',');
-          callback(null, csvRow + '\n');
-        }
-      });
-
-      stream.pipe(csvTransform).pipe(res);
-      stream.on('end', () => client.release());
-      stream.on('error', (error) => {
-        console.error('Failed to stream data:', error);
-        res.status(500).json({ message: 'Failed to download data' });
-        client.release(); // Release the client in case of error
-      });
-    }
-
-  } catch (error) {
-    console.error('Failed to retrieve values for table:', error);
-    res.status(500).json({ message: 'Failed to retrieve values for table' });
-  }
-});
+const {createTableDownloadHandler} = require('./dynamic-table-download');
+const {progressHandler, startDownload, updateDownload} = require('./download-progress');
+app.get('/api/downloads/:downloadId/progress', progressHandler);
+app.get('/api/tables/:tableId/download', createTableDownloadHandler({pool, QueryStream}));
 // Endpoint to retrieve all values for a specific field
 app.get('/api/fields/:fieldId/values', async (req, res) => {
     const {fieldId} = req.params;
@@ -4129,8 +4015,13 @@ app.get('/api/filtered-aggregated-data-availability', async (req, res) => {
     const client = await pool.connect();
     let result;
     try {
+      await client.query("BEGIN READ ONLY");
       await client.query("SET LOCAL statement_timeout = '20000ms'");
       result = await client.query(query, values);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
     } finally {
       client.release();
     }
@@ -5608,12 +5499,17 @@ app.get("/api/summary_table/values", async (req, res) => {
   const offset = ((parseInt(page, 10) || 1) - 1) * limit;
 
   try {
+    const mapping = await pool.query(`SELECT DISTINCT field_id FROM summary_table
+      WHERE display_table_name=$1 AND display_server_name=$2
+      AND display_field_name IS NOT NULL AND btrim(display_field_name) <> ''`, [tableName, serverName]);
+    const fieldIds = mapping.rows.map(row => row.field_id);
     const totalCountQuery = pool.query(`
           SELECT COUNT(DISTINCT fv.timestamp) AS total_count
           FROM summary_table st
           JOIN field_values fv ON fv.field_id = st.field_id
           WHERE st.display_table_name = $1
             AND st.display_server_name = $2
+            AND fv.field_id = ANY($5::uuid[])
             AND fv.timestamp >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
             AND fv.timestamp < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
             AND st.display_field_name IS NOT NULL
@@ -5621,11 +5517,12 @@ app.get("/api/summary_table/values", async (req, res) => {
             AND fv.value IS NOT NULL
             AND btrim(fv.value) <> ''
             AND upper(btrim(fv.value)) NOT IN ('NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY')
-        `, [tableName, serverName, startDate, endDate]);
+        `, [tableName, serverName, startDate, endDate, fieldIds]);
 
     const optimizedQuery = `
           SELECT
             TO_CHAR(fv.timestamp AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS timestamp,
+            'Africa/Johannesburg'::text AS timestamp_timezone,
             JSON_AGG(JSON_BUILD_OBJECT(
               'display_field_name', st.display_field_name,
               'field_value', CASE
@@ -5642,6 +5539,7 @@ app.get("/api/summary_table/values", async (req, res) => {
           JOIN field_values fv ON fv.field_id = st.field_id
           WHERE st.display_table_name = $1
             AND st.display_server_name = $2
+            AND fv.field_id = ANY($7::uuid[])
             AND fv.timestamp >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
             AND fv.timestamp < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
             AND st.display_field_name IS NOT NULL
@@ -5656,13 +5554,12 @@ app.get("/api/summary_table/values", async (req, res) => {
 
     const [totalCountResult, result] = await Promise.all([
       totalCountQuery,
-      pool.query(optimizedQuery, [tableName, serverName, startDate, endDate, limit, offset])
+      pool.query(optimizedQuery, [tableName, serverName, startDate, endDate, limit, offset, fieldIds])
     ]);
 
     const totalRecords = totalCountResult.rows.length > 0 ? parseInt(totalCountResult.rows[0].total_count, 10) : 0;
     const totalPages = Math.ceil(totalRecords / limit);
 
-    setPublicCache(res, 120);
     setPublicCache(res, 300);
     res.json({
       rows: result.rows,
@@ -5690,6 +5587,14 @@ app.get('/api/summary_table/download', async (req, res) => {
   const startDate = queryDateOnly(req, 'startDate', 'start');
   const endDate = queryDateOnly(req, 'endDate', 'end');
 
+  const progress = startDownload(req.query.downloadId);
+  res.once('finish', () => {
+    if (res.statusCode >= 400) updateDownload(progress, {status: 'error', message: 'The CSV request failed. Please retry.'});
+  });
+  const writeCsvHeader = text => {
+    res.write(text);
+    updateDownload(progress, {bytes: (progress?.bytes || 0) + Buffer.byteLength(text)});
+  };
   try {
     if (!tableName || !serverName) {
       return res.status(400).json({ error: 'tableName and serverName are required' });
@@ -5712,282 +5617,220 @@ app.get('/api/summary_table/download', async (req, res) => {
       }
     }
 
-    // Define the path where the pre-generated CSV is stored
-    const csvDir = path.join(__dirname, 'csv_exports');
-    const csvFilePath = path.join(csvDir, `${tableName}_${serverName}.csv`);
+    let formattedStartDate = startDate;
+    let formattedEndDate = endDate;
 
-    if (hasDateRange && /^\d{4}-\d{2}-01$/.test(startDate)) {
-      const requestedStart = new Date(`${startDate}T00:00:00Z`);
-      const requestedEnd = new Date(`${endDate}T00:00:00Z`);
-      const monthEnd = new Date(Date.UTC(requestedStart.getUTCFullYear(), requestedStart.getUTCMonth() + 1, 0));
-
-      if (!Number.isNaN(requestedEnd.getTime()) && requestedEnd.toISOString().slice(0, 10) === monthEnd.toISOString().slice(0, 10)) {
-        const cached = await pool.query(
-          `
-            SELECT file_path, file_size_bytes
-            FROM csv_export_manifest
-            WHERE display_server_name = $1
-              AND display_table_name = $2
-              AND period_start = $3::date
-              AND period_end = $4::date
-              AND status = 'ready'
-            LIMIT 1
-          `,
-          [serverName, tableName, startDate, endDate]
-        );
-
-        const cachedPath = cached.rows[0]?.file_path;
-        if (cachedPath) {
-          const resolvedRoot = path.resolve(csvDir);
-          const resolvedFile = path.resolve(csvDir, cachedPath);
-          if (resolvedFile.startsWith(resolvedRoot + path.sep) && fs.existsSync(resolvedFile)) {
-            res.setHeader('Content-Type', 'text/csv');
-            res.setHeader('Content-Disposition', `attachment; filename="${tableName}_${serverName}_${startDate}_${endDate}.csv"`);
-            res.setHeader('Content-Length', fs.statSync(resolvedFile).size);
-            res.setHeader('X-CSV-Cache', 'hit');
-            res.setHeader('X-CSV-Source', 'cached-monthly');
-            res.setHeader('X-CSV-Date-Range', `${startDate} to ${endDate} (SAST)`);
-            return pipeline(fs.createReadStream(resolvedFile, { highWaterMark: 64 * 1024 }), res, (err) => {
-              if (err) console.error('Error streaming cached monthly CSV:', err);
-            });
-          }
-        }
-      }
+    if (!hasDateRange) {
+      const rangeResult = await pool.query(
+        `SELECT start_date, end_date
+         FROM summary_data_date_ranges
+         WHERE server_name = $1 AND table_name = $2`,
+        [serverName, tableName]
+      );
+      formattedStartDate = formatDateOnlyValue(rangeResult.rows[0]?.start_date);
+      formattedEndDate = formatDateOnlyValue(rangeResult.rows[0]?.end_date);
     }
 
-    // Legacy full-archive CSVs can become stale; keep them opt-in and stream canonical data by default.
-    const usePreparedFullArchive = process.env.ENABLE_PREPARED_FULL_ARCHIVE_CSV === 'true';
-    if (usePreparedFullArchive && !hasDateRange && fs.existsSync(csvFilePath)) {
-      console.log(`Serving pre-generated CSV: ${csvFilePath}`);
+    if (!formattedStartDate || !formattedEndDate) {
+      return res.status(400).json({ error: 'startDate and endDate are required for dynamic downloads' });
+    }
 
-      // Get the file stats to retrieve the size
-      const stat = fs.statSync(csvFilePath);
-      const fileSize = stat.size;  // Total size of the file in bytes
-
-      // Set headers to initiate the file download, including the total file size
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="${tableName}_${serverName}_data.csv"`);
-      res.setHeader('Content-Length', fileSize);  // Send the total file size
-      res.setHeader('X-CSV-Source', 'prepared-full-archive');
-      console.log('Content-Length', fileSize);
-      // Stream the file in chunks (e.g., 64KB)
-      const readStream = fs.createReadStream(csvFilePath, { highWaterMark: 64 * 1024 });
-
-      // Use pipeline for error handling during streaming
-      pipeline(readStream, res, (err) => {
-        if (err) {
-          console.error('Error during streaming:', err);
-          if (!res.headersSent) {
-            res.status(500).send('Error while processing the download.');
-          }
-        }
+    const startDateOnly = formatDateOnlyValue(formattedStartDate);
+    const endDateOnly = formatDateOnlyValue(formattedEndDate);
+    const parsedStartDateOnly = parseDateOnly(startDateOnly);
+    const parsedEndDateOnly = parseDateOnly(endDateOnly);
+    if (!startDateOnly || !endDateOnly || !parsedStartDateOnly || !parsedEndDateOnly || parsedEndDateOnly < parsedStartDateOnly) {
+      return res.status(400).json({ error: 'No valid date range is available for this download.' });
+    }
+    if (daySpan(parsedStartDateOnly, parsedEndDateOnly) > getCsvDownloadLimitDays(tableName)) {
+      return res.status(400).json({
+        error: csvDownloadLimitMessage(tableName),
       });
-    } else {
-      let formattedStartDate = startDate;
-      let formattedEndDate = endDate;
+    }
 
-      if (!hasDateRange) {
-        const rangeResult = await pool.query(
-          `SELECT start_date, end_date
-           FROM summary_data_date_ranges
-           WHERE server_name = $1 AND table_name = $2`,
-          [serverName, tableName]
-        );
-        formattedStartDate = formatDateOnlyValue(rangeResult.rows[0]?.start_date);
-        formattedEndDate = formatDateOnlyValue(rangeResult.rows[0]?.end_date);
+    // Fetch the DOI for the site from the site_mapping table
+    const doiResult = await pool.query(
+      `SELECT doi FROM site_mapping WHERE display_name = $1`,
+      [serverName]
+    );
+
+    const doi = doiResult.rows[0]?.doi || 'DOI not available';
+
+    // Set the response headers for CSV
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${tableName}_${serverName}_data.csv"`
+    );
+    res.setHeader('X-CSV-Source', hasDateRange ? 'dynamic-canonical-range' : 'dynamic-canonical-full-archive');
+    res.setHeader('X-CSV-Timezone', 'Africa/Johannesburg');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-CSV-Date-Range', `${startDateOnly} to ${endDateOnly} (SAST)`);
+
+    // Send the DOI first
+    writeCsvHeader(`# Citation link: ${doi}\n`);
+    writeCsvHeader(`# Data for ${tableName} on ${serverName}\n`);
+
+    const escapeCsv = (value) => {
+      if (value === null || value === undefined) return '';
+      const text = String(value);
+      return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+
+    // Build the CSV schema from the public mapping. Full archive downloads can span years, so
+    // pre-scanning field_values for distinct fields makes the browser wait before headers arrive.
+    const fieldsResult = await pool.query(
+      `
+        SELECT
+          display_field_name,
+          MIN(units) AS units,
+          ARRAY_AGG(DISTINCT field_id) AS field_ids
+        FROM summary_table
+        WHERE display_table_name = $1
+          AND display_server_name = $2
+          AND display_field_name IS NOT NULL
+          AND btrim(display_field_name) <> ''
+        GROUP BY display_field_name
+        ORDER BY display_field_name ASC
+      `,
+      [tableName, serverName]
+    );
+
+    const fieldIds = [...new Set(fieldsResult.rows.flatMap(row => row.field_ids))];
+    const fields = fieldsResult.rows.map((row) => row.display_field_name);
+    const unitsMap = {};
+    fieldsResult.rows.forEach((row) => {
+      unitsMap[row.display_field_name] = row.units || '';
+    });
+
+    // Write headers
+    const headers = ['Timestamp', ...fields, 'Latitude', 'Longitude'];
+    writeCsvHeader(`${headers.join(',')}\n`);
+
+    // Write units
+    const unitsRow = ['', ...fields.map((field) => unitsMap[field]), '', ''];
+    writeCsvHeader(`${unitsRow.join(',')}\n`);
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
+
+    // Start a query stream over one pre-aggregated row per timestamp.
+    const client = await pool.connect(); // Get a client from the pool
+    let clientReleased = false;
+    const releaseClient = () => {
+      if (!clientReleased) {
+        clientReleased = true;
+        client.release();
       }
+    };
 
-      if (!formattedStartDate || !formattedEndDate) {
-        return res.status(400).json({ error: 'startDate and endDate are required for dynamic downloads' });
-      }
-
-      const startDateOnly = formatDateOnlyValue(formattedStartDate);
-      const endDateOnly = formatDateOnlyValue(formattedEndDate);
-      const parsedStartDateOnly = parseDateOnly(startDateOnly);
-      const parsedEndDateOnly = parseDateOnly(endDateOnly);
-      if (!startDateOnly || !endDateOnly || !parsedStartDateOnly || !parsedEndDateOnly || parsedEndDateOnly < parsedStartDateOnly) {
-        return res.status(400).json({ error: 'No valid date range is available for this download.' });
-      }
-      if (daySpan(parsedStartDateOnly, parsedEndDateOnly) > getCsvDownloadLimitDays(tableName)) {
-        return res.status(400).json({
-          error: csvDownloadLimitMessage(tableName),
-        });
-      }
-
-      // Fetch the DOI for the site from the site_mapping table
-      const doiResult = await pool.query(
-        `SELECT doi FROM site_mapping WHERE display_name = $1`,
-        [serverName]
-      );
-
-      const doi = doiResult.rows[0]?.doi || 'DOI not available';
-
-      // Set the response headers for CSV
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${tableName}_${serverName}_data.csv"`
-      );
-      res.setHeader('X-CSV-Source', hasDateRange ? 'dynamic-canonical-range' : 'dynamic-canonical-full-archive');
-      res.setHeader('X-CSV-Date-Range', `${startDateOnly} to ${endDateOnly} (SAST)`);
-
-      // Send the DOI first
-      res.write(`# Citation link: ${doi}\n`);
-      res.write(`# Data for ${tableName} on ${serverName}\n`);
-
-      const escapeCsv = (value) => {
-        if (value === null || value === undefined) return '';
-        const text = String(value);
-        return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-      };
-
-      // Build the CSV schema from the public mapping. Full archive downloads can span years, so
-      // pre-scanning field_values for distinct fields makes the browser wait before headers arrive.
-      const fieldsResult = await pool.query(
+    try {
+      const queryStream = new QueryStream(
         `
           SELECT
-            display_field_name,
-            MIN(units) AS units
-          FROM summary_table
-          WHERE display_table_name = $1
-            AND display_server_name = $2
-            AND display_field_name IS NOT NULL
-            AND btrim(display_field_name) <> ''
-          GROUP BY display_field_name
-          ORDER BY display_field_name ASC
+            TO_CHAR(fv."timestamp" AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS timestamp,
+            st.display_field_name,
+            CASE
+              WHEN fv.value ~ '^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$'
+                AND st.multiplier IS NOT NULL
+                THEN (fv.value::numeric * st.multiplier::numeric)::text
+              ELSE fv.value
+            END AS field_value,
+            st.latitude,
+            st.longitude
+          FROM summary_table st
+          JOIN field_values fv ON fv.field_id = st.field_id
+          WHERE st.display_table_name = $1
+            AND st.display_server_name = $2
+            AND fv.field_id = ANY($5::uuid[])
+            AND fv."timestamp" >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
+            AND fv."timestamp" < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
+            AND st.display_field_name IS NOT NULL
+            AND btrim(st.display_field_name) <> ''
+            AND fv.value IS NOT NULL
+            AND btrim(fv.value) <> ''
+            AND upper(btrim(fv.value)) NOT IN ('NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY')
+          ORDER BY fv."timestamp" ASC, st.display_field_name ASC
         `,
-        [tableName, serverName]
+        [tableName, serverName, startDateOnly, endDateOnly, fieldIds]
       );
 
-      const fields = fieldsResult.rows.map((row) => row.display_field_name);
-      const unitsMap = {};
-      fieldsResult.rows.forEach((row) => {
-        unitsMap[row.display_field_name] = row.units || '';
-      });
+      // Execute the query as a stream using pipeline
+      const stream = client.query(queryStream);
 
-      // Write headers
-      const headers = ['Timestamp', ...fields, 'Latitude', 'Longitude'];
-      res.write(`${headers.join(',')}\n`);
+      let currentTimestamp = null;
+      let currentValuesByField = {};
+      let currentLatitude = '';
+      let currentLongitude = '';
 
-      // Write units
-      const unitsRow = ['', ...fields.map((field) => unitsMap[field]), '', ''];
-      res.write(`${unitsRow.join(',')}\n`);
-      if (typeof res.flushHeaders === 'function') {
-        res.flushHeaders();
-      }
-
-      // Start a query stream over one pre-aggregated row per timestamp.
-      const client = await pool.connect(); // Get a client from the pool
-      let clientReleased = false;
-      const releaseClient = () => {
-        if (!clientReleased) {
-          clientReleased = true;
-          client.release();
-        }
+      const serializeCurrentTimestamp = () => {
+        if (!currentTimestamp) return '';
+        const csvRow = [
+          currentTimestamp,
+          ...fields.map((field) => currentValuesByField[field] ?? ''),
+          currentLatitude,
+          currentLongitude,
+        ];
+        const line = `${csvRow.map(escapeCsv).join(',')}\n`;
+        updateDownload(progress, {status: 'streaming', rows: (progress?.rows || 0) + 1, bytes: (progress?.bytes || 0) + Buffer.byteLength(line)});
+        return line;
       };
 
-      try {
-        const queryStream = new QueryStream(
-          `
-            SELECT
-              TO_CHAR(fv."timestamp" AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD"T"HH24:MI:SS') AS timestamp,
-              st.display_field_name,
-              CASE
-                WHEN fv.value ~ '^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$'
-                  AND st.multiplier IS NOT NULL
-                  THEN (fv.value::numeric * st.multiplier::numeric)::text
-                ELSE fv.value
-              END AS field_value,
-              st.latitude,
-              st.longitude
-            FROM summary_table st
-            JOIN field_values fv ON fv.field_id = st.field_id
-            WHERE st.display_table_name = $1
-              AND st.display_server_name = $2
-              AND fv."timestamp" >= ($3::date::timestamp AT TIME ZONE 'Africa/Johannesburg')
-              AND fv."timestamp" < (($4::date + 1)::timestamp AT TIME ZONE 'Africa/Johannesburg')
-              AND st.display_field_name IS NOT NULL
-              AND btrim(st.display_field_name) <> ''
-              AND fv.value IS NOT NULL
-              AND btrim(fv.value) <> ''
-              AND upper(btrim(fv.value)) NOT IN ('NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY')
-            ORDER BY fv."timestamp" ASC, st.display_field_name ASC
-          `,
-          [tableName, serverName, startDateOnly, endDateOnly]
-        );
+      const csvTransform = new Transform({
+        objectMode: true,
+        transform(row, encoding, callback) {
+          let output = '';
 
-        // Execute the query as a stream using pipeline
-        const stream = client.query(queryStream);
-
-        let currentTimestamp = null;
-        let currentValuesByField = {};
-        let currentLatitude = '';
-        let currentLongitude = '';
-
-        const serializeCurrentTimestamp = () => {
-          if (!currentTimestamp) return '';
-          const csvRow = [
-            currentTimestamp,
-            ...fields.map((field) => currentValuesByField[field] ?? ''),
-            currentLatitude,
-            currentLongitude,
-          ];
-          return `${csvRow.map(escapeCsv).join(',')}\n`;
-        };
-
-        const csvTransform = new Transform({
-          objectMode: true,
-          transform(row, encoding, callback) {
-            let output = '';
-
-            if (currentTimestamp && row.timestamp !== currentTimestamp) {
-              output = serializeCurrentTimestamp();
-              currentValuesByField = {};
-              currentLatitude = '';
-              currentLongitude = '';
-            }
-
-            currentTimestamp = row.timestamp;
-            if (row.display_field_name && isUsableDataValue(row.field_value)) {
-              currentValuesByField[row.display_field_name] = row.field_value;
-            }
-            if (currentLatitude === '' && row.latitude !== null && row.latitude !== undefined) {
-              currentLatitude = row.latitude;
-            }
-            if (currentLongitude === '' && row.longitude !== null && row.longitude !== undefined) {
-              currentLongitude = row.longitude;
-            }
-
-            callback(null, output);
-          },
-          flush(callback) {
-            callback(null, serializeCurrentTimestamp());
+          if (currentTimestamp && row.timestamp !== currentTimestamp) {
+            output = serializeCurrentTimestamp();
+            currentValuesByField = {};
+            currentLatitude = '';
+            currentLongitude = '';
           }
-        });
 
-        pipeline(stream, csvTransform, res, (err) => {
-          if (err) {
-            const message = err.code === 'ERR_STREAM_PREMATURE_CLOSE'
-              ? 'Dynamic CSV stream closed before completion.'
-              : 'Pipeline failed while dynamically generating CSV.';
-            console.error(message, err);
-            if (!res.headersSent) {
-              res.status(500).send('Error while processing the request.');
-            }
-          } else {
-            console.log('Pipeline succeeded for dynamic CSV generation.');
+          currentTimestamp = row.timestamp;
+          if (row.display_field_name && isUsableDataValue(row.field_value)) {
+            currentValuesByField[row.display_field_name] = row.field_value;
           }
-          releaseClient();
-        });
-      } catch (err) {
-        console.error('Error while executing query:', err);
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Internal server error' });
+          if (currentLatitude === '' && row.latitude !== null && row.latitude !== undefined) {
+            currentLatitude = row.latitude;
+          }
+          if (currentLongitude === '' && row.longitude !== null && row.longitude !== undefined) {
+            currentLongitude = row.longitude;
+          }
+
+          callback(null, output);
+        },
+        flush(callback) {
+          callback(null, serializeCurrentTimestamp());
+        }
+      });
+
+      pipeline(stream, csvTransform, res, (err) => {
+        if (err) {
+          const message = err.code === 'ERR_STREAM_PREMATURE_CLOSE'
+            ? 'Dynamic CSV stream closed before completion.'
+            : 'Pipeline failed while dynamically generating CSV.';
+          console.error(message, err);
+          if (!res.headersSent) {
+            res.status(500).send('Error while processing the request.');
+          }
+        } else {
+          updateDownload(progress, {status: 'complete'});
+        console.log('Pipeline succeeded for dynamic CSV generation.');
         }
         releaseClient();
+      });
+    } catch (err) {
+      updateDownload(progress, {status: 'error', message: 'Download failed. Please retry.'});
+      console.error('Error while executing query:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Internal server error' });
       }
+      releaseClient();
     }
   } catch (err) {
+    updateDownload(progress, {status: 'error', message: 'Download failed. Please retry.'});
     console.error('Error while handling download request:', err);
     if (res.headersSent) {
       res.destroy(err);
@@ -7068,7 +6911,8 @@ const calculateDailyDataAvailabilityWindow = async (monthsBack = 3) => {
 
     await client.query('BEGIN');
     await client.query('SET LOCAL jit = off');
-    await client.query("SET LOCAL work_mem = '128MB'");
+    await client.query(`SET LOCAL work_mem = '${backgroundResourceLimits.workMemMb}MB'`);
+    await client.query(`SET LOCAL max_parallel_workers_per_gather = ${backgroundResourceLimits.parallelWorkers}`);
 
     const result = await client.query(query, [startDateString, endDateString]);
     if (lane) {
@@ -7898,7 +7742,7 @@ async function syncServers(p1) {
 
     console.log('Found ' + servers.length + ' servers to sync (filtered).');
 
-    const run = limitConcurrency(3); // tune 2–4
+    const run = limitConcurrency(backgroundResourceLimits.serverConcurrency);
     const results = await Promise.allSettled(
       servers.map(function (server) {
         return run(function () {
@@ -7983,7 +7827,7 @@ async function syncSingleServer(server, p1) {
         [table.table_id, 'active']
       );
 
-      const vrun = limitConcurrency(4); // tune 4–6
+      const vrun = limitConcurrency(backgroundResourceLimits.fieldConcurrency);
       const tasks = fieldResult.rows.map(function (field) {
         return vrun(function () {
           return retryWithBackoff(async function () {
@@ -8030,7 +7874,7 @@ async function syncServerMetadata() {
     }
 
     let completedServers = 0;
-    const run = limitConcurrency(Number(process.env.METADATA_SYNC_CONCURRENCY || 3));
+    const run = limitConcurrency(backgroundResourceLimits.metadataConcurrency);
     const results = await Promise.allSettled(
       servers.map(function (server) {
         return run(async function () {
@@ -8437,7 +8281,7 @@ async function fetchValuesForTable(tableUri, p1) {
 }
 
 // Tune these:
-var BATCH_SIZE = 5000;          // try 5k–20k depending on memory/WAL
+var BATCH_SIZE = backgroundResourceLimits.batchSize;          // try 5k–20k depending on memory/WAL
 var REQUEST_TIMEOUT_MS = 300000;
 var TABLE_VALUE_REQUEST_TIMEOUT_MS = Number(process.env.TABLE_VALUE_REQUEST_TIMEOUT_MS || 90000);
 var BAD_FIELD_VALUE_STRINGS = new Set(['', 'NAN', 'NA', 'NULL', 'INF', 'INFINITY', '-INF', '-INFINITY']);
@@ -8590,44 +8434,18 @@ function normalizeOneValue(rawVal) {
 }
 
 function normalizeTableValueRows(dbFieldsByName, payload) {
-  const out = [];
-  const apiFields = Array.isArray(payload?.fields) ? payload.fields : [];
-  const data = Array.isArray(payload?.data) ? payload.data : [];
-  if (!apiFields.length || !data.length) return out;
-
-  const fieldIdsByPosition = apiFields.map((field) => {
-    const name = field?.name;
-    return name && dbFieldsByName.has(name) ? dbFieldsByName.get(name) : null;
-  });
-
-  for (const row of data) {
-    if (!row) continue;
-    const rawTime = row.time != null ? row.time : (row.timestamp || row.t);
-    if (!rawTime) continue;
-    const timestamp = parseLoggerNetTimestamp(rawTime);
-    if (Number.isNaN(timestamp.getTime())) continue;
-
-    const vals = Array.isArray(row.vals) ? row.vals : [];
-    for (let i = 0; i < fieldIdsByPosition.length; i += 1) {
-      const fieldId = fieldIdsByPosition[i];
-      if (!fieldId) continue;
-      const val = normalizeOneValue(vals[i]);
-      if (val == null) continue;
-      out.push([fieldId, timestamp, val]);
-    }
-  }
-
-  return out;
+  return Array.from(normalizedTableRows(dbFieldsByName, payload, {
+    parseTimestamp: parseLoggerNetTimestamp, normalizeValue: normalizeOneValue,
+  }));
 }
 
 async function bulkUpsertFieldValueRows(rows) {
-  if (!rows.length) return 0;
+  if (Array.isArray(rows) && !rows.length) return 0;
 
   const client = await pool.connect();
   let inserted = 0;
   try {
-    for (let start = 0; start < rows.length; start += BATCH_SIZE) {
-      const slice = rows.slice(start, start + BATCH_SIZE);
+    for (const slice of batches(rows, BATCH_SIZE)) {
       await client.query('BEGIN');
       await client.query('SET LOCAL synchronous_commit = OFF');
 
@@ -8679,7 +8497,7 @@ async function syncActiveTableValues(p1) {
   `);
 
   console.log('[SYNC] Found ' + tables.length + ' active tables for table-level value sync.');
-  const run = limitConcurrency(Number(process.env.DAILY_TABLE_SYNC_CONCURRENCY || 3));
+  const run = limitConcurrency(backgroundResourceLimits.tableConcurrency);
   let totalRowsTouched = 0;
   let tablesWithData = 0;
   let failedTables = 0;
@@ -8719,8 +8537,9 @@ async function syncActiveTableValues(p1) {
         () => fetchValuesForTable(table.uri, p1),
         { retries: 3, baseDelayMs: 500, maxDelayMs: 5000 }
       );
-      const rows = normalizeTableValueRows(fieldsByName, payload);
-      if (!rows.length) return {table: table.table_name, rowsTouched: 0};
+      const rows = normalizedTableRows(fieldsByName, payload, {
+        parseTimestamp: parseLoggerNetTimestamp, normalizeValue: normalizeOneValue,
+      });
 
       const rowsTouched = await bulkUpsertFieldValueRows(rows);
       totalRowsTouched += rowsTouched;
@@ -9003,41 +8822,9 @@ function getP2() { return (typeof p2 !== 'undefined' ? p2 : calculateOneMonthAgo
 // =================== Task lanes ===================
 
 // READ-ONLY lane (safe to run while writers operate)
-async function runMonthlyCsvCache() {
-  const monthsBack = Math.max(1, Math.min(Number(process.env.CSV_CACHE_MONTHS_BACK || 2), 24));
-  const scriptPath = path.join(__dirname, 'scripts', 'generate-monthly-csv-cache.js');
-
-  await new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [scriptPath, `--months-back=${monthsBack}`], {
-      cwd: __dirname,
-      env: process.env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    child.stdout.on('data', (chunk) => {
-      process.stdout.write('[CSV] ' + chunk.toString());
-    });
-    child.stderr.on('data', (chunk) => {
-      process.stderr.write('[CSV] ' + chunk.toString());
-    });
-    child.on('error', reject);
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Monthly CSV cache exited with code ${code}`));
-      }
-    });
-  });
-}
-
 async function runReaderTasks() {
-  await runTaskList([
-    { label: 'Generate monthly CSV cache', run: runMonthlyCsvCache },
-  ]);
-  // If you add more read-only tasks later:
-  // const run = limitConcurrency(2);
-  // await Promise.allSettled([ () => step('A', A), () => step('B', B) ].map(fn => run(fn)));
+  // Downloads are generated on demand; no background CSV exports are needed.
+  console.log('[READER] No CSV preparation tasks: downloads are dynamic.');
 }
 
 // WRITER lane (DB mutations) — normal daily run
@@ -9130,7 +8917,7 @@ function nextSastOccurrenceIso({ hour, minute = 0, daysOfWeek = null }) {
 }
 
 function refreshScheduledNextRuns() {
-  backgroundStatus.reader.nextRunAt = nextSastOccurrenceIso({ hour: 0, minute: 15 });
+  backgroundStatus.reader.nextRunAt = null;
   const nextWeekdayFast = FAST_SYNC_WEEKDAY_HOURS.map((hour) =>
     nextSastOccurrenceIso({ hour, minute: 0, daysOfWeek: [1, 2, 3, 4, 5, 6] })
   );
@@ -9278,18 +9065,7 @@ async function runManualAvailabilityJob() {
 
 app.post('/api/background/run-reader', async (req, res) => {
   if (!requireTechnician(req, res)) return;
-  if (readerRunning) {
-    return res.status(409).json({message: 'CSV preparation is already running.', status: backgroundStatus.reader});
-  }
-
-  runScheduledReaderJob().catch((error) => {
-    console.error('[READER] manual trigger failed:', error);
-  });
-
-  res.status(202).json({
-    message: 'CSV preparation started.',
-    status: backgroundStatus.reader,
-  });
+  res.status(410).json({message: 'Background CSV preparation is disabled. Downloads are generated on demand.'});
 });
 
 app.post('/api/background/run-writer', async (req, res) => {
@@ -9332,7 +9108,6 @@ ensureApiRoles().catch((error) => {
 
 refreshScheduledNextRuns();
 if (backgroundJobsEnabled) {
-  cron.schedule('15 0 * * *', runScheduledReaderJob, BACKGROUND_CRON_OPTIONS);
   cron.schedule('0 6,14,22 * * 1-6', () => runScheduledWriterJob({ extended: false }), BACKGROUND_CRON_OPTIONS);
   cron.schedule('0 6,14 * * 0', () => runScheduledWriterJob({ extended: false }), BACKGROUND_CRON_OPTIONS);
   cron.schedule('0 20 * * 0', () => runScheduledWriterJob({ extended: true }), BACKGROUND_CRON_OPTIONS);
