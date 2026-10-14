@@ -15,17 +15,30 @@ async function getRawBackfillFields(client, serverName, tableName, rawTableId) {
 
 async function compareBackfillReadings(client, valueRows) {
   let existingCount=0, differingCount=0;
+  // One field at a time keeps both index lookups and returned rows bounded.
+  // Joining a large unnest to the partitioned parent can choose a broad scan.
   for (let offset=0;offset<valueRows.length;offset+=5000) {
-    const batch=valueRows.slice(offset,offset+5000);
-    const {rows} = await client.query(`
-      SELECT count(fv.field_id)::int AS existing_count,
-             count(fv.field_id) FILTER (WHERE fv.value IS DISTINCT FROM incoming.value)::int AS differing_count
-      FROM unnest($1::uuid[], $2::timestamptz[], $3::text[]) AS incoming(field_id, timestamp, value)
-      LEFT JOIN field_values fv ON fv.field_id=incoming.field_id AND fv.timestamp=incoming.timestamp
-       AND fv.field_id=ANY($1::uuid[]) AND fv.timestamp >= $4::timestamptz AND fv.timestamp <= $5::timestamptz`,
-      [batch.map(v=>v.fieldId), batch.map(v=>v.timestamp), batch.map(v=>v.value),
-       new Date(Math.min(...batch.map(v=>v.timestamp.getTime()))),new Date(Math.max(...batch.map(v=>v.timestamp.getTime())))]);
-    existingCount+=rows[0].existing_count; differingCount+=rows[0].differing_count;
+    const fields = new Map();
+    for (const item of valueRows.slice(offset,offset+5000)) {
+      const readings=fields.get(item.fieldId) || [];
+      readings.push(item); fields.set(item.fieldId,readings);
+    }
+    for (const [fieldId, readings] of fields) {
+      const timestamps=readings.map(v=>v.timestamp);
+      const {rows}=await client.query(`
+        SELECT timestamp, value FROM field_values
+        WHERE field_id=$1::uuid AND timestamp=ANY($2::timestamptz[])
+          AND timestamp >= $3::timestamptz AND timestamp <= $4::timestamptz`,
+        [fieldId,timestamps,new Date(Math.min(...timestamps.map(v=>v.getTime()))),
+         new Date(Math.max(...timestamps.map(v=>v.getTime())))]);
+      const existing=new Map(rows.map(row=>[row.timestamp.toISOString(),row.value]));
+      for (const incoming of readings) {
+        const key=incoming.timestamp.toISOString();
+        if (!existing.has(key)) continue;
+        existingCount+=1;
+        if (existing.get(key)!==incoming.value) differingCount+=1;
+      }
+    }
   }
   return {missingCount:valueRows.length-existingCount,existingCount,differingCount};
 }
