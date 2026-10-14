@@ -131,3 +131,7 @@ An import inserts only absent field/timestamp pairs with status backfilled.
 Observation inserts, affected daily/weekly/monthly/yearly availability, date
 bounds and audit share one transaction. Failure rolls them all back together.
 Existing public total_count is left for the normal summary refresh.
+
+### Import progress and bounded inserts
+
+The CLI reuses preflight results to insert only missing readings, sorted by timestamp, in batches of 250. Every batch still uses `ON CONFLICT DO NOTHING` to preserve readings added concurrently. Progress is printed for insertion and before metadata refresh. All stages remain in one transaction: a timeout rolls back the import. Wait for `Import committed.` before treating an import as complete.

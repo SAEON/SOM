@@ -75,6 +75,8 @@ async function validateMabasa(client, buffer, manifest, fileName, tableName, onP
   }
  }
  if(!valueRows.length||valueRows.length>250000)throw new Error('Expected 1–250,000 values.');
- return {sha,rowCount:rows.length,valueCount:valueRows.length,valueRows,fields,counts:await compareBackfillReadings(client,valueRows,onProgress)};
+ const missingValueRows=[];
+ const counts=await compareBackfillReadings(client,valueRows,onProgress,item=>missingValueRows.push(item));
+ return {sha,rowCount:rows.length,valueCount:valueRows.length,valueRows,missingValueRows,fields,counts};
 }
 module.exports={TARGETS,parseCsv,parseSastTime,validateMabasa,insertMissingBackfillValues};

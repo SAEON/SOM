@@ -1,4 +1,4 @@
-async function insertMissingBackfillValues(client, valueRows, batchSize = 5000) {
+async function insertMissingBackfillValues(client, valueRows, batchSize = 5000, onProgress = null) {
   let insertedCount = 0;
   for (let offset = 0; offset < valueRows.length; offset += batchSize) {
     const batch = valueRows.slice(offset, offset + batchSize);
@@ -11,6 +11,7 @@ async function insertMissingBackfillValues(client, valueRows, batchSize = 5000) 
     const result = await client.query(`INSERT INTO field_values (field_id, "timestamp", value, status)
       VALUES ${tuples} ON CONFLICT (field_id, "timestamp") DO NOTHING`, params);
     insertedCount += result.rowCount;
+    if(onProgress)onProgress({checked:offset+batch.length,total:valueRows.length,insertedCount});
   }
   return {insertedCount, skippedExistingCount: valueRows.length - insertedCount};
 }

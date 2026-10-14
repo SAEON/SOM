@@ -27,12 +27,17 @@ const pool=new Pool({host:process.env.DB_HOST,port:process.env.DB_PORT,user:proc
   const started=Date.now();
   const validated=await validateMabasa(client,buffer,manifest,path.relative(path.dirname(args.manifest),args.file).split(path.sep).join('/'),args.table,
     progress=>console.log(`Preflight: ${progress.checked}/${progress.total} readings checked; month ${progress.windowIndex}/${progress.windowTotal}; ${Math.round((Date.now()-started)/1000)}s elapsed`));
-  const {valueRows,fields,...summary}=validated;
+  const {valueRows,missingValueRows,fields,...summary}=validated;
   const report={database:process.env.DB_NAME,mode,target:TARGET,...summary,sourceConflictCells:manifest.tables.find(t=>t.table===args.table).conflicting_cells,
    warnings:['Existing readings and statuses are preserved, including existing pressure values requiring separate correction.','Conflicting source cells are blank in the prepared file.']};
   console.log(JSON.stringify(report,null,2));
   if(mode!=='preflight'){
-   report.importResult=await insertMissingBackfillValues(client,valueRows);
+   console.log(`Inserting ${missingValueRows.length} missing readings in batches of 250...`);
+   missingValueRows.sort((a,b)=>a.timestamp-b.timestamp||a.fieldId.localeCompare(b.fieldId));
+   report.importResult=await insertMissingBackfillValues(client,missingValueRows,250,
+     progress=>console.log(`Insert: ${progress.checked}/${progress.total} candidates processed; ${progress.insertedCount} inserted; ${Math.round((Date.now()-started)/1000)}s elapsed`));
+   report.importResult.skippedExistingCount=valueRows.length-report.importResult.insertedCount;
+   console.log('Refreshing availability metadata...');
    report.metadataRefresh=await refreshMabasaMetadata(client,TARGET.tableId,valueRows);
    if(mode==='import'){
     await client.query(`INSERT INTO backfill_jobs (created_by_username,server_name,table_name,file_name,mode,status,row_count,value_count,inserted_or_updated_count,warnings,errors)
@@ -40,7 +45,7 @@ const pool=new Pool({host:process.env.DB_HOST,port:process.env.DB_PORT,user:proc
       [args.operator,TARGET.serverName,TARGET.tableName,path.basename(args.file),summary.rowCount,summary.valueCount,report.importResult.insertedCount,JSON.stringify([...report.warnings,`CLI import SHA256=${summary.sha}; skipped=${report.importResult.skippedExistingCount}; rawTableId=${TARGET.tableId}`])]);
     await client.query('COMMIT');transaction=false;report.committed=true;
    }else{
-    const replay=await insertMissingBackfillValues(client,valueRows);
+    const replay=await insertMissingBackfillValues(client,missingValueRows,250);
     if(replay.insertedCount!==0)throw new Error('Repeat-import idempotence check failed.');
     report.repeatTest=replay;await client.query('ROLLBACK');transaction=false;report.committed=false;
    }

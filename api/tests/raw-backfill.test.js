@@ -17,9 +17,11 @@ test('preflight reads bounded monthly slices without writing and compares exact 
   return{rows:[{field_id:'same',timestamp:time,value:'0'},{field_id:'different',timestamp:time,value:null},
     {field_id:'same',timestamp:new Date('2022-06-22T22:00:00Z'),value:'extra'}]};
  }};
+ const missing=[];
  const rows=[{fieldId:'same',timestamp:time,value:'0'},{fieldId:'different',timestamp:time,value:'1'},{fieldId:'missing',timestamp:time,value:'2'}];
- assert.deepEqual(await compareBackfillReadings(client,rows,p=>progress.push(p.checked)),{missingCount:1,existingCount:2,differingCount:1});
+ assert.deepEqual(await compareBackfillReadings(client,rows,p=>progress.push(p.checked),item=>missing.push(item)),{missingCount:1,existingCount:2,differingCount:1});
  assert.equal(calls,1);assert.deepEqual(progress,[3]);
+ assert.deepEqual(missing,[rows[2]]);
 });
 test('interleaved fields are read once per month rather than once per field or global batch',async()=>{
  const values=Array.from({length:10000},(_,i)=>({fieldId:i%2?'a':'b',timestamp:new Date(1700000000000+i*1000),value:'1'}));

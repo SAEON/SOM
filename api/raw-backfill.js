@@ -13,7 +13,7 @@ async function getRawBackfillFields(client, serverName, tableName, rawTableId) {
   return rows;
 }
 
-async function compareBackfillReadings(client, valueRows, onProgress = null) {
+async function compareBackfillReadings(client, valueRows, onProgress = null, onMissing = null) {
   let existingCount=0, differingCount=0;
   // Read each bounded monthly slice once, instead of thousands of random
   // per-field timestamp probes against a partitioned database.
@@ -37,7 +37,7 @@ async function compareBackfillReadings(client, valueRows, onProgress = null) {
     const existing=new Map(rows.map(row=>[row.field_id+':'+row.timestamp.toISOString(),row.value]));
     for(const incoming of readings){
       const key=incoming.fieldId+':'+incoming.timestamp.toISOString();
-      if(!existing.has(key))continue;
+      if(!existing.has(key)){if(onMissing)onMissing(incoming);continue;}
       existingCount+=1;if(existing.get(key)!==incoming.value)differingCount+=1;
     }
     checked+=readings.length;
