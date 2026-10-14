@@ -268,3 +268,13 @@ The restored local stack uses identical settings in its parent Compose file.
 Production receives these settings only after the commit is pulled and the db
 container is recreated (a brief database interruption); no volume deletion is
 needed. Restart the API after the database is healthy.
+
+## Browser cache after deployment
+
+The web container sends Cache-Control: no-cache for index.html and non-versioned
+page routes so ordinary navigation/reload revalidates the app shell. Content-
+hashed /static/ assets use a one-year immutable cache; a new build produces new
+URLs. Missing static files return 404 rather than HTML and are not marked
+immutable. Already-open pages keep their loaded code until navigation/reload;
+this does not forcibly reload a page during an active download.
+The host HTTPS proxy must preserve these headers rather than override them.
