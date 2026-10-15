@@ -509,7 +509,7 @@ const Data = ({user}) => { // Receive user as a prop
             const formattedStartDate = formatDateForApi(startDate);
             const formattedEndDate = formatDateForApi(endDate);
             const url = `/api/data-availability?startDate=${formattedStartDate}&endDate=${formattedEndDate}&serverName=${encodeURIComponent(serverName)}&tableName=${encodeURIComponent(tableName)}`;
-            const response = await fetch(url);
+            const response = await fetch(url, {cache: 'no-store'});
             if (response.ok) {
                 const data = await response.json();
                 // console.log(data);
@@ -763,7 +763,7 @@ const Data = ({user}) => { // Receive user as a prop
         const url = `/api/filtered-aggregated-data-availability?startDate=${formattedStartDate}&endDate=${formattedEndDate}&servers=${serverParam}&granularity=${availabilityRequestMode}`;
 
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, {cache: 'no-store'});
             if (response.ok) {
                 const data = await response.json();
                 // console.log("Received data from all sites:", data);

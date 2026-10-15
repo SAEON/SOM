@@ -4023,7 +4023,7 @@ app.get('/api/filtered-aggregated-data-availability', async (req, res) => {
     } finally {
       client.release();
     }
-    setPublicCache(res, 300);
+    res.set('Cache-Control', 'no-cache, max-age=0, must-revalidate');
     await res.json(result.rows);
   } catch (error) {
     console.error('Error fetching filtered aggregated data:', error);
@@ -4058,7 +4058,7 @@ app.get('/api/data-availability', async (req, res) => {
     const values = [serverName, tableName, startDate, endDate];
 
     const result = await pool.query(query, values);
-    setPublicCache(res, 300);
+    res.set('Cache-Control', 'no-cache, max-age=0, must-revalidate');
     await res.json(result.rows);
   } catch (error) {
     console.error("Error fetching data availability:", error);
