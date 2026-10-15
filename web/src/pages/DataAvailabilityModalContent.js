@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import MyHeatMap from './MyHeatMap';
+import AllSitesAvailability from './AllSitesAvailability';
 import Spinner from './Spinner';
 
 /**
@@ -11,7 +12,7 @@ import Spinner from './Spinner';
  *  - data: array of rows { display_field_name, aggregated_timestamp, availability_percentage }
  *  - onClose: function to close the parent modal
  */
-const DataAvailabilityModalContent = ({ data, onClose }) => {
+const VariableAvailabilityModalContent = ({ data, onClose }) => {
     const [copyAlert, setCopyAlert] = useState(false);
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
@@ -421,4 +422,7 @@ const toastStyle = {
     boxShadow: '0 6px 18px rgba(0,0,0,0.25)',
 };
 
-export default DataAvailabilityModalContent;
+export default function DataAvailabilityModalContent(props) {
+    const allSites = props.data?.some(row => row.site_name || row.display_server_name?.toLowerCase() === 'all sites');
+    return allSites ? <AllSitesAvailability {...props} /> : <VariableAvailabilityModalContent {...props} />;
+}

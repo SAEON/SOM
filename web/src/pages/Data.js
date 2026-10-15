@@ -791,6 +791,9 @@ const Data = ({user}) => { // Receive user as a prop
                         availability_percentage: item.average_availability_percentage,
                         available_records: null,
                         total_records: null,
+                        site_name: item.display_server_name,
+                        table_name: item.display_table_name,
+                        availability_granularity: availabilityGranularity,
                         display_field_name: `${item.display_server_name} - ${item.display_table_name}`
                     })));
                     setIsCustomModalOpen(true);
@@ -830,6 +833,9 @@ const Data = ({user}) => { // Receive user as a prop
                                 availability_percentage: existingEntry.average_availability_percentage,
                                 available_records: null,
                                 total_records: null,
+                                site_name: serverName,
+                                table_name: tableName,
+                                availability_granularity: availabilityGranularity,
                                 display_field_name: `${serverName} - ${tableName}`
                             });
                         } else {
@@ -840,6 +846,9 @@ const Data = ({user}) => { // Receive user as a prop
                                 availability_percentage: 0,
                                 available_records: null,
                                 total_records: null,
+                                site_name: serverName,
+                                table_name: tableName,
+                                availability_granularity: availabilityGranularity,
                                 display_field_name: `${serverName} - ${tableName}`
                             });
                         }

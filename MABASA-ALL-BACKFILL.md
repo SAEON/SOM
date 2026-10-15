@@ -143,3 +143,14 @@ Run all five tables sequentially with `node /app/scripts/backfill-mabasa-all.js 
 ### Import observations before refreshing availability
 
 Pass `--metadata defer` to the single-file CLI or all-table runner to save and audit observation batches without recalculating availability. Existing readings remain protected. Reports explicitly set `metadataDeferred: true` and `metadataComplete: false`. The runner continues through all five tables; it does not claim availability is complete. Later rerun with the default `--metadata refresh` to retry the per-file availability refresh without duplicating observations, or run a separately configured historical availability job. Preserve reports outside the container before rebuilding.
+
+### One-off historical availability API refresh
+
+After observation imports finish, an authenticated Admin/SU can POST
+`/api/background/run-availability` with JSON `{"monthsBack":60}` to recalculate
+the preceding 60 months across mapped sites, followed by availability cleanup,
+weekly/monthly/yearly summaries, summary date ranges and dataset counts. This does not fetch or overwrite observations.
+The optional numeric window must be an integer from 1 to 120; omitting it retains
+the configured normal daily window. It does not change the scheduled window.
+Read `/api/background-status` and wait for writer.running=false and lastError=null.
+Do not restart the API while this background job is running.

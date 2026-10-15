@@ -1,3 +1,5 @@
+const {refreshAvailabilityPeriods}=require('./availability-periods');
+const {parseAvailabilityMonths}=require('./availability-window');
 const {insertMissingBackfillValues} = require('./backfill-insert');
 const {logoutSession} = require('./logout-session');
 const {backgroundResources, batches, normalizedTableRows} = require('./background-resources');
@@ -8856,10 +8858,11 @@ async function runWriterTasksExtended() {
   ]);
 }
 
-async function runAvailabilityTasks() {
+async function runAvailabilityTasks(monthsBack = null) {
   await runTaskList([
-    { label: 'Calculate daily data availability', run: calculateDailyDataAvailability },
+    { label: monthsBack ? `Calculate daily data availability (${monthsBack} months)` : 'Calculate daily data availability', run: () => calculateDailyDataAvailability(monthsBack) },
     { label: 'Daily data availability cleanup', run: cleanUpDailyDataAvailability },
+    { label: 'Refresh weekly, monthly and yearly availability', run: () => refreshAvailabilityPeriods(pool, monthsBack || Number(process.env.DAILY_AVAILABILITY_MONTHS || 1)) },
     { label: 'Update summary date ranges', run: updateSummaryDateRanges },
     { label: 'Update field values summary', run: updateFieldValuesSummary },
   ]);
@@ -9009,7 +9012,7 @@ async function runScheduledWriterJob({ extended = false } = {}) {
   }
 }
 
-async function runManualAvailabilityJob() {
+async function runManualAvailabilityJob(monthsBack = null) {
   const start = Date.now();
   if (writerRunning) {
     console.log('[AVAILABILITY] Writer lane is already running; skipping manual availability refresh.');
@@ -9021,7 +9024,7 @@ async function runManualAvailabilityJob() {
     running: true,
     currentStep: 'Starting availability refresh',
     currentStepIndex: 0,
-    totalSteps: 4,
+    totalSteps: 5,
     lastCompletedStep: null,
     lastStartedAt: new Date(start).toISOString(),
     lastFinishedAt: null,
@@ -9033,7 +9036,7 @@ async function runManualAvailabilityJob() {
     console.log('[AVAILABILITY] === manual availability refresh start ===');
     await withAdvisoryLock(WRITER_LOCK_A, WRITER_LOCK_B, async () => {
       activeBackgroundLane = 'writer';
-      await runAvailabilityTasks();
+      await runAvailabilityTasks(monthsBack);
     });
     console.log('[AVAILABILITY] === manual availability refresh end ===');
   } catch (err) {
@@ -9081,12 +9084,16 @@ app.post('/api/background/run-availability', async (req, res) => {
     return res.status(409).json({message: 'A writer or availability refresh is already running.', status: backgroundStatus.writer});
   }
 
-  runManualAvailabilityJob().catch((error) => {
+  let monthsBack;
+  try {monthsBack=parseAvailabilityMonths(req.body?.monthsBack);}
+  catch(error){return res.status(400).json({message:error.message});}
+
+  runManualAvailabilityJob(monthsBack).catch((error) => {
     console.error('[AVAILABILITY] manual trigger failed:', error);
   });
 
   res.status(202).json({
-    message: 'Data availability refresh started.',
+    message: monthsBack ? `Data availability refresh started for ${monthsBack} months.` : 'Data availability refresh started.',
     status: backgroundStatus.writer,
   });
 });
