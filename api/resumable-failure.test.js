@@ -29,3 +29,17 @@ test('metadata failure does not roll back committed observations',async()=>{
  });
  assert.equal(commits,1);assert.equal(rollbacks,1);
 });
+
+test('deferred availability commits observations and never runs metadata queries',async()=>{
+ let commits=0;
+ const client={query:async(sql)=>{
+  assert.doesNotMatch(sql,/mabasa_backfill_keys|daily_data_availability|raw_data_date_ranges/);
+  if(sql==='COMMIT')commits++;
+  return{rows:[],rowCount:sql.startsWith('INSERT INTO field_values')?1:0};
+ }};
+ const rows=[{fieldId:'a',timestamp:new Date('2022-06-21T22:00:00Z'),value:'0',status:'backfilled'}];
+ const r=await importResumable(client,{missingValueRows:rows,valueRows:rows,valueCount:1,sha:'test'},{serverName:'site',tableName:'table',tableId:'id'},{operator:'test',fileName:'test.csv'},()=>{},{deferMetadata:true});
+ assert.equal(commits,1);assert.equal(r.insertedCount,1);assert.equal(r.metadataDeferred,true);assert.equal(r.metadataComplete,false);
+ const replay=await importResumable(client,{missingValueRows:[],valueRows:rows,valueCount:1,sha:'test'},{},{},()=>{},{deferMetadata:true});
+ assert.equal(replay.insertedCount,0);assert.equal(replay.skippedExistingCount,1);assert.equal(commits,1);
+});

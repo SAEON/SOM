@@ -1,7 +1,7 @@
 const {insertMissingBackfillValues}=require('./backfill-insert');
 const {refreshMabasaMetadata}=require('./mabasa-backfill-metadata');
 
-async function importResumable(client, validated, target, audit, onProgress=()=>{}) {
+async function importResumable(client, validated, target, audit, onProgress=()=>{}, options={}) {
  const missing=[...validated.missingValueRows].sort((a,b)=>a.timestamp-b.timestamp||a.fieldId.localeCompare(b.fieldId));
  const result={insertedCount:0,skippedExistingCount:validated.valueCount,committedBatches:0,metadataComplete:false};
  const transaction=async(work)=>{
@@ -29,6 +29,7 @@ async function importResumable(client, validated, target, audit, onProgress=()=>
    result.skippedExistingCount=validated.valueCount-result.insertedCount;
    onProgress({phase:'insert',checked:offset+batch.length,total:missing.length,...result});
   }
+  if(options.deferMetadata){result.metadataDeferred=true;return result;}
   // Each SAST month is independent: a metadata failure never rolls back observations.
   const months=new Map();
   for(const item of validated.valueRows){

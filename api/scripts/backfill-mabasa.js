@@ -10,6 +10,7 @@ const args={};
 for(let i=2;i<process.argv.length;i+=2){const key=process.argv[i];const value=process.argv[i+1];if(!key.startsWith('--')||!value)throw new Error('Arguments are --name value pairs.');args[key.slice(2)]=value;}
 if(!args.file||!args.manifest||!args.report)throw new Error('Required: --file CSV --manifest JSON --report NEW_JSON [--mode preflight|test|import]');
 const TARGET=TARGETS[args.table];if(!TARGET)throw new Error('Required --table: TableDay, daily, TableHour, hourly or five_min');
+const metadata=args.metadata||'refresh';if(!['refresh','defer'].includes(metadata))throw new Error('--metadata must be refresh or defer');
 const mode=args.mode||'preflight';if(!['preflight','test','import'].includes(mode))throw new Error('Invalid mode');
 if(fs.existsSync(args.report))throw new Error('Report already exists; choose a new report path.');
 if(!process.env.DB_NAME)throw new Error('DB_NAME must explicitly identify the database.');
@@ -38,7 +39,7 @@ const pool=new Pool({host:process.env.DB_HOST,port:process.env.DB_PORT,user:proc
    try{
     report.importResult=await importResumable(client,validated,TARGET,{operator:args.operator,fileName:path.basename(args.file)},
      p=>console.log(p.phase==='insert'?`Committed: ${p.checked}/${p.total} candidates; ${p.insertedCount} inserted; ${Math.round((Date.now()-started)/1000)}s elapsed`:
-      `Availability: ${p.checked}/${p.total} months refreshed (${p.month})`));
+      `Availability: ${p.checked}/${p.total} months refreshed (${p.month})`),{deferMetadata:metadata==='defer'});
     report.committed=true;
    }catch(error){
     report.importResult=error.partialResult;report.status='incomplete';report.error=error.message;
@@ -47,7 +48,7 @@ const pool=new Pool({host:process.env.DB_HOST,port:process.env.DB_PORT,user:proc
     throw error;
    }
    fs.writeFileSync(args.report,JSON.stringify(report,null,2)+'\n',{flag:'wx'});
-   console.log('Import committed. Availability refresh complete. Report: '+args.report);
+   console.log(report.importResult.metadataDeferred?'Observation import committed. Availability deferred; summaries still need refreshing. Report: '+args.report:'Import committed. Availability refresh complete. Report: '+args.report);
    return;
   }
   if(mode!=='preflight'){
