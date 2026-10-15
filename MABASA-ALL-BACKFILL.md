@@ -154,3 +154,7 @@ The optional numeric window must be an integer from 1 to 120; omitting it retain
 the configured normal daily window. It does not change the scheduled window.
 Read `/api/background-status` and wait for writer.running=false and lastError=null.
 Do not restart the API while this background job is running.
+
+### Slow all-site availability reports
+
+The all-site report endpoint allows five minutes for its read-only summary query. Set `AVAILABILITY_REPORT_TIMEOUT_MS` in the API container environment to override this (1,000–540,000 ms; larger values are capped). The allowance is transaction-local and does not change ingestion or other query timeouts. The web container proxy allows 600 seconds; any external reverse proxy must also allow enough time. A longer allowance avoids premature cancellation on slow storage; investigate the query plan and storage if reports remain slow.

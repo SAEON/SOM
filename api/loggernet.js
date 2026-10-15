@@ -4008,7 +4008,13 @@ app.get('/api/filtered-aggregated-data-availability', async (req, res) => {
     let result;
     try {
       await client.query("BEGIN READ ONLY");
-      await client.query("SET LOCAL statement_timeout = '20000ms'");
+      // Large all-site reports may need longer on hosts with slow storage.
+      // Keep the allowance local to this read-only report transaction.
+      const configuredTimeout = Number(process.env.AVAILABILITY_REPORT_TIMEOUT_MS);
+      const reportTimeoutMs = Number.isInteger(configuredTimeout) && configuredTimeout >= 1000
+        ? Math.min(configuredTimeout, 540000)
+        : 300000;
+      await client.query("SELECT set_config('statement_timeout', $1, true)", [`${reportTimeoutMs}ms`]);
       result = await client.query(query, values);
       await client.query("COMMIT");
     } catch (error) {
