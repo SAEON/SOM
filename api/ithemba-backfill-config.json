@@ -1,0 +1,454 @@
+{
+  "targets": {
+    "TableDay": {
+      "serverName": "EFTEON_IThembaLabs_ERS",
+      "tableName": "TableDay",
+      "tableId": "2144ba46-ccb5-4004-b0f1-3636f3ec7f68",
+      "interval": 86400
+    },
+    "TableHour": {
+      "serverName": "EFTEON_IThembaLabs_ERS",
+      "tableName": "TableHour",
+      "tableId": "b5c4f420-2abc-4105-abad-b0885034d3d9",
+      "interval": 3600
+    },
+    "Table10Minute": {
+      "serverName": "EFTEON_IThembaLabs_ERS",
+      "tableName": "Table10Minute",
+      "tableId": "5899416a-6c7e-4c2d-aebc-86385ab95b90",
+      "interval": 600
+    }
+  },
+  "rawFields": {
+    "TableDay": [
+      {
+        "field_name": "AirTemp_Avg",
+        "data_type": "xsd:float",
+        "units": "DegC"
+      },
+      {
+        "field_name": "AirTemp_Max",
+        "data_type": "xsd:float",
+        "units": "DegC"
+      },
+      {
+        "field_name": "AirTemp_Min",
+        "data_type": "xsd:float",
+        "units": "DegC"
+      },
+      {
+        "field_name": "AirTemp_TMn",
+        "data_type": "xsd:dateTime",
+        "units": "DegC"
+      },
+      {
+        "field_name": "AirTemp_TMx",
+        "data_type": "xsd:dateTime",
+        "units": "DegC"
+      },
+      {
+        "field_name": "DewPointTemp_Avg",
+        "data_type": "xsd:float",
+        "units": "DegC"
+      },
+      {
+        "field_name": "DewPointTemp_Max",
+        "data_type": "xsd:float",
+        "units": "DegC"
+      },
+      {
+        "field_name": "DewPointTemp_Min",
+        "data_type": "xsd:float",
+        "units": "DegC"
+      },
+      {
+        "field_name": "DewPointTemp_TMn",
+        "data_type": "xsd:dateTime",
+        "units": "DegC"
+      },
+      {
+        "field_name": "DewPointTemp_TMx",
+        "data_type": "xsd:dateTime",
+        "units": "DegC"
+      },
+      {
+        "field_name": "LoggerBattery_Avg",
+        "data_type": "xsd:float",
+        "units": "V"
+      },
+      {
+        "field_name": "LoggerBattery_Max",
+        "data_type": "xsd:float",
+        "units": "V"
+      },
+      {
+        "field_name": "LoggerBattery_Min",
+        "data_type": "xsd:float",
+        "units": "V"
+      },
+      {
+        "field_name": "LoggerBattery_TMn",
+        "data_type": "xsd:dateTime",
+        "units": "V"
+      },
+      {
+        "field_name": "LoggerBattery_TMx",
+        "data_type": "xsd:dateTime",
+        "units": "V"
+      },
+      {
+        "field_name": "LoggerLithiumBatt",
+        "data_type": "xsd:string",
+        "units": null
+      },
+      {
+        "field_name": "LoggerSerialNumber",
+        "data_type": "xsd:string",
+        "units": null
+      },
+      {
+        "field_name": "LoggerTemp_Avg",
+        "data_type": "xsd:float",
+        "units": "degC"
+      },
+      {
+        "field_name": "LoggerTemp_Max",
+        "data_type": "xsd:float",
+        "units": "degC"
+      },
+      {
+        "field_name": "LoggerTemp_Min",
+        "data_type": "xsd:float",
+        "units": "degC"
+      },
+      {
+        "field_name": "LoggerTemp_TMn",
+        "data_type": "xsd:dateTime",
+        "units": "degC"
+      },
+      {
+        "field_name": "LoggerTemp_TMx",
+        "data_type": "xsd:dateTime",
+        "units": "degC"
+      },
+      {
+        "field_name": "PingTime_Avg",
+        "data_type": "xsd:float",
+        "units": "msec"
+      },
+      {
+        "field_name": "ProgramName",
+        "data_type": "xsd:string",
+        "units": null
+      },
+      {
+        "field_name": "ProgramSignature",
+        "data_type": "xsd:string",
+        "units": null
+      },
+      {
+        "field_name": "Rain_Tot",
+        "data_type": "xsd:float",
+        "units": "mm"
+      },
+      {
+        "field_name": "RH_Max",
+        "data_type": "xsd:float",
+        "units": "%"
+      },
+      {
+        "field_name": "RH_Min",
+        "data_type": "xsd:float",
+        "units": "%"
+      },
+      {
+        "field_name": "RH_TMn",
+        "data_type": "xsd:dateTime",
+        "units": "%"
+      },
+      {
+        "field_name": "RH_TMx",
+        "data_type": "xsd:dateTime",
+        "units": "%"
+      },
+      {
+        "field_name": "ScanCount",
+        "data_type": "xsd:float",
+        "units": null
+      },
+      {
+        "field_name": "SlrMJ_Tot",
+        "data_type": "xsd:float",
+        "units": "MJ/m^2"
+      },
+      {
+        "field_name": "SlrW_Avg",
+        "data_type": "xsd:float",
+        "units": "W/m^2"
+      },
+      {
+        "field_name": "SlrW_Max",
+        "data_type": "xsd:float",
+        "units": "W/m^2"
+      },
+      {
+        "field_name": "SlrW_TMx",
+        "data_type": "xsd:dateTime",
+        "units": "W/m^2"
+      },
+      {
+        "field_name": "StationID",
+        "data_type": "xsd:string",
+        "units": null
+      },
+      {
+        "field_name": "WDir_Avg",
+        "data_type": "xsd:float",
+        "units": "Deg"
+      },
+      {
+        "field_name": "WDir_Std",
+        "data_type": "xsd:float",
+        "units": "Deg"
+      },
+      {
+        "field_name": "Wind_Success_Tot",
+        "data_type": "xsd:float",
+        "units": null
+      },
+      {
+        "field_name": "WSpd_Avg",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      },
+      {
+        "field_name": "WSpd_Max",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      },
+      {
+        "field_name": "WSpd_Min",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      },
+      {
+        "field_name": "WSpd_Std",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      },
+      {
+        "field_name": "WSpd_TMn",
+        "data_type": "xsd:dateTime",
+        "units": "m/s"
+      },
+      {
+        "field_name": "WSpd_TMx",
+        "data_type": "xsd:dateTime",
+        "units": "m/s"
+      }
+    ],
+    "TableHour": [
+      {
+        "field_name": "AirTemp_Avg",
+        "data_type": "xsd:float",
+        "units": "DegC"
+      },
+      {
+        "field_name": "DewPointTemp_Avg",
+        "data_type": "xsd:float",
+        "units": "DegC"
+      },
+      {
+        "field_name": "LoggerBattery_Avg",
+        "data_type": "xsd:float",
+        "units": "V"
+      },
+      {
+        "field_name": "LoggerLithiumBatt",
+        "data_type": "xsd:string",
+        "units": null
+      },
+      {
+        "field_name": "LoggerSerialNumber",
+        "data_type": "xsd:string",
+        "units": null
+      },
+      {
+        "field_name": "LoggerTemp_Avg",
+        "data_type": "xsd:float",
+        "units": "degC"
+      },
+      {
+        "field_name": "PingTime_Avg",
+        "data_type": "xsd:float",
+        "units": "msec"
+      },
+      {
+        "field_name": "ProgramName",
+        "data_type": "xsd:string",
+        "units": null
+      },
+      {
+        "field_name": "ProgramSignature",
+        "data_type": "xsd:string",
+        "units": null
+      },
+      {
+        "field_name": "Rain_Tot",
+        "data_type": "xsd:float",
+        "units": "mm"
+      },
+      {
+        "field_name": "RH",
+        "data_type": "xsd:float",
+        "units": "%"
+      },
+      {
+        "field_name": "ScanCount",
+        "data_type": "xsd:float",
+        "units": null
+      },
+      {
+        "field_name": "SlrMJ_Tot",
+        "data_type": "xsd:float",
+        "units": "MJ/m^2"
+      },
+      {
+        "field_name": "SlrW_Avg",
+        "data_type": "xsd:float",
+        "units": "W/m^2"
+      },
+      {
+        "field_name": "StationID",
+        "data_type": "xsd:string",
+        "units": null
+      },
+      {
+        "field_name": "WDir_Avg",
+        "data_type": "xsd:float",
+        "units": "Deg"
+      },
+      {
+        "field_name": "WDir_Std",
+        "data_type": "xsd:float",
+        "units": "Deg"
+      },
+      {
+        "field_name": "Wind_Success_Tot",
+        "data_type": "xsd:float",
+        "units": null
+      },
+      {
+        "field_name": "WSpd_Avg",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      },
+      {
+        "field_name": "WSpd_Max",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      },
+      {
+        "field_name": "WSpd_Min",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      },
+      {
+        "field_name": "WSpd_Std",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      }
+    ],
+    "Table10Minute": [
+      {
+        "field_name": "AirTemp_Avg",
+        "data_type": "xsd:float",
+        "units": "DegC"
+      },
+      {
+        "field_name": "DewPointTemp_Avg",
+        "data_type": "xsd:float",
+        "units": "DegC"
+      },
+      {
+        "field_name": "LoggerBattery_Avg",
+        "data_type": "xsd:float",
+        "units": "V"
+      },
+      {
+        "field_name": "Rain_Tot",
+        "data_type": "xsd:float",
+        "units": "mm"
+      },
+      {
+        "field_name": "RH",
+        "data_type": "xsd:float",
+        "units": "%"
+      },
+      {
+        "field_name": "ScanCount",
+        "data_type": "xsd:float",
+        "units": null
+      },
+      {
+        "field_name": "SlrMJ_Tot",
+        "data_type": "xsd:float",
+        "units": "MJ/m^2"
+      },
+      {
+        "field_name": "SlrW_Avg",
+        "data_type": "xsd:float",
+        "units": "W/m^2"
+      },
+      {
+        "field_name": "StationID",
+        "data_type": "xsd:string",
+        "units": null
+      },
+      {
+        "field_name": "WDir_Avg",
+        "data_type": "xsd:float",
+        "units": "Deg"
+      },
+      {
+        "field_name": "WDir_Std",
+        "data_type": "xsd:float",
+        "units": "Deg"
+      },
+      {
+        "field_name": "Wind_Success_Tot",
+        "data_type": "xsd:float",
+        "units": null
+      },
+      {
+        "field_name": "WSpd_Avg",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      },
+      {
+        "field_name": "WSpd_Max",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      },
+      {
+        "field_name": "WSpd_Min",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      },
+      {
+        "field_name": "WSpd_Std",
+        "data_type": "xsd:float",
+        "units": "m/s"
+      }
+    ]
+  },
+  "unitRules": {},
+  "exclusions": {},
+  "reviewedSourceAuditSha256": "65b3e5449ca71ab90a6fc6d39bfc91712f76e897a3333c1b1c8b5286fc995864",
+  "reviewedDatePolicy": {
+    "minimum_date_sast": "2023-06-01",
+    "excluded_test_dates_sast": [],
+    "quarantined_daily_labels_sast": [],
+    "invalid_event_time_text": []
+  }
+}
